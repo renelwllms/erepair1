@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const sql = require("mssql");
 const student = require("./routes/student");
+const tutor = require("./routes/tutor");
+const course = require("./routes/course");
 const createError = require("http-errors");
 
 const app = express();
@@ -29,7 +31,8 @@ sql
   });
 
 app.use("/api/student", student);
-
+app.use("/api/tutor", tutor);
+app.use("/api/course", course);
 app.use(function (req, res, next) {
   next(createError(404));
 });

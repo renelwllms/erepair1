@@ -49,4 +49,42 @@ router.get("/list", isAuthenticated, async function (req, res, next) {
   }
 });
 
+router.get("/course", isAuthenticated, async function (req, res, next) {
+  try {
+    const request = new sql.Request();
+
+    const id = Number(req.query.id);
+
+    if (!id) {
+      return res.send({ code: 0, data: [] });
+    }
+    request.input("id", sql.Int, id);
+
+    const query = `
+    SELECT DISTINCT sc.*, 
+    c.CourseName,
+    scu.StudentCourseUnitStandardID,   scu.UnitStandardID, 
+    us.US,	us.USName,	us.USLevel,	us.USCredits,	us.USDescription
+   FROM tblStudentCourse sc
+   LEFT OUTER JOIN tblCourse c ON c.CourseID = sc.CourseID
+   JOIN tblStudentCourseUnitStandard scu ON sc.StudentCourseID = scu.StudentCourseID
+   LEFT OUTER JOIN tblUnitStandard us ON scu.UnitStandardID = us.UnitStandardID
+   WHERE sc.StudentID = @id
+`;
+
+    request.query(query, (err, result) => {
+      if (err) console.log(err);
+      if (result?.recordset) {
+        const currentPageData = result.recordsets[0];
+        return res.send({
+          code: 0,
+          data: currentPageData || [],
+        });
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
