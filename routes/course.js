@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const isAuthenticated = require("./auth");
-const { getPagination } = require("./utils");
+const { getPool } = require("./utils");
 const sql = require("mssql");
 
 router.get("/list", isAuthenticated, async function (req, res, next) {
   try {
-    const request = new sql.Request();
+    const pool = await getPool();
+    const request = await pool.request()
 
     const query = `SELECT * FROM tblCourse`;
 
@@ -29,7 +30,8 @@ router.get("/list", isAuthenticated, async function (req, res, next) {
 
 router.get("/unit", isAuthenticated, async function (req, res, next) {
   try {
-    const request = new sql.Request();
+    const pool = await getPool();
+    const request = await pool.request()
     const id = Number(req.query.id);
 
     if (!id) {

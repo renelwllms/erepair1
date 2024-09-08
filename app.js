@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const sql = require("mssql");
+
 const student = require("./routes/student");
 const tutor = require("./routes/tutor");
 const course = require("./routes/course");
@@ -11,24 +11,6 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
-const config = {
-  user: "ggadmin",
-  password: "b4b5AzU9pPs$$L27",
-  server: "ggportal.database.windows.net",
-  database: "ggdbmain01",
-  options: {
-    encrypt: true,
-  },
-};
-
-sql
-  .connect(config)
-  .then(() => {
-    console.log("Connected to SQL Server database");
-  })
-  .catch((err) => {
-    console.error("Failed to connect to SQL Server:", err);
-  });
 
 app.use("/api/student", student);
 app.use("/api/tutor", tutor);
