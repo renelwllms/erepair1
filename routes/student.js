@@ -8,34 +8,43 @@ router.get("/list", isAuthenticated, async function (req, res, next) {
   try {
     const pool = await getPool();
     const request = await pool.request();
-    if (req?.info?.givenName !== "Admin") {
-      return res.send({ code: 403, data: [], message: "no permission" });
-    }
+    // if (req?.info?.givenName !== "Admin") {
+    //   return res.send({ code: 403, data: [], message: "no permission" });
+    // }
     const current = Number(req.query.current || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const startIndex = (current - 1) * pageSize;
-    const name = req.query.StudentName || "";
-    const SchoolName = req.query.SchoolName || "";
+    const name = req.query.name || "";
+    const School = req.query.School || "";
 
     request.input("name", sql.VarChar, name);
-    request.input("SchoolName", sql.VarChar, SchoolName);
+    request.input("School", sql.VarChar, School);
     request.input("startIndex", sql.Int, startIndex);
     request.input("pageSize", sql.Int, pageSize);
 
     const query = `
-    SELECT s.*, sw.SchoolName, sw.Email
-    INTO #TempStudent
-    FROM tblStudent s
-    LEFT OUTER JOIN tblSchoolWorkplace sw ON s.SchoolNumber = sw.SchoolNumber
-    WHERE s.StudentName LIKE '%' + @name + '%' 
-    AND sw.SchoolName LIKE '%' + @SchoolName + '%'
+    WITH FilteredStudents AS (
+      SELECT *
+      FROM enrollment s
+      WHERE (s.FirstName LIKE '%' + @name + '%' 
+      OR s.LastName LIKE '%' + @name + '%')
+      AND s.School LIKE '%' + @School + '%'
+      )
+      SELECT COUNT(*) AS totalRows
+      FROM FilteredStudents;
 
-    SELECT COUNT(*) AS totalRows FROM #TempStudent;
-    SELECT * FROM #TempStudent
-    ORDER BY StudentID 
-    OFFSET @startIndex ROWS
-    FETCH NEXT @pageSize ROWS ONLY;
-    DROP TABLE #TempStudent;`;
+      WITH FilteredStudentsPaged AS (
+        SELECT *, ROW_NUMBER() OVER (ORDER BY EnrollmentID) AS RowNum
+        FROM enrollment s
+        WHERE (s.FirstName LIKE '%' + @name + '%' 
+        OR s.LastName LIKE '%' + @name + '%')
+        AND s.School LIKE '%' + @School + '%'
+      )
+      SELECT *
+      FROM FilteredStudentsPaged
+      WHERE RowNum BETWEEN @startIndex + 1 AND @startIndex + @pageSize
+      ORDER BY EnrollmentID;
+  `;
 
     request.query(query, (err, result) => {
       if (err) console.log(err);
@@ -111,9 +120,9 @@ router.post("/assigned", isAuthenticated, async function (req, res, next) {
     request.input("id", sql.Int, id);
     request.input("Tutor", sql.VarChar, tutor);
     const query = `
-    UPDATE tblStudent
+    UPDATE enrollment
     SET Tutor = @Tutor
-    WHERE StudentID = @id;
+    WHERE EnrollmentID = @id;
     `;
 
     request.query(query, (err) => {

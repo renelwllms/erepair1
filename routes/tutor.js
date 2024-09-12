@@ -33,34 +33,43 @@ router.get("/student", isAuthenticated, async function (req, res, next) {
   try {
     const pool = await getPool();
     const request = await pool.request();
+   
     const current = Number(req.query.current || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const startIndex = (current - 1) * pageSize;
-    const name = req.query.StudentName || "";
-    const SchoolName = req.query.SchoolName || "";
-
+    const name = req.query.name || "";
+    const School = req.query.School || "";
+    request.input("Tutor", sql.VarChar, req?.info?.displayName);
     request.input("name", sql.VarChar, name);
-    request.input("SchoolName", sql.VarChar, SchoolName);
+    request.input("School", sql.VarChar, School);
     request.input("startIndex", sql.Int, startIndex);
     request.input("pageSize", sql.Int, pageSize);
 
-    request.input("Tutor", sql.VarChar, req?.info?.displayName);
-
     const query = `
-    SELECT s.*, sw.SchoolName, sw.Email
-    INTO #TempStudent
-    FROM tblStudent s
-    LEFT OUTER JOIN tblSchoolWorkplace sw ON s.SchoolNumber = sw.SchoolNumber
-    WHERE s.StudentName LIKE '%' + @name + '%' 
-    AND sw.SchoolName LIKE '%' + @SchoolName + '%'
-    AND s.Tutor = @Tutor 
+    WITH FilteredStudents AS (
+      SELECT *
+      FROM enrollment s
+      WHERE (s.FirstName LIKE '%' + @name + '%' 
+      OR s.LastName LIKE '%' + @name + '%')
+      AND s.School LIKE '%' + @School + '%'
+      AND s.Tutor = @Tutor 
+      )
+      SELECT COUNT(*) AS totalRows
+      FROM FilteredStudents;
 
-    SELECT COUNT(*) AS totalRows FROM #TempStudent;
-    SELECT * FROM #TempStudent
-    ORDER BY StudentID 
-    OFFSET @startIndex ROWS
-    FETCH NEXT @pageSize ROWS ONLY;
-    DROP TABLE #TempStudent;`;
+      WITH FilteredStudentsPaged AS (
+        SELECT *, ROW_NUMBER() OVER (ORDER BY EnrollmentID) AS RowNum
+        FROM enrollment s
+        WHERE (s.FirstName LIKE '%' + @name + '%' 
+        OR s.LastName LIKE '%' + @name + '%')
+        AND s.School LIKE '%' + @School + '%'
+        AND s.Tutor = @Tutor 
+      )
+      SELECT *
+      FROM FilteredStudentsPaged
+      WHERE RowNum BETWEEN @startIndex + 1 AND @startIndex + @pageSize
+      ORDER BY EnrollmentID;
+  `;
 
     request.query(query, (err, result) => {
       if (err) console.log(err);
@@ -81,6 +90,7 @@ router.get("/student", isAuthenticated, async function (req, res, next) {
     next(error);
   }
 });
+
 
 router.get("/course/student", isAuthenticated, async function (req, res, next) {
   try {
@@ -137,7 +147,6 @@ router.post("/workshop", isAuthenticated, async function (req, res, next) {
     const CourseID = Number(req.body.CourseID);
     const StudentsNum = Number(req.body.StudentsNum);
     const {
-      WorkshopName = "",
       CourseDate = "",
       SchoolName = "",
       Location = "",
@@ -156,13 +165,12 @@ router.post("/workshop", isAuthenticated, async function (req, res, next) {
     request.input("SchoolName", sql.VarChar, SchoolName);
     request.input("Location", sql.VarChar, Location);
     request.input("CourseName", sql.VarChar, CourseName);
-    request.input("WorkshopName", sql.VarChar, WorkshopName);
     request.input("Code", sql.VarChar, Code);
 
     const query = `
     DECLARE @CurrentDateTime DATETIME = GETDATE();
-    INSERT INTO tblWorkshop (WorkshopName,CourseID,CourseName,CourseDate,SchoolName,Location,Tutor,CreateDate,Code,StudentsNum)
-    VALUES (@WorkshopName,@CourseID,@CourseName,@CourseDate,@SchoolName,@Location,@Tutor,@CurrentDateTime,@Code,@StudentsNum);
+    INSERT INTO tblWorkshop (CourseID,CourseName,CourseDate,SchoolName,Location,Tutor,CreateDate,Code,StudentsNum)
+    VALUES (@CourseID,@CourseName,@CourseDate,@SchoolName,@Location,@Tutor,@CurrentDateTime,@Code,@StudentsNum);
     `;
 
     request.query(query, (err) => {
@@ -206,6 +214,77 @@ router.get("/workshop", isAuthenticated, async function (req, res, next) {
         });
       }
       return res.send({ code: 0, data: [] });
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get(
+  "/workshop/result",
+  isAuthenticated,
+  async function (req, res, next) {
+    try {
+      const pool = await getPool();
+      const request = await pool.request();
+      const Code = req.query.Code;
+      request.input("Code", sql.VarChar, Code);
+      let query = `
+      SELECT * FROM tblWorkshopResult WHERE Code = @Code
+    `;
+
+      request.query(query, (err, result) => {
+        if (err) console.log(err);
+        if (result?.recordset) {
+          const d = result.recordsets[0];
+          return res.send({
+            code: 0,
+            data: d,
+          });
+        }
+        return res.send({ code: 0, data: [] });
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.get("/verifyCode", async function (req, res, next) {
+  try {
+    const Code = req.query?.Code || "";
+    if (!Code) {
+      return res.send({
+        code: 0,
+        data: false,
+      });
+    }
+
+    const pool = await getPool();
+    const request = await pool.request();
+    let query = `
+    SELECT CASE 
+    WHEN EXISTS (
+        SELECT 1 FROM tblWorkshop WHERE Code = @Code
+    ) 
+    THEN 1 
+    ELSE 0 
+    END AS DoesExist;
+    `;
+    request.input("Code", sql.VarChar, Code);
+
+    request.query(query, (err, result) => {
+      if (err) console.log(err);
+      if (result?.recordset) {
+        const exists = result.recordset[0].DoesExist;
+        if (exists) {
+          return res.send({
+            code: 0,
+            data: true,
+          });
+        }
+      }
+      return res.send({ code: 0, data: false });
     });
   } catch (error) {
     next(error);
