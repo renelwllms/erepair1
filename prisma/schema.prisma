@@ -1,0 +1,392 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  TECHNICIAN
+  CUSTOMER
+}
+
+enum CustomerType {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
+enum JobStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_PARTS
+  READY_FOR_PICKUP
+  CLOSED
+  CANCELLED
+}
+
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  CHECK
+  OTHER
+}
+
+enum NotificationType {
+  JOB_CREATED
+  JOB_STATUS_CHANGED
+  JOB_ASSIGNED
+  INVOICE_SENT
+  PAYMENT_RECEIVED
+  REMINDER
+  SYSTEM
+}
+
+// 1. User Model (Authentication & Authorization)
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole  @default(CUSTOMER)
+  phone         String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLogin     DateTime?
+
+  // Relations
+  customer          Customer?
+  assignedJobs      Job[]         @relation("AssignedTechnician")
+  createdJobs       Job[]         @relation("CreatedByUser")
+  invoices          Invoice[]
+  sentEmails        EmailLog[]
+  notifications     Notification[]
+  activityLogs      ActivityLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// 2. Customer Model (CRM)
+model Customer {
+  id              String       @id @default(cuid())
+  userId          String?      @unique
+  firstName       String
+  lastName        String
+  email           String       @unique
+  phone           String
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  customerType    CustomerType @default(RESIDENTIAL)
+  notes           String?      @db.Text
+  customerSince   DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  user            User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs            Job[]
+  invoices        Invoice[]
+
+  @@index([email])
+  @@index([lastName])
+}
+
+// 3. Job Model (Job Management)
+model Job {
+  id                    String       @id @default(cuid())
+  jobNumber             String       @unique
+  customerId            String
+  applianceBrand        String
+  applianceType         String
+  modelNumber           String?
+  serialNumber          String?
+  issueDescription      String       @db.Text
+  priority              JobPriority  @default(MEDIUM)
+  status                JobStatus    @default(OPEN)
+  estimatedCompletion   DateTime?
+  actualCompletion      DateTime?
+  assignedTechnicianId  String?
+  createdById           String
+  warrantyStatus        String?
+  serviceLocation       String?
+  laborHours            Float        @default(0)
+  diagnosticResults     String?      @db.Text
+  technicianNotes       String?      @db.Text
+  customerNotes         String?      @db.Text
+  beforePhotos          String[]     @default([])
+  afterPhotos           String[]     @default([])
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  customer              Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedTechnician    User?             @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  createdBy             User              @relation("CreatedByUser", fields: [createdById], references: [id])
+  statusHistory         JobStatusHistory[]
+  jobParts              JobPart[]
+  invoice               Invoice?
+  communications        Communication[]
+
+  @@index([jobNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([assignedTechnicianId])
+  @@index([createdAt])
+}
+
+// 4. Job Status History Model (Timeline tracking)
+model JobStatusHistory {
+  id          String    @id @default(cuid())
+  jobId       String
+  status      JobStatus
+  notes       String?   @db.Text
+  changedBy   String?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([createdAt])
+}
+
+// 5. Part Model (Parts Inventory)
+model Part {
+  id              String    @id @default(cuid())
+  partNumber      String    @unique
+  partName        String
+  description     String?   @db.Text
+  supplier        String?
+  costPrice       Float
+  sellingPrice    Float
+  quantityInStock Int       @default(0)
+  reorderLevel    Int       @default(10)
+  reorderQuantity Int       @default(50)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  jobParts        JobPart[]
+
+  @@index([partNumber])
+  @@index([partName])
+}
+
+// 6. Job Parts Model (Junction table for parts used in jobs)
+model JobPart {
+  id          String   @id @default(cuid())
+  jobId       String
+  partId      String
+  quantity    Int      @default(1)
+  unitPrice   Float
+  totalPrice  Float
+  createdAt   DateTime @default(now())
+
+  // Relations
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  part        Part     @relation(fields: [partId], references: [id], onDelete: Restrict)
+
+  @@index([jobId])
+  @@index([partId])
+}
+
+// 7. Invoice Model (Invoice Header)
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  jobId           String        @unique
+  customerId      String
+  issuedById      String
+  status          InvoiceStatus @default(DRAFT)
+  issueDate       DateTime      @default(now())
+  dueDate         DateTime
+  subtotal        Float
+  taxRate         Float         @default(0)
+  taxAmount       Float
+  discountAmount  Float         @default(0)
+  totalAmount     Float
+  paidAmount      Float         @default(0)
+  balanceAmount   Float
+  notes           String?       @db.Text
+  paymentTerms    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  job             Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  issuedBy        User          @relation(fields: [issuedById], references: [id])
+  invoiceItems    InvoiceItem[]
+  payments        Payment[]
+
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+// 8. Invoice Item Model (Line items)
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Float
+  unitPrice   Float
+  totalPrice  Float
+  itemType    String   // PART, LABOR, SERVICE_FEE, TAX, DISCOUNT
+  createdAt   DateTime @default(now())
+
+  // Relations
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// 9. Payment Model (Payment Tracking)
+model Payment {
+  id              String        @id @default(cuid())
+  invoiceId       String
+  amount          Float
+  paymentMethod   PaymentMethod
+  paymentDate     DateTime      @default(now())
+  referenceNumber String?
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([paymentDate])
+}
+
+// 10. Email Log Model (Email Notification History)
+model EmailLog {
+  id          String   @id @default(cuid())
+  sentById    String?
+  recipient   String
+  subject     String
+  body        String   @db.Text
+  status      String   // SENT, FAILED, PENDING
+  errorMsg    String?  @db.Text
+  emailType   String   // JOB_CONFIRMATION, STATUS_UPDATE, INVOICE, REMINDER, CUSTOM
+  relatedId   String?  // Job ID, Invoice ID, etc.
+  sentAt      DateTime @default(now())
+
+  // Relations
+  sentBy      User?    @relation(fields: [sentById], references: [id], onDelete: SetNull)
+
+  @@index([recipient])
+  @@index([sentAt])
+  @@index([emailType])
+}
+
+// 11. Settings Model (System Configuration)
+model Settings {
+  id                    String   @id @default(cuid())
+  companyName           String   @default("E-Repair Shop")
+  companyEmail          String?
+  companyPhone          String?
+  companyAddress        String?
+  companyLogo           String?
+  companyWebsite        String?
+  taxRate               Float    @default(0)
+  currency              String   @default("USD")
+  laborHourlyRate       Float    @default(50)
+  jobNumberPrefix       String   @default("JOB-")
+  invoiceNumberPrefix   String   @default("INV-")
+  reminderDays          Int      @default(7)
+  smtpHost              String?
+  smtpPort              Int?
+  smtpUser              String?
+  smtpPassword          String?
+  smtpFromEmail         String?
+  smtpFromName          String?
+  updatedAt             DateTime @updatedAt
+}
+
+// 12. Notification Model (In-app notifications)
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  relatedId   String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// 13. Communication Model (Customer communication log)
+model Communication {
+  id          String   @id @default(cuid())
+  jobId       String
+  direction   String   // INBOUND, OUTBOUND
+  channel     String   // EMAIL, SMS, PHONE, IN_PERSON
+  subject     String?
+  message     String   @db.Text
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([createdAt])
+}
+
+// 14. Activity Log Model (Audit trail)
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+  entity      String   // USER, JOB, INVOICE, CUSTOMER, etc.
+  entityId    String?
+  description String   @db.Text
+  metadata    String?  @db.Text // JSON string for additional data
+  ipAddress   String?
+  userAgent   String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
