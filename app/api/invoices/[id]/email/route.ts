@@ -76,7 +76,7 @@ export async function POST(
     };
 
     // Generate PDF
-    const pdf = generateInvoicePDF(invoiceData);
+    const pdf = await generateInvoicePDF(invoiceData);
     const pdfBuffer = Buffer.from(pdf.output("arraybuffer"));
 
     // Format currency

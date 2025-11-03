@@ -45,7 +45,7 @@ interface InvoiceData {
   companyAddress?: string;
 }
 
-export function generateInvoicePDF(invoiceData: InvoiceData): jsPDF {
+export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPDF> {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -60,12 +60,37 @@ export function generateInvoicePDF(invoiceData: InvoiceData): jsPDF {
     }).format(amount);
   };
 
-  // Header - Company Name
-  doc.setFontSize(24);
-  doc.setFont("helvetica", "bold");
-  doc.text(invoiceData.companyName || "E-Repair Shop", margin, yPosition);
-  yPosition += 8;
+  // Add logo if available
+  try {
+    const logoPath = "/images/erepair-logo.png";
+    const response = await fetch(logoPath);
+    if (response.ok) {
+      const blob = await response.blob();
+      const reader = new FileReader();
 
+      await new Promise<void>((resolve) => {
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          // Add logo - dimensions: width 60, height auto-scaled to maintain aspect ratio
+          const logoWidth = 60;
+          const logoHeight = 20; // Approximate height based on the logo aspect ratio
+          doc.addImage(base64data, "PNG", margin, yPosition, logoWidth, logoHeight);
+          yPosition += logoHeight + 5;
+          resolve();
+        };
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (error) {
+    console.log("Logo not found, using text header");
+    // Fallback to text if logo is not available
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text(invoiceData.companyName || "E-Repair Shop", margin, yPosition);
+    yPosition += 8;
+  }
+
+  // Company Contact Information
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   if (invoiceData.companyEmail) {
