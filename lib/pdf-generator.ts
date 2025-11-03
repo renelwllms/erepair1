@@ -39,10 +39,12 @@ interface InvoiceData {
   balanceAmount: number;
   notes?: string;
   paymentTerms?: string;
+  termsAndConditions?: string;
   companyName?: string;
   companyEmail?: string;
   companyPhone?: string;
   companyAddress?: string;
+  companyLogo?: string;
 }
 
 export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPDF> {
@@ -286,6 +288,45 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
       const notesLines = doc.splitTextToSize(invoiceData.notes, pageWidth - 2 * margin);
       doc.text(notesLines, margin, yPosition);
     }
+  }
+
+  // Terms and Conditions
+  if (invoiceData.termsAndConditions) {
+    // Check if we need a new page
+    if (yPosition > pageHeight - 60) {
+      doc.addPage();
+      yPosition = margin;
+    }
+
+    yPosition += 5;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 8;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text("TERMS AND CONDITIONS", margin, yPosition);
+    yPosition += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    const termsLines = doc.splitTextToSize(invoiceData.termsAndConditions, pageWidth - 2 * margin);
+
+    // Check if terms will fit on current page
+    const termsHeight = termsLines.length * 4;
+    if (yPosition + termsHeight > pageHeight - 25) {
+      doc.addPage();
+      yPosition = margin;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("TERMS AND CONDITIONS (continued)", margin, yPosition);
+      yPosition += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+    }
+
+    doc.text(termsLines, margin, yPosition);
   }
 
   // Footer

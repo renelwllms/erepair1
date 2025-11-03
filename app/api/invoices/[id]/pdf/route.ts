@@ -62,10 +62,12 @@ export async function GET(
       balanceAmount: invoice.balanceAmount,
       notes: invoice.notes || undefined,
       paymentTerms: invoice.paymentTerms || undefined,
+      termsAndConditions: settings?.termsAndConditions || undefined,
       companyName: settings?.companyName,
       companyEmail: settings?.companyEmail || undefined,
       companyPhone: settings?.companyPhone || undefined,
       companyAddress: settings?.companyAddress || undefined,
+      companyLogo: settings?.companyLogo || undefined,
     };
 
     // Generate PDF

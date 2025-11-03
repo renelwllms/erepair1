@@ -26,7 +26,9 @@ enum JobStatus {
   IN_PROGRESS
   AWAITING_PARTS
   AWAITING_CUSTOMER_APPROVAL
+  READY_FOR_PICKUP
   CLOSED
+  CANCELLED
   CUSTOMER_CANCELLED
 }
 
@@ -143,6 +145,8 @@ model Job {
   customerNotes         String?      @db.Text
   beforePhotos          String[]     @default([])
   afterPhotos           String[]     @default([])
+  lastNotificationSent  DateTime?
+  quoteSentAt           DateTime?
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -160,6 +164,7 @@ model Job {
   @@index([status])
   @@index([assignedTechnicianId])
   @@index([createdAt])
+  @@index([lastNotificationSent])
 }
 
 // 4. Job Status History Model (Timeline tracking)
@@ -311,26 +316,28 @@ model EmailLog {
 
 // 11. Settings Model (System Configuration)
 model Settings {
-  id                    String   @id @default(cuid())
-  companyName           String   @default("E-Repair Shop")
-  companyEmail          String?
-  companyPhone          String?
-  companyAddress        String?
-  companyLogo           String?
-  companyWebsite        String?
-  taxRate               Float    @default(0)
-  currency              String   @default("USD")
-  laborHourlyRate       Float    @default(50)
-  jobNumberPrefix       String   @default("JOB-")
-  invoiceNumberPrefix   String   @default("INV-")
-  reminderDays          Int      @default(7)
-  smtpHost              String?
-  smtpPort              Int?
-  smtpUser              String?
-  smtpPassword          String?
-  smtpFromEmail         String?
-  smtpFromName          String?
-  updatedAt             DateTime @updatedAt
+  id                        String   @id @default(cuid())
+  companyName               String   @default("E-Repair Shop")
+  companyEmail              String?
+  companyPhone              String?
+  companyAddress            String?
+  companyLogo               String?
+  companyWebsite            String?
+  taxRate                   Float    @default(0)
+  currency                  String   @default("USD")
+  laborHourlyRate           Float    @default(50)
+  jobNumberPrefix           String   @default("JOB-")
+  invoiceNumberPrefix       String   @default("INV-")
+  reminderDays              Int      @default(7)
+  notificationReminderDays  Int      @default(3)
+  termsAndConditions        String?  @db.Text
+  smtpHost                  String?
+  smtpPort                  Int?
+  smtpUser                  String?
+  smtpPassword              String?
+  smtpFromEmail             String?
+  smtpFromName              String?
+  updatedAt                 DateTime @updatedAt
 }
 
 // 12. Notification Model (In-app notifications)
@@ -389,4 +396,19 @@ model ActivityLog {
   @@index([userId])
   @@index([entity])
   @@index([createdAt])
+}
+
+// 15. Email Template Model (Email templates for automated notifications)
+model EmailTemplate {
+  id            String   @id @default(cuid())
+  name          String   @unique // e.g., "JOB_OPEN", "JOB_IN_PROGRESS", "QUOTE_SENT", etc.
+  subject       String
+  body          String   @db.Text // HTML email body with template variables like {{customerName}}, {{jobNumber}}
+  description   String?  // Human readable description
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
 }

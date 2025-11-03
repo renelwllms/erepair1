@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,13 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, Wrench } from "lucide-react";
+import { CheckCircle, Wrench, Camera, Loader2, User } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const jobSubmissionSchema = z.object({
+  phone: z.string().min(1, "Phone is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().min(1, "Phone is required"),
   applianceBrand: z.string().min(1, "Appliance brand is required"),
   applianceType: z.string().min(1, "Appliance type is required"),
   modelNumber: z.string().optional(),
@@ -36,6 +37,13 @@ export default function SubmitJobPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [jobNumber, setJobNumber] = useState("");
+  const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [customerFound, setCustomerFound] = useState(false);
+  const [devicePhoto, setDevicePhoto] = useState<string | null>(null);
+  const [capturingPhoto, setCapturingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const {
     register,
@@ -50,7 +58,99 @@ export default function SubmitJobPage() {
     },
   });
 
+  const phone = watch("phone");
   const preferredContactMethod = watch("preferredContactMethod");
+
+  // Search for customer by phone number
+  const searchCustomer = async (phoneNumber: string) => {
+    if (!phoneNumber || phoneNumber.length < 3) {
+      setCustomerFound(false);
+      return;
+    }
+
+    setSearchingCustomer(true);
+    try {
+      const response = await fetch(`/api/public/search-customer?phone=${encodeURIComponent(phoneNumber)}`);
+      const result = await response.json();
+
+      if (result.found) {
+        // Pre-fill customer information
+        setValue("firstName", result.customer.firstName);
+        setValue("lastName", result.customer.lastName);
+        setValue("email", result.customer.email);
+        setCustomerFound(true);
+      } else {
+        setCustomerFound(false);
+      }
+    } catch (error) {
+      console.error("Error searching customer:", error);
+      setCustomerFound(false);
+    } finally {
+      setSearchingCustomer(false);
+    }
+  };
+
+  // Handle phone input change with debounce
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setValue("phone", value);
+
+    // Debounce search
+    const timeoutId = setTimeout(() => {
+      searchCustomer(value);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  // Camera photo capture
+  const startCameraCapture = async () => {
+    setCapturingPhoto(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" } // Use back camera on mobile
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      alert("Failed to access camera. Please ensure you have granted camera permissions.");
+      setCapturingPhoto(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const photoData = canvas.toDataURL("image/jpeg", 0.8);
+        setDevicePhoto(photoData);
+
+        // Stop camera
+        const stream = video.srcObject as MediaStream;
+        stream?.getTracks().forEach(track => track.stop());
+        setCapturingPhoto(false);
+      }
+    }
+  };
+
+  const cancelCapture = () => {
+    if (videoRef.current) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
+    }
+    setCapturingPhoto(false);
+  };
 
   const onSubmit = async (data: JobSubmissionFormData) => {
     setLoading(true);
@@ -60,7 +160,10 @@ export default function SubmitJobPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          devicePhoto: devicePhoto || undefined,
+        }),
       });
 
       const result = await response.json();
@@ -160,6 +263,44 @@ export default function SubmitJobPage() {
     );
   }
 
+  // Camera capture view
+  if (capturingPhoto) {
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        <div className="flex-1 relative">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            autoPlay
+            playsInline
+          />
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+        <div className="p-6 bg-black bg-opacity-90 space-y-4">
+          <p className="text-white text-center mb-4">
+            Position the device in the frame and capture
+          </p>
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={cancelCapture}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={capturePhoto}
+            >
+              <Camera className="h-5 w-5 mr-2" />
+              Capture Photo
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl">
@@ -174,9 +315,38 @@ export default function SubmitJobPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Customer Information */}
+            {/* Phone Number - First Field */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Your Information</h3>
+              <h3 className="text-lg font-semibold">Contact Information</h3>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">
+                  Phone Number <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="phone"
+                    {...register("phone")}
+                    onChange={handlePhoneChange}
+                    placeholder="(555) 123-4567"
+                    className="pr-10"
+                  />
+                  {searchingCustomer && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                  )}
+                </div>
+                {errors.phone && (
+                  <p className="text-sm text-red-500">{errors.phone.message}</p>
+                )}
+                {customerFound && !searchingCustomer && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <User className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      Welcome back! We found your information.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -225,49 +395,35 @@ export default function SubmitJobPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">
-                    Phone <span className="text-red-500">*</span>
+                  <Label htmlFor="preferredContactMethod">
+                    Preferred Contact Method <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="phone"
-                    {...register("phone")}
-                    placeholder="(555) 123-4567"
-                  />
-                  {errors.phone && (
-                    <p className="text-sm text-red-500">{errors.phone.message}</p>
-                  )}
+                  <Select
+                    value={preferredContactMethod}
+                    onValueChange={(value) =>
+                      setValue("preferredContactMethod", value as "EMAIL" | "PHONE")
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EMAIL">Email</SelectItem>
+                      <SelectItem value="PHONE">Phone</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="preferredContactMethod">
-                  Preferred Contact Method <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={preferredContactMethod}
-                  onValueChange={(value) =>
-                    setValue("preferredContactMethod", value as "EMAIL" | "PHONE")
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EMAIL">Email</SelectItem>
-                    <SelectItem value="PHONE">Phone</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 
             {/* Appliance Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Appliance Details</h3>
+              <h3 className="text-lg font-semibold">Device Details</h3>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="applianceType">
-                    Appliance Type <span className="text-red-500">*</span>
+                    Device Type <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="applianceType"
@@ -316,7 +472,7 @@ export default function SubmitJobPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="issueDescription">
-                  What's wrong with your appliance? <span className="text-red-500">*</span>
+                  What's wrong with your device? <span className="text-red-500">*</span>
                 </Label>
                 <textarea
                   id="issueDescription"
@@ -328,6 +484,41 @@ export default function SubmitJobPage() {
                   <p className="text-sm text-red-500">{errors.issueDescription.message}</p>
                 )}
               </div>
+
+              {/* Device Photo */}
+              <div className="space-y-2">
+                <Label>Device Photo</Label>
+                {devicePhoto ? (
+                  <div className="space-y-2">
+                    <img
+                      src={devicePhoto}
+                      alt="Device"
+                      className="w-full max-w-sm rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDevicePhoto(null)}
+                    >
+                      Remove Photo
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={startCameraCapture}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Take Photo of Device
+                  </Button>
+                )}
+                <p className="text-xs text-gray-500">
+                  Take a photo to document the condition of your device
+                </p>
+              </div>
             </div>
 
             <Button
@@ -336,7 +527,14 @@ export default function SubmitJobPage() {
               size="lg"
               disabled={loading}
             >
-              {loading ? "Submitting..." : "Submit Repair Request"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Repair Request"
+              )}
             </Button>
 
             <p className="text-xs text-center text-gray-500">

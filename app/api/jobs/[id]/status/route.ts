@@ -3,158 +3,108 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
-import { statusUpdateEmail, readyForPickupEmail } from "@/lib/email-templates";
 
-// Validation schema for status update
 const statusUpdateSchema = z.object({
   status: z.enum([
     "OPEN",
     "IN_PROGRESS",
     "AWAITING_PARTS",
     "AWAITING_CUSTOMER_APPROVAL",
+    "READY_FOR_PICKUP",
     "CLOSED",
+    "CANCELLED",
     "CUSTOMER_CANCELLED",
   ]),
   notes: z.string().optional(),
 });
 
+// Map status to email template name
+const statusToTemplateName: Record<string, string> = {
+  OPEN: "JOB_OPEN",
+  IN_PROGRESS: "JOB_IN_PROGRESS",
+  AWAITING_PARTS: "AWAITING_PARTS",
+  READY_FOR_PICKUP: "READY_FOR_PICKUP",
+  CLOSED: "JOB_CLOSED",
+  CUSTOMER_CANCELLED: "CUSTOMER_CANCELLED",
+};
+
+// Replace template variables
+function replaceTemplateVariables(template: string, variables: Record<string, any>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp("{{" + key + "}}", "g");
+    result = result.replace(regex, value || "");
+  }
+  return result;
+}
+
 // PUT /api/jobs/[id]/status - Update job status
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await auth();
-
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    // Only ADMIN and TECHNICIAN can update status
     if (session.user.role === "CUSTOMER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-
-    // Validate input
     const validatedData = statusUpdateSchema.parse(body);
 
-    // Check if job exists
-    const existingJob = await db.job.findUnique({
+    const job = await db.job.findUnique({ where: { id: params.id }, include: { customer: true } });
+    if (!job) {
+      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    const updatedJob = await db.job.update({
       where: { id: params.id },
+      data: { status: validatedData.status, lastNotificationSent: new Date() },
     });
 
-    if (!existingJob) {
-      return NextResponse.json(
-        { error: "Job not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check permissions: Technicians can only update their own jobs
-    if (
-      session.user.role === "TECHNICIAN" &&
-      existingJob.assignedTechnicianId !== session.user.id
-    ) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Don't update if status is the same
-    if (existingJob.status === validatedData.status) {
-      return NextResponse.json(
-        { error: "Job already has this status" },
-        { status: 400 }
-      );
-    }
-
-    // Update job status
-    const actualCompletionDate =
-      validatedData.status === "CLOSED" ? new Date() : null;
-
-    const job = await db.job.update({
-      where: { id: params.id },
-      data: {
-        status: validatedData.status,
-        actualCompletion: actualCompletionDate,
-      },
-      include: {
-        customer: true,
-        assignedTechnician: true,
-        createdBy: true,
-      },
-    });
-
-    // Create status history entry
     await db.jobStatusHistory.create({
-      data: {
-        jobId: job.id,
-        status: validatedData.status,
-        notes: validatedData.notes || `Status changed to ${validatedData.status}`,
-        changedBy: session.user.id,
-      },
+      data: { jobId: params.id, status: validatedData.status, notes: validatedData.notes, changedBy: session.user.id },
     });
 
-    // Send email notification to customer
-    try {
-      const trackingUrl = `${request.nextUrl.origin}/track-job?jobNumber=${job.jobNumber}`;
+    const templateName = statusToTemplateName[validatedData.status];
+    if (templateName) {
+      try {
+        const template = await db.emailTemplate.findUnique({ where: { name: templateName } });
+        if (template && template.isActive) {
+          const settings = await db.settings.findFirst();
+          const variables = {
+            customerName: job.customer.firstName + " " + job.customer.lastName,
+            jobNumber: job.jobNumber,
+            applianceBrand: job.applianceBrand,
+            applianceType: job.applianceType,
+            issueDescription: job.issueDescription,
+            companyName: settings?.companyName || "E-Repair Shop",
+          };
 
-      // Get settings for shop info (for ready for pickup emails)
-      const settings = await db.settings.findFirst();
+          const subject = replaceTemplateVariables(template.subject, variables);
+          const body = replaceTemplateVariables(template.body, variables);
 
-      let emailContent;
-
-      if (validatedData.status === "AWAITING_CUSTOMER_APPROVAL") {
-        // Special email for awaiting customer approval
-        emailContent = statusUpdateEmail({
-          jobNumber: job.jobNumber,
-          customerName: `${job.customer.firstName} ${job.customer.lastName}`,
-          applianceType: job.applianceType,
-          oldStatus: existingJob.status,
-          newStatus: validatedData.status,
-          notes: validatedData.notes || "Your repair is complete and awaiting your approval to proceed.",
-          trackingUrl,
-        });
-      } else {
-        // Regular status update email
-        emailContent = statusUpdateEmail({
-          jobNumber: job.jobNumber,
-          customerName: `${job.customer.firstName} ${job.customer.lastName}`,
-          applianceType: job.applianceType,
-          oldStatus: existingJob.status,
-          newStatus: validatedData.status,
-          notes: validatedData.notes,
-          trackingUrl,
-        });
+          await sendEmail({
+            to: job.customer.email,
+            subject,
+            html: body,
+            text: body.replace(/<[^>]*>/g, ""),
+            emailType: "STATUS_UPDATE",
+            relatedId: job.id,
+            sentById: session.user.id,
+          });
+        }
+      } catch (emailError) {
+        console.error("Failed to send status update email:", emailError);
       }
-
-      await sendEmail({
-        to: job.customer.email,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        text: emailContent.text,
-        emailType: "STATUS_UPDATE",
-        relatedId: job.id,
-        sentById: session.user.id,
-      });
-    } catch (emailError) {
-      // Log email error but don't fail the status update
-      console.error("Failed to send status update email:", emailError);
     }
 
-    return NextResponse.json(job);
+    return NextResponse.json(updatedJob);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation error", details: error.errors },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Validation error", details: error.errors }, { status: 400 });
     }
-
     console.error("Error updating job status:", error);
-    return NextResponse.json(
-      { error: "Failed to update job status" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update job status" }, { status: 500 });
   }
 }

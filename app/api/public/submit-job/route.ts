@@ -21,6 +21,7 @@ const publicJobSchema = z.object({
 
   // Additional info
   preferredContactMethod: z.enum(["EMAIL", "PHONE"]).default("EMAIL"),
+  devicePhoto: z.string().optional(), // Base64 encoded image
 });
 
 // POST /api/public/submit-job - Public job submission (no auth required)
@@ -31,10 +32,17 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = publicJobSchema.parse(body);
 
-    // Check if customer exists by email, if not create them
-    let customer = await db.customer.findUnique({
-      where: { email: validatedData.email },
+    // Check if customer exists by phone number first, then by email
+    let customer = await db.customer.findFirst({
+      where: { phone: validatedData.phone },
     });
+
+    if (!customer) {
+      // Try finding by email as fallback
+      customer = await db.customer.findUnique({
+        where: { email: validatedData.email },
+      });
+    }
 
     if (!customer) {
       // Create new customer
@@ -54,6 +62,7 @@ export async function POST(request: NextRequest) {
         data: {
           firstName: validatedData.firstName,
           lastName: validatedData.lastName,
+          email: validatedData.email,
           phone: validatedData.phone,
         },
       });
@@ -113,6 +122,7 @@ export async function POST(request: NextRequest) {
         status: "OPEN",
         createdById: systemUser.id,
         customerNotes: `Preferred contact: ${validatedData.preferredContactMethod}`,
+        beforePhotos: validatedData.devicePhoto ? [validatedData.devicePhoto] : [],
       },
     });
 

@@ -14,7 +14,14 @@
       "Bash(npx shadcn@latest add table dialog select dropdown-menu)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git log:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(npx ts-node:*)"
     ],
     "deny": [],
     "ask": []

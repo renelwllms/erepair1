@@ -75,6 +75,8 @@ echo ""
 #############################################
 # Step 3: Install Node.js 20
 #############################################
+print_info "Remove OLD libnode"
+apt-get remove -y libnode-dev nodejs npm || true
 print_info "Step 3: Installing Node.js 20..."
 if command_exists node; then
     NODE_VERSION=$(node --version | cut -d'.' -f1 | tr -d 'v')

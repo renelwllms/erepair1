@@ -97,6 +97,44 @@ export default function JobsPage() {
     fetchJobs();
   }, [page, searchQuery, statusFilter, priorityFilter]);
 
+  const handleStatusChange = async (jobId: string, newStatus: string, job: Job) => {
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          notes: `Status changed from ${job.status} to ${newStatus} via job list`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+
+      toast({
+        title: "Success",
+        description: "Job status updated successfully",
+      });
+
+      // Refresh the job list
+      await fetchJobs();
+
+      // If status changed to CLOSED, redirect to invoice creation
+      if (newStatus === "CLOSED") {
+        router.push(`/invoices/new?jobId=${jobId}`);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update job status",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" => {
     const statusMap: Record<string, "default" | "secondary" | "destructive"> = {
       OPEN: "default",
@@ -237,9 +275,26 @@ export default function JobsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(job.status)}>
-                          {formatStatus(job.status)}
-                        </Badge>
+                        <Select
+                          value={job.status}
+                          onValueChange={(value) => handleStatusChange(job.id, value, job)}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue>
+                              <Badge variant={getStatusBadgeVariant(job.status)}>
+                                {formatStatus(job.status)}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="OPEN">Open</SelectItem>
+                            <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                            <SelectItem value="AWAITING_PARTS">Awaiting Parts</SelectItem>
+                            <SelectItem value="READY_FOR_PICKUP">Ready for Pickup</SelectItem>
+                            <SelectItem value="CLOSED">Closed</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Badge variant={getPriorityBadgeVariant(job.priority)}>
