@@ -16,8 +16,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+
+// Common appliances and brands
+const COMMON_APPLIANCES = [
+  "Refrigerator",
+  "Washing Machine",
+  "Dryer",
+  "Dishwasher",
+  "Oven",
+  "Microwave",
+  "Air Conditioner",
+  "Water Heater",
+  "Freezer",
+  "Range Hood",
+  "Garbage Disposal",
+  "Ice Maker",
+  "Cooktop",
+  "Wall Oven",
+  "Trash Compactor",
+  // Audio Equipment
+  "TV / Television",
+  "Home Theater System",
+  "Soundbar",
+  "Amplifier",
+  "Receiver",
+  "Speakers",
+  "Subwoofer",
+  "Turntable",
+  "CD Player",
+  "DVD/Blu-ray Player",
+  "Projector",
+  "Other",
+];
+
+const COMMON_BRANDS = [
+  // Appliance Brands
+  "Samsung",
+  "LG",
+  "Whirlpool",
+  "GE",
+  "Maytag",
+  "Bosch",
+  "KitchenAid",
+  "Frigidaire",
+  "Electrolux",
+  "Haier",
+  "Kenmore",
+  "Amana",
+  "Hotpoint",
+  "Fisher & Paykel",
+  "Miele",
+  "Sub-Zero",
+  "Viking",
+  "Thermador",
+  // Audio/Video Brands
+  "Sony",
+  "Bose",
+  "JBL",
+  "Yamaha",
+  "Denon",
+  "Harman Kardon",
+  "Klipsch",
+  "Polk Audio",
+  "Pioneer",
+  "Onkyo",
+  "Marantz",
+  "Bang & Olufsen",
+  "Sonos",
+  "Panasonic",
+  "Vizio",
+  "TCL",
+  "Other",
+];
 
 const jobSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
@@ -33,7 +113,20 @@ const jobSchema = z.object({
   estimatedCompletion: z.string().optional(),
 });
 
+const customerSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(1, "Phone is required"),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  customerType: z.enum(["RESIDENTIAL", "COMMERCIAL"]),
+});
+
 type JobFormData = z.infer<typeof jobSchema>;
+type CustomerFormData = z.infer<typeof customerSchema>;
 
 interface Customer {
   id: string;
@@ -57,6 +150,12 @@ export default function NewJobPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [customApplianceType, setCustomApplianceType] = useState("");
+  const [customBrand, setCustomBrand] = useState("");
+  const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
+  const [brandSearchTerm, setBrandSearchTerm] = useState("");
 
   const preselectedCustomerId = searchParams.get("customerId");
 
@@ -74,9 +173,32 @@ export default function NewJobPage() {
     },
   });
 
+  const {
+    register: registerCustomer,
+    handleSubmit: handleSubmitCustomer,
+    formState: { errors: customerErrors },
+    reset: resetCustomer,
+  } = useForm<CustomerFormData>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      customerType: "RESIDENTIAL",
+    },
+  });
+
   const customerId = watch("customerId");
   const priority = watch("priority");
   const assignedTechnicianId = watch("assignedTechnicianId");
+  const applianceType = watch("applianceType");
+  const applianceBrand = watch("applianceBrand");
+
+  // Filtered lists for searchable dropdowns
+  const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
+    appliance.toLowerCase().includes(applianceSearchTerm.toLowerCase())
+  );
+
+  const filteredBrands = COMMON_BRANDS.filter((brand) =>
+    brand.toLowerCase().includes(brandSearchTerm.toLowerCase())
+  );
 
   useEffect(() => {
     fetchData();
@@ -106,6 +228,45 @@ export default function NewJobPage() {
       });
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const onCreateCustomer = async (data: CustomerFormData) => {
+    setCreatingCustomer(true);
+    try {
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create customer");
+      }
+
+      const newCustomer = await response.json();
+
+      toast({
+        title: "Success",
+        description: "Customer created successfully",
+      });
+
+      // Add new customer to list and select it
+      setCustomers([...customers, newCustomer]);
+      setValue("customerId", newCustomer.id);
+      setShowCustomerDialog(false);
+      resetCustomer();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingCustomer(false);
     }
   };
 
@@ -174,39 +335,179 @@ export default function NewJobPage() {
             <CardDescription>Fill in the details below to create a new repair job</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Customer Selection */}
+            {/* Customer Selection with Create New Button */}
             <div className="space-y-2">
               <Label htmlFor="customerId">
                 Customer <span className="text-red-500">*</span>
               </Label>
-              <Select value={customerId} onValueChange={(value) => setValue("customerId", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.firstName} {customer.lastName} - {customer.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select value={customerId} onValueChange={(value) => setValue("customerId", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.firstName} {customer.lastName} - {customer.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Customer
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Customer</DialogTitle>
+                      <DialogDescription>
+                        Add a new customer to the system
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmitCustomer(onCreateCustomer)} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">
+                            First Name <span className="text-red-500">*</span>
+                          </Label>
+                          <Input id="firstName" {...registerCustomer("firstName")} />
+                          {customerErrors.firstName && (
+                            <p className="text-sm text-red-500">{customerErrors.firstName.message}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">
+                            Last Name <span className="text-red-500">*</span>
+                          </Label>
+                          <Input id="lastName" {...registerCustomer("lastName")} />
+                          {customerErrors.lastName && (
+                            <p className="text-sm text-red-500">{customerErrors.lastName.message}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="email">
+                            Email <span className="text-red-500">*</span>
+                          </Label>
+                          <Input id="email" type="email" {...registerCustomer("email")} />
+                          {customerErrors.email && (
+                            <p className="text-sm text-red-500">{customerErrors.email.message}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">
+                            Phone <span className="text-red-500">*</span>
+                          </Label>
+                          <Input id="phone" {...registerCustomer("phone")} />
+                          {customerErrors.phone && (
+                            <p className="text-sm text-red-500">{customerErrors.phone.message}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="address">Address</Label>
+                        <Input id="address" {...registerCustomer("address")} />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="city">City</Label>
+                          <Input id="city" {...registerCustomer("city")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="state">State</Label>
+                          <Input id="state" {...registerCustomer("state")} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="zipCode">ZIP Code</Label>
+                          <Input id="zipCode" {...registerCustomer("zipCode")} />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowCustomerDialog(false)}
+                          disabled={creatingCustomer}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={creatingCustomer}>
+                          {creatingCustomer ? "Creating..." : "Create Customer"}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
               {errors.customerId && (
                 <p className="text-sm text-red-500">{errors.customerId.message}</p>
               )}
             </div>
 
-            {/* Appliance Information */}
+            {/* Appliance Information with Dropdowns */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="applianceType">
                   Appliance Type <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="applianceType"
-                  {...register("applianceType")}
-                  placeholder="e.g., Refrigerator, Washing Machine"
-                />
+                <Select
+                  value={applianceType}
+                  onValueChange={(value) => {
+                    if (value === "Other") {
+                      setCustomApplianceType("");
+                      setValue("applianceType", "");
+                    } else {
+                      setValue("applianceType", value);
+                    }
+                    setApplianceSearchTerm("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select or type to search appliance type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="px-2 pb-2 sticky top-0 bg-popover">
+                      <Input
+                        placeholder="Type to search..."
+                        value={applianceSearchTerm}
+                        onChange={(e) => setApplianceSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-8"
+                      />
+                    </div>
+                    {filteredAppliances.length > 0 ? (
+                      filteredAppliances.map((appliance) => (
+                        <SelectItem key={appliance} value={appliance}>
+                          {appliance}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                        No appliances found
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                {applianceType === "Other" || (!applianceType && customApplianceType !== undefined) ? (
+                  <Input
+                    placeholder="Enter custom appliance type"
+                    value={customApplianceType}
+                    onChange={(e) => {
+                      setCustomApplianceType(e.target.value);
+                      setValue("applianceType", e.target.value);
+                    }}
+                  />
+                ) : null}
                 {errors.applianceType && (
                   <p className="text-sm text-red-500">{errors.applianceType.message}</p>
                 )}
@@ -216,11 +517,54 @@ export default function NewJobPage() {
                 <Label htmlFor="applianceBrand">
                   Brand <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="applianceBrand"
-                  {...register("applianceBrand")}
-                  placeholder="e.g., Samsung, LG, Whirlpool"
-                />
+                <Select
+                  value={applianceBrand}
+                  onValueChange={(value) => {
+                    if (value === "Other") {
+                      setCustomBrand("");
+                      setValue("applianceBrand", "");
+                    } else {
+                      setValue("applianceBrand", value);
+                    }
+                    setBrandSearchTerm("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select or type to search brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="px-2 pb-2 sticky top-0 bg-popover">
+                      <Input
+                        placeholder="Type to search..."
+                        value={brandSearchTerm}
+                        onChange={(e) => setBrandSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-8"
+                      />
+                    </div>
+                    {filteredBrands.length > 0 ? (
+                      filteredBrands.map((brand) => (
+                        <SelectItem key={brand} value={brand}>
+                          {brand}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                        No brands found
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                {applianceBrand === "Other" || (!applianceBrand && customBrand !== undefined) ? (
+                  <Input
+                    placeholder="Enter custom brand"
+                    value={customBrand}
+                    onChange={(e) => {
+                      setCustomBrand(e.target.value);
+                      setValue("applianceBrand", e.target.value);
+                    }}
+                  />
+                ) : null}
                 {errors.applianceBrand && (
                   <p className="text-sm text-red-500">{errors.applianceBrand.message}</p>
                 )}

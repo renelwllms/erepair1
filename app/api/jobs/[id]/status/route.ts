@@ -11,9 +11,9 @@ const statusUpdateSchema = z.object({
     "OPEN",
     "IN_PROGRESS",
     "AWAITING_PARTS",
-    "READY_FOR_PICKUP",
+    "AWAITING_CUSTOMER_APPROVAL",
     "CLOSED",
-    "CANCELLED",
+    "CUSTOMER_CANCELLED",
   ]),
   notes: z.string().optional(),
 });
@@ -104,16 +104,16 @@ export async function PUT(
 
       let emailContent;
 
-      if (validatedData.status === "READY_FOR_PICKUP") {
-        // Special email for ready for pickup
-        emailContent = readyForPickupEmail({
+      if (validatedData.status === "AWAITING_CUSTOMER_APPROVAL") {
+        // Special email for awaiting customer approval
+        emailContent = statusUpdateEmail({
           jobNumber: job.jobNumber,
           customerName: `${job.customer.firstName} ${job.customer.lastName}`,
           applianceType: job.applianceType,
+          oldStatus: existingJob.status,
+          newStatus: validatedData.status,
+          notes: validatedData.notes || "Your repair is complete and awaiting your approval to proceed.",
           trackingUrl,
-          shopAddress: settings?.companyAddress,
-          shopPhone: settings?.companyPhone,
-          shopHours: "Mon-Fri: 9AM-6PM, Sat: 10AM-4PM", // You can add this to settings
         });
       } else {
         // Regular status update email

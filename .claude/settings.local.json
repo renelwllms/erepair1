@@ -12,7 +12,9 @@
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(npx shadcn@latest add table dialog select dropdown-menu)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
