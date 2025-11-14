@@ -107,11 +107,20 @@ interface Invoice {
   payments: Payment[];
 }
 
+interface CompanySettings {
+  companyName: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  companyAddress?: string;
+  companyLogo?: string;
+}
+
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -126,11 +135,21 @@ export default function InvoiceDetailPage() {
   const fetchInvoice = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/invoices/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch invoice");
+      const [invoiceResponse, settingsResponse] = await Promise.all([
+        fetch(`/api/invoices/${params.id}`),
+        fetch('/api/public/settings')
+      ]);
 
-      const data = await response.json();
-      setInvoice(data);
+      if (!invoiceResponse.ok) throw new Error("Failed to fetch invoice");
+
+      const invoiceData = await invoiceResponse.json();
+      setInvoice(invoiceData);
+
+      // Fetch company settings for print view
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json();
+        setCompanySettings(settingsData);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -309,9 +328,69 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <>
+      <style jsx global>{`
+        @media print {
+          /* Hide everything except the invoice content */
+          body * {
+            visibility: hidden;
+          }
+
+          /* Hide sidebar, header, and navigation */
+          aside,
+          nav,
+          header,
+          .no-print {
+            display: none !important;
+          }
+
+          /* Show only the invoice content */
+          #invoice-content,
+          #invoice-content * {
+            visibility: visible;
+          }
+
+          /* Position invoice content at top of page */
+          #invoice-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 20px;
+          }
+
+          /* Remove max-width for printing */
+          #invoice-content > div {
+            max-width: none !important;
+          }
+
+          /* Ensure proper page breaks */
+          .print-section {
+            page-break-inside: avoid;
+          }
+
+          /* Remove shadows and borders for cleaner print */
+          .print-card {
+            box-shadow: none !important;
+            border: 1px solid #e5e7eb !important;
+          }
+
+          /* Show company header on print */
+          .print\\:block {
+            display: block !important;
+          }
+
+          /* Ensure images print */
+          img {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
+      <div id="invoice-content" className="space-y-6 max-w-6xl">
+        {/* Header - Hide on print */}
+        <div className="flex items-center justify-between no-print">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -346,8 +425,8 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Status and Payment Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Status and Payment Section - Hide on print */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 no-print">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Status</CardTitle>
@@ -389,11 +468,51 @@ export default function InvoiceDetailPage() {
       </div>
 
       {/* Invoice Details */}
-      <Card>
+      <Card className="print-section print-card">
         <CardHeader>
           <CardTitle>Invoice Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Company Header - Only visible when printing */}
+          {companySettings && (
+            <div className="hidden print:block mb-6 pb-4 border-b-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  {companySettings.companyLogo && (
+                    <img
+                      src={companySettings.companyLogo}
+                      alt={companySettings.companyName}
+                      className="h-16 w-auto mb-3"
+                    />
+                  )}
+                  {!companySettings.companyLogo && (
+                    <h2 className="text-2xl font-bold mb-3">{companySettings.companyName}</h2>
+                  )}
+                  <div className="text-sm space-y-1">
+                    {companySettings.companyEmail && (
+                      <div>{companySettings.companyEmail}</div>
+                    )}
+                    {companySettings.companyPhone && (
+                      <div>{companySettings.companyPhone}</div>
+                    )}
+                    {companySettings.companyAddress && (
+                      <div className="whitespace-pre-line">{companySettings.companyAddress}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h1 className="text-3xl font-bold">INVOICE</h1>
+                  <div className="text-sm mt-2 space-y-1">
+                    <div><span className="font-semibold">Invoice #:</span> {invoice.invoiceNumber}</div>
+                    <div><span className="font-semibold">Issue Date:</span> {format(new Date(invoice.issueDate), "MMM dd, yyyy")}</div>
+                    <div><span className="font-semibold">Due Date:</span> {format(new Date(invoice.dueDate), "MMM dd, yyyy")}</div>
+                    <div><span className="font-semibold">Job #:</span> {invoice.job.jobNumber}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header Info */}
           <div className="grid grid-cols-2 gap-8">
             <div>
@@ -562,7 +681,7 @@ export default function InvoiceDetailPage() {
 
       {/* Payment History */}
       {invoice.payments.length > 0 && (
-        <Card>
+        <Card className="print-section print-card">
           <CardHeader>
             <CardTitle>Payment History</CardTitle>
             <CardDescription>
@@ -607,6 +726,8 @@ export default function InvoiceDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      </div>
 
       {/* Add Payment Dialog */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
@@ -691,6 +812,6 @@ export default function InvoiceDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
