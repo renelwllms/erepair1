@@ -25,10 +25,10 @@ generate_password() { openssl rand -base64 32 | tr -d "=+/" | cut -c1-25; }
 generate_secret() { openssl rand -base64 32; }
 
 # Configuration
-GIT_REPO="https://github.com/YOUR_USERNAME/erepair.git"  # UPDATE THIS
-INSTALL_DIR="/opt/erepair"
-APP_USER="erepair"
-DOMAIN="erepair.yourdomain.com"  # UPDATE THIS
+GIT_REPO="https://github.com/renelwllms/erepair1.git"
+INSTALL_DIR="/home/epladmin"
+APP_USER="epladmin"
+DOMAIN="erepair.yourdomain.com"  # UPDATE THIS if needed
 APP_PORT="3000"
 DB_NAME="erepair"
 DB_USER="erepair_user"
@@ -106,44 +106,33 @@ fi
 echo ""
 
 #############################################
-# Step 5: Install Nginx
+# Step 5: Install Additional Tools
 #############################################
-print_info "Step 5: Installing Nginx..."
-if command_exists nginx; then
-    print_warning "Nginx already installed"
-else
-    apt-get install -y nginx
-    systemctl enable nginx
-    print_success "Nginx installed"
-fi
+print_info "Step 5: Installing additional tools..."
+apt-get install -y git curl wget
+print_success "Additional tools installed"
 echo ""
 
 #############################################
-# Step 6: Install Certbot
+# Step 6: Verify Application User
 #############################################
-print_info "Step 6: Installing Certbot..."
-apt-get install -y certbot python3-certbot-nginx
-print_success "Certbot installed"
-echo ""
-
-#############################################
-# Step 7: Create Application User
-#############################################
-print_info "Step 7: Creating application user..."
+print_info "Step 6: Verifying application user..."
 if id "$APP_USER" &>/dev/null; then
-    print_warning "User $APP_USER already exists"
+    print_success "User $APP_USER exists"
 else
-    useradd -r -m -s /bin/bash -d /home/$APP_USER $APP_USER
-    print_success "User $APP_USER created"
+    print_error "User $APP_USER does not exist. Please create it first."
+    exit 1
 fi
 echo ""
 
 #############################################
-# Step 8: Clone Repository
+# Step 7: Clone Repository
 #############################################
-print_info "Step 8: Cloning repository..."
-if [ -d "$INSTALL_DIR" ]; then
-    print_warning "Directory exists, pulling latest..."
+print_info "Step 7: Cloning repository..."
+
+# Check if .git directory exists to determine if this is a git repo
+if [ -d "$INSTALL_DIR/.git" ]; then
+    print_warning "Repository exists, pulling latest..."
 
     # Fix permissions before pulling
     chown -R $APP_USER:$APP_USER "$INSTALL_DIR"
@@ -155,9 +144,17 @@ if [ -d "$INSTALL_DIR" ]; then
         sudo -u $APP_USER git fetch --all
         sudo -u $APP_USER git reset --hard origin/main || sudo -u $APP_USER git reset --hard origin/master
     }
+    print_success "Repository updated"
 else
-    mkdir -p "$INSTALL_DIR"
-    git clone "$GIT_REPO" "$INSTALL_DIR"
+    # Directory exists but is not a git repo - clone into it
+    if [ "$(ls -A $INSTALL_DIR)" ]; then
+        print_error "Directory $INSTALL_DIR is not empty and not a git repository"
+        print_info "Please backup and remove contents or specify a different directory"
+        exit 1
+    fi
+
+    cd "$INSTALL_DIR"
+    sudo -u $APP_USER git clone "$GIT_REPO" .
     chown -R $APP_USER:$APP_USER "$INSTALL_DIR"
     chmod -R 755 "$INSTALL_DIR"
     print_success "Repository cloned"
@@ -166,9 +163,9 @@ cd "$INSTALL_DIR"
 echo ""
 
 #############################################
-# Step 9: Setup Database
+# Step 8: Setup Database
 #############################################
-print_info "Step 9: Setting up database..."
+print_info "Step 8: Setting up database..."
 DB_PASSWORD=$(generate_password)
 
 sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null || print_warning "User may exist"
@@ -179,9 +176,9 @@ print_success "Database configured"
 echo ""
 
 #############################################
-# Step 10: Create .env File
+# Step 9: Create .env File
 #############################################
-print_info "Step 10: Creating environment configuration..."
+print_info "Step 9: Creating environment configuration..."
 NEXTAUTH_SECRET=$(generate_secret)
 DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME"
 
@@ -207,17 +204,17 @@ print_success "Environment configured"
 echo ""
 
 #############################################
-# Step 11: Install Dependencies
+# Step 10: Install Dependencies
 #############################################
-print_info "Step 11: Installing dependencies..."
+print_info "Step 10: Installing dependencies..."
 sudo -u $APP_USER npm install
 print_success "Dependencies installed"
 echo ""
 
 #############################################
-# Step 12: Run Database Migrations
+# Step 11: Run Database Migrations
 #############################################
-print_info "Step 12: Running database migrations..."
+print_info "Step 11: Running database migrations..."
 sudo -u $APP_USER npx prisma generate
 sudo -u $APP_USER npx prisma db push
 sudo -u $APP_USER npx prisma db seed
@@ -225,17 +222,17 @@ print_success "Database initialized"
 echo ""
 
 #############################################
-# Step 13: Build Application
+# Step 12: Build Application
 #############################################
-print_info "Step 13: Building application..."
+print_info "Step 12: Building application..."
 sudo -u $APP_USER npm run build
 print_success "Application built"
 echo ""
 
 #############################################
-# Step 14: Configure PM2
+# Step 13: Configure PM2
 #############################################
-print_info "Step 14: Configuring PM2..."
+print_info "Step 13: Configuring PM2..."
 cat > "$INSTALL_DIR/ecosystem.config.js" << EOF
 module.exports = {
   apps: [{
@@ -262,94 +259,8 @@ sudo -u $APP_USER pm2 start ecosystem.config.js
 sudo -u $APP_USER pm2 save
 pm2 startup systemd -u $APP_USER --hp /home/$APP_USER
 print_success "PM2 configured and started"
-echo ""
-
-#############################################
-# Step 15: Configure Nginx
-#############################################
-print_info "Step 15: Configuring Nginx..."
-cat > /etc/nginx/sites-available/erepair << EOF
-# HTTP - redirect to HTTPS
-server {
-    listen 80;
-    listen [::]:80;
-    server_name $DOMAIN;
-    return 301 https://\$server_name\$request_uri;
-}
-
-# HTTPS
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name $DOMAIN;
-
-    # SSL certificates (managed by Certbot)
-    # ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-
-    # SSL configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-    ssl_session_cache shared:SSL:10m;
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    # Logging
-    access_log /var/log/nginx/erepair.access.log;
-    error_log /var/log/nginx/erepair.error.log;
-
-    # Client settings
-    client_max_body_size 50M;
-
-    # Proxy to Next.js
-    location / {
-        proxy_pass http://localhost:$APP_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOF
-
-ln -sf /etc/nginx/sites-available/erepair /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-nginx -t
-systemctl reload nginx
-print_success "Nginx configured"
-echo ""
-
-#############################################
-# Step 16: Configure Firewall
-#############################################
-print_info "Step 16: Configuring firewall..."
-if command_exists ufw; then
-    ufw --force enable
-    ufw allow 'Nginx Full'
-    ufw allow 'OpenSSH'
-    print_success "Firewall configured"
-else
-    print_warning "UFW not installed"
-fi
-echo ""
-
-#############################################
-# Step 17: SSL Certificate
-#############################################
-print_info "Step 17: SSL Certificate Setup"
-read -p "Do you want to set up SSL now? (y/n): " SETUP_SSL
-
-if [[ "$SETUP_SSL" =~ ^[Yy]$ ]]; then
-    certbot --nginx -d $DOMAIN || print_warning "SSL setup failed. Run manually: sudo certbot --nginx -d $DOMAIN"
-fi
+print_info "Application is running on http://localhost:$APP_PORT"
+print_info "Configure your external reverse proxy to point to this port"
 echo ""
 
 #############################################
@@ -360,8 +271,8 @@ E-Repair Shop - Deployment Information
 Generated: $(date)
 
 Installation: $INSTALL_DIR
-Domain: https://$DOMAIN
-Port: $APP_PORT
+Application Port: $APP_PORT
+Access: http://localhost:$APP_PORT
 
 Database:
 - Name: $DB_NAME
@@ -376,29 +287,41 @@ Default Login:
 - Tech: tech@erepair.com / Tech123!
 
 PM2 Management:
-- Status: sudo -u $APP_USER pm2 status
-- Logs: sudo -u $APP_USER pm2 logs erepair
-- Restart: sudo -u $APP_USER pm2 restart erepair
-- Stop: sudo -u $APP_USER pm2 stop erepair
+- Status: pm2 status
+- Logs: pm2 logs erepair
+- Restart: pm2 restart erepair
+- Stop: pm2 stop erepair
+- Monitor: pm2 monit
 
 Update Application:
   cd $INSTALL_DIR
-  sudo -u $APP_USER git pull
-  sudo -u $APP_USER npm install
-  sudo -u $APP_USER npx prisma generate
-  sudo -u $APP_USER npx prisma db push
-  sudo -u $APP_USER npm run build
-  sudo -u $APP_USER pm2 restart erepair
+  git pull
+  npm install
+  npx prisma generate
+  npx prisma db push
+  npm run build
+  pm2 restart erepair
 
-Nginx:
-- Config: /etc/nginx/sites-available/erepair
-- Test: sudo nginx -t
-- Reload: sudo systemctl reload nginx
-- Logs: /var/log/nginx/erepair.*.log
+External Reverse Proxy Configuration:
+- Point your reverse proxy to: http://localhost:$APP_PORT
+- Ensure these headers are forwarded:
+  * X-Real-IP
+  * X-Forwarded-For
+  * X-Forwarded-Proto
+  * Host
 
-SSL Certificate:
-- Renew: sudo certbot renew
-- Auto-renewal: Enabled via systemd timer
+Example Nginx config for external reverse proxy:
+  location / {
+    proxy_pass http://localhost:$APP_PORT;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_cache_bypass \$http_upgrade;
+  }
 EOF
 
 chown $APP_USER:$APP_USER "$INSTALL_DIR/DEPLOYMENT_INFO.txt"
@@ -413,15 +336,23 @@ echo "============================================"
 echo ""
 print_success "E-Repair Shop successfully deployed!"
 echo ""
-echo "Domain: https://$DOMAIN"
-echo "Status: sudo -u $APP_USER pm2 status"
-echo "Logs: sudo -u $APP_USER pm2 logs erepair"
+echo "Application Port: $APP_PORT"
+echo "Local Access: http://localhost:$APP_PORT"
+echo ""
+echo "PM2 Status: pm2 status"
+echo "PM2 Logs: pm2 logs erepair"
+echo "PM2 Monitor: pm2 monit"
 echo ""
 echo "Info saved to: $INSTALL_DIR/DEPLOYMENT_INFO.txt"
 echo ""
 echo "Default Login:"
 echo "- Admin: admin@erepair.com / Admin123!"
 echo "- Tech: tech@erepair.com / Tech123!"
+echo ""
+print_info "Next Steps:"
+echo "1. Configure your external reverse proxy to point to port $APP_PORT"
+echo "2. Set up SSL/HTTPS on your external reverse proxy"
+echo "3. Update NEXTAUTH_URL in .env if using a custom domain"
 echo ""
 print_success "Deployment complete!"
 echo "============================================"
