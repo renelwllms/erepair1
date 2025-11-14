@@ -23,7 +23,7 @@ fi
 
 # Configuration
 APP_USER="epladmin"
-INSTALL_DIR="/home/epladmin/erepair3"
+INSTALL_DIR="/home/epladmin/erepair"
 
 print_info "Fixing permissions for $INSTALL_DIR..."
 

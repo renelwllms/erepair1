@@ -26,7 +26,7 @@ generate_secret() { openssl rand -base64 32; }
 
 # Configuration
 GIT_REPO="https://github.com/renelwllms/erepair1.git"
-INSTALL_DIR="/home/epladmin"
+INSTALL_DIR="/home/epladmin/erepair"
 APP_USER="epladmin"
 DOMAIN="erepair.yourdomain.com"  # UPDATE THIS if needed
 APP_PORT="3000"
@@ -145,16 +145,19 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         sudo -u $APP_USER git reset --hard origin/main || sudo -u $APP_USER git reset --hard origin/master
     }
     print_success "Repository updated"
+elif [ -d "$INSTALL_DIR" ]; then
+    # Directory exists but is not a git repo
+    print_error "Directory $INSTALL_DIR exists but is not a git repository"
+    print_info "Please remove the directory first: sudo rm -rf $INSTALL_DIR"
+    exit 1
 else
-    # Directory exists but is not a git repo - clone into it
-    if [ "$(ls -A $INSTALL_DIR)" ]; then
-        print_error "Directory $INSTALL_DIR is not empty and not a git repository"
-        print_info "Please backup and remove contents or specify a different directory"
-        exit 1
-    fi
+    # Directory doesn't exist - create and clone
+    print_info "Creating directory and cloning repository..."
+    mkdir -p "$INSTALL_DIR"
+    chown $APP_USER:$APP_USER "$INSTALL_DIR"
 
-    cd "$INSTALL_DIR"
-    sudo -u $APP_USER git clone "$GIT_REPO" .
+    cd "$(dirname "$INSTALL_DIR")"
+    sudo -u $APP_USER git clone "$GIT_REPO" "$(basename "$INSTALL_DIR")"
     chown -R $APP_USER:$APP_USER "$INSTALL_DIR"
     chmod -R 755 "$INSTALL_DIR"
     print_success "Repository cloned"
