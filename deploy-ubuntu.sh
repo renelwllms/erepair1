@@ -144,12 +144,22 @@ echo ""
 print_info "Step 8: Cloning repository..."
 if [ -d "$INSTALL_DIR" ]; then
     print_warning "Directory exists, pulling latest..."
+
+    # Fix permissions before pulling
+    chown -R $APP_USER:$APP_USER "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR"
+
     cd "$INSTALL_DIR"
-    sudo -u $APP_USER git pull
+    sudo -u $APP_USER git pull || {
+        print_error "Git pull failed. Trying to reset..."
+        sudo -u $APP_USER git fetch --all
+        sudo -u $APP_USER git reset --hard origin/main || sudo -u $APP_USER git reset --hard origin/master
+    }
 else
     mkdir -p "$INSTALL_DIR"
     git clone "$GIT_REPO" "$INSTALL_DIR"
     chown -R $APP_USER:$APP_USER "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR"
     print_success "Repository cloned"
 fi
 cd "$INSTALL_DIR"
