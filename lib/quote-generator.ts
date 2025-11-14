@@ -58,22 +58,42 @@ export async function generateQuotePDF(quoteData: QuoteData): Promise<jsPDF> {
   };
 
   // Add logo if available
-  try {
-    if (quoteData.companyLogo) {
+  if (quoteData.companyLogo) {
+    try {
+      // The logo is already a base64 or URL from settings
       const logoWidth = 60;
       const logoHeight = 20;
-      // For now, skip logo loading - can be added later
-      yPosition += 5;
-    }
-  } catch (error) {
-    console.log("Logo not available");
-  }
 
-  // Company name header
-  doc.setFontSize(24);
-  doc.setFont("helvetica", "bold");
-  doc.text(quoteData.companyName || "E-Repair Shop", margin, yPosition);
-  yPosition += 8;
+      if (quoteData.companyLogo.startsWith('data:')) {
+        // It's already base64
+        doc.addImage(quoteData.companyLogo, "PNG", margin, yPosition, logoWidth, logoHeight);
+      } else {
+        // It's a URL, fetch it
+        const response = await fetch(quoteData.companyLogo);
+        if (response.ok) {
+          const blob = await response.blob();
+          const reader = new FileReader();
+
+          await new Promise<void>((resolve) => {
+            reader.onloadend = () => {
+              const base64data = reader.result as string;
+              doc.addImage(base64data, "PNG", margin, yPosition, logoWidth, logoHeight);
+              resolve();
+            };
+            reader.readAsDataURL(blob);
+          });
+        }
+      }
+      yPosition += logoHeight + 5;
+    } catch (error) {
+      console.log("Error loading logo:", error);
+      // Don't add company name text if logo fails, just skip
+      yPosition += 10;
+    }
+  } else {
+    // No logo provided, skip company name entirely
+    yPosition += 10;
+  }
 
   // Company Contact Information
   doc.setFontSize(10);
@@ -215,7 +235,7 @@ export async function generateQuotePDF(quoteData: QuoteData): Promise<jsPDF> {
   doc.text(formatCurrency(quoteData.subtotal), pageWidth - margin - 2, yPosition, { align: "right" });
   yPosition += 6;
 
-  doc.text(`Tax (${quoteData.taxRate}%):`, totalsX, yPosition);
+  doc.text(`GST (${quoteData.taxRate}%):`, totalsX, yPosition);
   doc.text(formatCurrency(quoteData.taxAmount), pageWidth - margin - 2, yPosition, { align: "right" });
   yPosition += 6;
 

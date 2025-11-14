@@ -35,8 +35,12 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
+  DollarSign,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
 interface JobDetails {
   id: string;
@@ -118,6 +122,17 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     message: "",
   });
   const [addingComm, setAddingComm] = useState(false);
+
+  // Quote state
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [quoteItems, setQuoteItems] = useState<Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+  }>>([{ description: "", quantity: 1, unitPrice: 0 }]);
+  const [quoteNotes, setQuoteNotes] = useState("");
+  const [taxRate, setTaxRate] = useState(15); // Default 15% GST
+  const [sendingQuote, setSendingQuote] = useState(false);
 
   const fetchJob = async () => {
     setLoading(true);
@@ -232,6 +247,98 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     }
   };
 
+  // Quote handlers
+  const addQuoteItem = () => {
+    setQuoteItems([...quoteItems, { description: "", quantity: 1, unitPrice: 0 }]);
+  };
+
+  const removeQuoteItem = (index: number) => {
+    if (quoteItems.length > 1) {
+      setQuoteItems(quoteItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateQuoteItem = (index: number, field: string, value: any) => {
+    const updatedItems = [...quoteItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    setQuoteItems(updatedItems);
+  };
+
+  const calculateQuoteTotals = () => {
+    const subtotal = quoteItems.reduce((sum, item) => {
+      return sum + (item.quantity * item.unitPrice);
+    }, 0);
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+    return { subtotal, taxAmount, totalAmount };
+  };
+
+  const handleSendQuote = async () => {
+    // Validate quote items
+    const invalidItems = quoteItems.filter(item => !item.description || item.quantity <= 0 || item.unitPrice < 0);
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all quote items with valid values",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingQuote(true);
+    try {
+      const { subtotal, taxAmount, totalAmount } = calculateQuoteTotals();
+
+      const quoteData = {
+        quoteItems: quoteItems.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.quantity * item.unitPrice,
+        })),
+        subtotal,
+        taxRate,
+        taxAmount,
+        totalAmount,
+        notes: quoteNotes,
+        validDays: 30,
+      };
+
+      const response = await fetch(`/api/jobs/${params.id}/send-quote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(quoteData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send quote");
+      }
+
+      const result = await response.json();
+
+      toast({
+        title: "Success",
+        description: `Quote ${result.quoteNumber} sent successfully`,
+      });
+
+      setQuoteDialogOpen(false);
+      setQuoteItems([{ description: "", quantity: 1, unitPrice: 0 }]);
+      setQuoteNotes("");
+      fetchJob();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingQuote(false);
+    }
+  };
+
   const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" => {
     const statusMap: Record<string, "default" | "secondary" | "destructive"> = {
       OPEN: "default",
@@ -296,6 +403,12 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
+          {!job.invoice && job.status !== "CLOSED" && job.status !== "CANCELLED" && (
+            <Button variant="outline" onClick={() => setQuoteDialogOpen(true)}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Send Quote
+            </Button>
+          )}
           {!job.invoice && (
             <Button onClick={() => router.push(`/invoices/new?jobId=${job.id}`)}>
               <FileText className="h-4 w-4 mr-2" />
@@ -723,6 +836,155 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
             </Button>
             <Button onClick={handleAddCommunication} disabled={addingComm || !commData.message}>
               {addingComm ? "Adding..." : "Add Log"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Quote Dialog */}
+      <Dialog open={quoteDialogOpen} onOpenChange={setQuoteDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Send Quote to Customer</DialogTitle>
+            <DialogDescription>
+              Create a quote for {job.customer.firstName} {job.customer.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Quote Items */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Quote Items</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addQuoteItem}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Item
+                </Button>
+              </div>
+
+              {/* Quote Items Table */}
+              <div className="border rounded-md">
+                <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 border-b font-medium text-sm">
+                  <div className="col-span-5">Description</div>
+                  <div className="col-span-2">Quantity</div>
+                  <div className="col-span-2">Unit Price</div>
+                  <div className="col-span-2">Total</div>
+                  <div className="col-span-1"></div>
+                </div>
+
+                {quoteItems.map((item, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 p-3 border-b last:border-b-0 items-center">
+                    <div className="col-span-5">
+                      <Input
+                        placeholder="Service or part description"
+                        value={item.description}
+                        onChange={(e) => updateQuoteItem(index, "description", e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateQuoteItem(index, "quantity", parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={item.unitPrice}
+                        onChange={(e) => updateQuoteItem(index, "unitPrice", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="col-span-2 font-medium">
+                      ${(item.quantity * item.unitPrice).toFixed(2)}
+                    </div>
+                    <div className="col-span-1">
+                      {quoteItems.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeQuoteItem(index)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* GST Rate */}
+            <div className="space-y-2">
+              <Label>GST Rate (%)</Label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={taxRate}
+                onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                className="max-w-[200px]"
+              />
+            </div>
+
+            {/* Totals */}
+            <div className="border-t pt-4">
+              <div className="flex flex-col gap-2 max-w-sm ml-auto">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal:</span>
+                  <span className="font-medium">${calculateQuoteTotals().subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>GST ({taxRate}%):</span>
+                  <span className="font-medium">${calculateQuoteTotals().taxAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span>${calculateQuoteTotals().totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={quoteNotes}
+                onChange={(e) => setQuoteNotes(e.target.value)}
+                placeholder="Add any additional notes or terms for the customer..."
+                className="min-h-[100px]"
+              />
+            </div>
+
+            {/* Quote Info */}
+            <div className="bg-blue-50 p-4 rounded-md space-y-1">
+              <p className="text-sm font-medium text-blue-900">Quote Details:</p>
+              <p className="text-xs text-blue-700">
+                • Quote will be valid for 30 days from today
+              </p>
+              <p className="text-xs text-blue-700">
+                • PDF will be automatically generated and sent to {job.customer.email}
+              </p>
+              <p className="text-xs text-blue-700">
+                • Job status will be updated to "Awaiting Customer Approval"
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuoteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendQuote}
+              disabled={sendingQuote || calculateQuoteTotals().totalAmount === 0}
+            >
+              {sendingQuote ? "Sending..." : "Send Quote"}
             </Button>
           </DialogFooter>
         </DialogContent>

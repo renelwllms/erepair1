@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,7 @@ interface InvoiceItem {
 export default function NewInvoicePage() {
   const router = useRouter();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
 
   // Job selection
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -62,7 +63,7 @@ export default function NewInvoicePage() {
 
   // Invoice form
   const [dueDate, setDueDate] = useState("");
-  const [taxRate, setTaxRate] = useState("0");
+  const [taxRate, setTaxRate] = useState("15");
   const [discountAmount, setDiscountAmount] = useState("0");
   const [paymentTerms, setPaymentTerms] = useState("Payment due within 30 days");
   const [notes, setNotes] = useState("");
@@ -99,6 +100,15 @@ export default function NewInvoicePage() {
           job.status === "READY_FOR_PICKUP"
       );
       setJobs(eligibleJobs);
+
+      // Check if there's a jobId in the URL params and auto-select it
+      const jobIdParam = searchParams.get("jobId");
+      if (jobIdParam) {
+        const matchingJob = eligibleJobs.find((job: Job) => job.id === jobIdParam);
+        if (matchingJob) {
+          handleJobSelect(jobIdParam);
+        }
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -494,7 +504,7 @@ export default function NewInvoicePage() {
                 <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">Tax Rate (%):</span>
+                <span className="text-gray-600">GST Rate (%):</span>
                 <Input
                   type="number"
                   step="0.01"
@@ -506,7 +516,7 @@ export default function NewInvoicePage() {
                 />
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tax Amount:</span>
+                <span className="text-gray-600">GST Amount:</span>
                 <span className="font-medium">{formatCurrency(calculateTax())}</span>
               </div>
               <div className="flex justify-between items-center text-sm">

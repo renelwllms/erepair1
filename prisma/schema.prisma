@@ -67,6 +67,15 @@ enum NotificationType {
   SYSTEM
 }
 
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED_TO_INVOICE
+}
+
 // 1. User Model (Authentication & Authorization)
 model User {
   id            String    @id @default(cuid())
@@ -85,6 +94,7 @@ model User {
   customer          Customer?
   assignedJobs      Job[]         @relation("AssignedTechnician")
   createdJobs       Job[]         @relation("CreatedByUser")
+  quotes            Quote[]
   invoices          Invoice[]
   sentEmails        EmailLog[]
   notifications     Notification[]
@@ -115,6 +125,7 @@ model Customer {
   // Relations
   user            User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobs            Job[]
+  quotes          Quote[]
   invoices        Invoice[]
 
   @@index([email])
@@ -156,6 +167,7 @@ model Job {
   createdBy             User              @relation("CreatedByUser", fields: [createdById], references: [id])
   statusHistory         JobStatusHistory[]
   jobParts              JobPart[]
+  quotes                Quote[]
   invoice               Invoice?
   communications        Communication[]
 
@@ -223,7 +235,68 @@ model JobPart {
   @@index([partId])
 }
 
-// 7. Invoice Model (Invoice Header)
+// 7. Quote Model (Quotes sent to customers)
+model Quote {
+  id              String      @id @default(cuid())
+  quoteNumber     String      @unique
+  jobId           String
+  customerId      String
+  issuedById      String
+  status          QuoteStatus @default(DRAFT)
+  issueDate       DateTime    @default(now())
+  validUntil      DateTime
+  subtotal        Float
+  taxRate         Float       @default(0)
+  taxAmount       Float
+  discountAmount  Float       @default(0)
+  totalAmount     Float
+  notes           String?     @db.Text
+  quoteData       String      @db.Text // JSON string containing full quote details
+
+  // Customer response
+  customerResponse     String?   // ACCEPTED or REJECTED
+  customerResponseDate DateTime?
+  rejectionReason      String?   @db.Text
+  convertedToInvoiceId String?
+
+  // Reminder tracking
+  lastReminderSent     DateTime?
+  reminderCount        Int         @default(0)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  issuedBy        User        @relation(fields: [issuedById], references: [id])
+  quoteItems      QuoteItem[]
+
+  @@index([quoteNumber])
+  @@index([jobId])
+  @@index([customerId])
+  @@index([status])
+  @@index([issueDate])
+}
+
+// 7a. Quote Item Model (Line items for quotes)
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  description String
+  quantity    Float
+  unitPrice   Float
+  totalPrice  Float
+  itemType    String   // PART, LABOR, SERVICE_FEE, TAX, DISCOUNT
+  createdAt   DateTime @default(now())
+
+  // Relations
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+// 8. Invoice Model (Invoice Header)
 model Invoice {
   id              String        @id @default(cuid())
   invoiceNumber   String        @unique
@@ -322,21 +395,45 @@ model Settings {
   companyPhone              String?
   companyAddress            String?
   companyLogo               String?
+  companyFavicon            String?
   companyWebsite            String?
-  taxRate                   Float    @default(0)
+  taxRate                   Float    @default(15)
   currency                  String   @default("USD")
   laborHourlyRate           Float    @default(50)
   jobNumberPrefix           String   @default("JOB-")
   invoiceNumberPrefix       String   @default("INV-")
   reminderDays              Int      @default(7)
   notificationReminderDays  Int      @default(3)
+  quoteReminderDays         Int      @default(3)  // Days after quote sent to send first reminder
+  quoteReminderFrequency    Int      @default(3)  // Days between subsequent reminders
+  quoteMaxReminders         Int      @default(3)  // Maximum number of reminders to send
   termsAndConditions        String?  @db.Text
+
+  // Theme Settings
+  primaryColor              String   @default("#2563eb")
+  secondaryColor            String   @default("#64748b")
+  accentColor               String   @default("#0ea5e9")
+
+  // Email Settings
+  emailProvider             String   @default("SMTP") // SMTP, OFFICE365, GOOGLE_WORKSPACE
   smtpHost                  String?
   smtpPort                  Int?
   smtpUser                  String?
   smtpPassword              String?
   smtpFromEmail             String?
   smtpFromName              String?
+
+  // Office 365 OAuth Settings
+  office365ClientId         String?
+  office365ClientSecret     String?
+  office365TenantId         String?
+  office365RefreshToken     String?
+
+  // Google Workspace OAuth Settings
+  googleClientId            String?
+  googleClientSecret        String?
+  googleRefreshToken        String?
+
   updatedAt                 DateTime @updatedAt
 }
 

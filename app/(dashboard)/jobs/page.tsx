@@ -29,8 +29,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreHorizontal, Eye, Edit, FileText, Clock } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Edit, FileText, Clock, AlertCircle, Bell } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { differenceInDays } from "date-fns";
 
 interface Job {
   id: string;
@@ -40,6 +41,7 @@ interface Job {
   status: string;
   priority: string;
   createdAt: string;
+  lastNotificationSent?: string | null;
   customer: {
     id: string;
     firstName: string;
@@ -54,6 +56,10 @@ interface Job {
   };
 }
 
+interface Settings {
+  notificationReminderDays: number;
+}
+
 export default function JobsPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -62,8 +68,43 @@ export default function JobsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [attentionFilter, setAttentionFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [settings, setSettings] = useState<Settings>({ notificationReminderDays: 3 });
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch("/api/settings");
+      if (response.ok) {
+        const data = await response.json();
+        setSettings({
+          notificationReminderDays: data.notificationReminderDays || 3,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch settings:", error);
+    }
+  };
+
+  const needsAttention = (job: Job): boolean => {
+    // Jobs that are closed or cancelled don't need attention
+    if (job.status === "CLOSED" || job.status === "CANCELLED") {
+      return false;
+    }
+
+    // If no notification has been sent, it needs attention
+    if (!job.lastNotificationSent) {
+      return true;
+    }
+
+    // Check if notification is overdue
+    const daysSinceLastNotification = differenceInDays(
+      new Date(),
+      new Date(job.lastNotificationSent)
+    );
+    return daysSinceLastNotification >= settings.notificationReminderDays;
+  };
 
   const fetchJobs = async () => {
     setLoading(true);
@@ -92,6 +133,10 @@ export default function JobsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     fetchJobs();
@@ -158,8 +203,19 @@ export default function JobsPage() {
   };
 
   const formatStatus = (status: string) => {
+    // Special case for long status names
+    if (status === "AWAITING_CUSTOMER_APPROVAL") {
+      return "ACA";
+    }
     return status.replace(/_/g, " ");
   };
+
+  // Filter jobs based on attention filter (client-side filtering)
+  const filteredJobs = attentionFilter === "needs_attention"
+    ? jobs.filter(job => needsAttention(job))
+    : jobs;
+
+  const attentionJobsCount = jobs.filter(job => needsAttention(job)).length;
 
   return (
     <div className="space-y-6">
@@ -229,6 +285,20 @@ export default function JobsPage() {
                 <SelectItem value="URGENT">Urgent</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={attentionFilter} onValueChange={setAttentionFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Jobs</SelectItem>
+                <SelectItem value="needs_attention">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-yellow-600" />
+                    <span>Needs Attention ({attentionJobsCount})</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {loading ? (
@@ -240,6 +310,10 @@ export default function JobsPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Create First Job
               </Button>
+            </div>
+          ) : filteredJobs.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">No jobs match the current filters</p>
             </div>
           ) : (
             <>
@@ -257,9 +331,20 @@ export default function JobsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {jobs.map((job) => (
-                    <TableRow key={job.id}>
-                      <TableCell className="font-medium">{job.jobNumber}</TableCell>
+                  {filteredJobs.map((job) => (
+                    <TableRow
+                      key={job.id}
+                      className={needsAttention(job) ? "bg-yellow-50 hover:bg-yellow-100 cursor-pointer" : "cursor-pointer"}
+                      onDoubleClick={() => router.push(`/jobs/${job.id}`)}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {needsAttention(job) && (
+                            <Bell className="h-4 w-4 text-yellow-600" title="Needs notification" />
+                          )}
+                          {job.jobNumber}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium">

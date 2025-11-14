@@ -13,11 +13,18 @@ import {
   Settings,
   BarChart3,
   Calendar,
+  Receipt,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
+import { useState, useEffect } from "react";
 
 interface SidebarProps {
   userRole: UserRole;
+}
+
+interface CompanySettings {
+  companyName: string;
+  companyLogo: string | null;
 }
 
 const navItems = [
@@ -37,6 +44,12 @@ const navItems = [
     title: "Customers",
     href: "/customers",
     icon: Users,
+    roles: ["ADMIN", "TECHNICIAN"],
+  },
+  {
+    title: "Quotes",
+    href: "/quotes",
+    icon: Receipt,
     roles: ["ADMIN", "TECHNICIAN"],
   },
   {
@@ -73,6 +86,29 @@ const navItems = [
 
 export default function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
+  const [companySettings, setCompanySettings] = useState<CompanySettings>({
+    companyName: "E-Repair",
+    companyLogo: null,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch company settings (logo and name)
+    fetch("/api/public/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        setCompanySettings({
+          companyName: data.companyName || "E-Repair",
+          companyLogo: data.companyLogo || null,
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching company settings:", error);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
 
   const filteredNavItems = navItems.filter((item) =>
     item.roles.includes(userRole)
@@ -81,11 +117,20 @@ export default function Sidebar({ userRole }: SidebarProps) {
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
       <div className="p-6 border-b border-gray-200">
-        <Link href="/dashboard" className="flex items-center space-x-2">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-600">
-            <Wrench className="h-6 w-6 text-white" />
-          </div>
-          <span className="text-xl font-bold text-gray-900">E-Repair</span>
+        <Link href="/dashboard" className="flex items-center justify-center">
+          {companySettings.companyLogo ? (
+            <div className="flex items-center justify-center h-12">
+              <img
+                src={companySettings.companyLogo}
+                alt={companySettings.companyName}
+                className="max-h-full object-contain"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-600">
+              <Wrench className="h-6 w-6 text-white" />
+            </div>
+          )}
         </Link>
       </div>
 

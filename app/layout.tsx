@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { Footer } from "@/components/layout/footer";
+import { DynamicFavicon } from "@/components/dynamic-favicon";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,8 +19,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <Providers>{children}</Providers>
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
+      <body className={`${inter.className} pb-16`} suppressHydrationWarning>
+        <DynamicFavicon />
+        <Providers>
+          {children}
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

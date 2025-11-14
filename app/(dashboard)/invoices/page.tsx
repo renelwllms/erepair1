@@ -272,7 +272,11 @@ export default function InvoicesPage() {
                   </TableHeader>
                   <TableBody>
                     {invoices.map((invoice) => (
-                      <TableRow key={invoice.id}>
+                      <TableRow
+                        key={invoice.id}
+                        className="cursor-pointer"
+                        onDoubleClick={() => router.push(`/invoices/${invoice.id}`)}
+                      >
                         <TableCell className="font-medium">
                           {invoice.invoiceNumber}
                         </TableCell>

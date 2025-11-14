@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,6 +17,78 @@ import {
 } from "@/components/ui/select";
 import { CheckCircle, Wrench, Camera, Loader2, User } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// Common appliances and brands
+const COMMON_APPLIANCES = [
+  "Refrigerator",
+  "Washing Machine",
+  "Dryer",
+  "Dishwasher",
+  "Oven",
+  "Microwave",
+  "Air Conditioner",
+  "Water Heater",
+  "Freezer",
+  "Range Hood",
+  "Garbage Disposal",
+  "Ice Maker",
+  "Cooktop",
+  "Wall Oven",
+  "Trash Compactor",
+  // Audio Equipment
+  "TV / Television",
+  "Home Theater System",
+  "Soundbar",
+  "Amplifier",
+  "Receiver",
+  "Speakers",
+  "Subwoofer",
+  "Turntable",
+  "CD Player",
+  "DVD/Blu-ray Player",
+  "Projector",
+  "Other",
+];
+
+const COMMON_BRANDS = [
+  // Appliance Brands
+  "Samsung",
+  "LG",
+  "Whirlpool",
+  "GE",
+  "Maytag",
+  "Bosch",
+  "KitchenAid",
+  "Frigidaire",
+  "Electrolux",
+  "Haier",
+  "Kenmore",
+  "Amana",
+  "Hotpoint",
+  "Fisher & Paykel",
+  "Miele",
+  "Sub-Zero",
+  "Viking",
+  "Thermador",
+  // Audio/Video Brands
+  "Sony",
+  "Bose",
+  "JBL",
+  "Yamaha",
+  "Denon",
+  "Harman Kardon",
+  "Klipsch",
+  "Polk Audio",
+  "Pioneer",
+  "Onkyo",
+  "Marantz",
+  "Bang & Olufsen",
+  "Sonos",
+  "Panasonic",
+  "Vizio",
+  "TCL",
+  "Other",
+];
 
 const jobSubmissionSchema = z.object({
   phone: z.string().min(1, "Phone is required"),
@@ -41,6 +113,12 @@ export default function SubmitJobPage() {
   const [customerFound, setCustomerFound] = useState(false);
   const [devicePhoto, setDevicePhoto] = useState<string | null>(null);
   const [capturingPhoto, setCapturingPhoto] = useState(false);
+  const [customApplianceType, setCustomApplianceType] = useState("");
+  const [customBrand, setCustomBrand] = useState("");
+  const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
+  const [brandSearchTerm, setBrandSearchTerm] = useState("");
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,6 +138,40 @@ export default function SubmitJobPage() {
 
   const phone = watch("phone");
   const preferredContactMethod = watch("preferredContactMethod");
+  const applianceType = watch("applianceType");
+  const applianceBrand = watch("applianceBrand");
+
+  // Filtered lists for searchable dropdowns
+  const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
+    appliance.toLowerCase().includes(applianceSearchTerm.toLowerCase())
+  );
+
+  const filteredBrands = COMMON_BRANDS.filter((brand) =>
+    brand.toLowerCase().includes(brandSearchTerm.toLowerCase())
+  );
+
+  // Fetch company logo and name on mount
+  const fetchCompanySettings = async () => {
+    try {
+      const response = await fetch("/api/public/settings");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.companyLogo) {
+          setCompanyLogo(data.companyLogo);
+        }
+        if (data.companyName) {
+          setCompanyName(data.companyName);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching company settings:", error);
+    }
+  };
+
+  // useEffect to fetch settings on mount
+  useEffect(() => {
+    fetchCompanySettings();
+  }, []);
 
   // Search for customer by phone number
   const searchCustomer = async (phoneNumber: string) => {
@@ -305,9 +417,21 @@ export default function SubmitJobPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Wrench className="h-8 w-8 text-blue-600" />
-          </div>
+          {/* Company Logo */}
+          {companyLogo && (
+            <div className="mx-auto mb-6 flex items-center justify-center">
+              <img
+                src={companyLogo}
+                alt={companyName || "Company Logo"}
+                className="max-h-40 max-w-[400px] object-contain"
+              />
+            </div>
+          )}
+          {!companyLogo && (
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <Wrench className="h-8 w-8 text-blue-600" />
+            </div>
+          )}
           <CardTitle className="text-2xl">Submit a Repair Request</CardTitle>
           <CardDescription className="text-base">
             Fill out the form below and we'll get back to you shortly
@@ -318,6 +442,13 @@ export default function SubmitJobPage() {
             {/* Phone Number - First Field */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Contact Information</h3>
+
+              <Alert className="bg-blue-50 border-blue-200">
+                <User className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <strong>Tip:</strong> Enter your phone number first. We'll automatically search for your existing records and fill in your details to save you time!
+                </AlertDescription>
+              </Alert>
 
               <div className="space-y-2">
                 <Label htmlFor="phone">
@@ -425,11 +556,54 @@ export default function SubmitJobPage() {
                   <Label htmlFor="applianceType">
                     Device Type <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="applianceType"
-                    {...register("applianceType")}
-                    placeholder="e.g., Refrigerator, Washing Machine"
-                  />
+                  <Select
+                    value={applianceType}
+                    onValueChange={(value) => {
+                      if (value === "Other") {
+                        setCustomApplianceType("");
+                        setValue("applianceType", "");
+                      } else {
+                        setValue("applianceType", value);
+                      }
+                      setApplianceSearchTerm("");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select or type to search device type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="px-2 pb-2 sticky top-0 bg-popover">
+                        <Input
+                          placeholder="Type to search..."
+                          value={applianceSearchTerm}
+                          onChange={(e) => setApplianceSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-8"
+                        />
+                      </div>
+                      {filteredAppliances.length > 0 ? (
+                        filteredAppliances.map((appliance) => (
+                          <SelectItem key={appliance} value={appliance}>
+                            {appliance}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          No appliances found
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {applianceType === "Other" || (!applianceType && customApplianceType !== undefined) ? (
+                    <Input
+                      placeholder="Enter custom device type"
+                      value={customApplianceType}
+                      onChange={(e) => {
+                        setCustomApplianceType(e.target.value);
+                        setValue("applianceType", e.target.value);
+                      }}
+                    />
+                  ) : null}
                   {errors.applianceType && (
                     <p className="text-sm text-red-500">{errors.applianceType.message}</p>
                   )}
@@ -439,11 +613,54 @@ export default function SubmitJobPage() {
                   <Label htmlFor="applianceBrand">
                     Brand <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="applianceBrand"
-                    {...register("applianceBrand")}
-                    placeholder="e.g., Samsung, LG, Whirlpool"
-                  />
+                  <Select
+                    value={applianceBrand}
+                    onValueChange={(value) => {
+                      if (value === "Other") {
+                        setCustomBrand("");
+                        setValue("applianceBrand", "");
+                      } else {
+                        setValue("applianceBrand", value);
+                      }
+                      setBrandSearchTerm("");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select or type to search brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="px-2 pb-2 sticky top-0 bg-popover">
+                        <Input
+                          placeholder="Type to search..."
+                          value={brandSearchTerm}
+                          onChange={(e) => setBrandSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-8"
+                        />
+                      </div>
+                      {filteredBrands.length > 0 ? (
+                        filteredBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          No brands found
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {applianceBrand === "Other" || (!applianceBrand && customBrand !== undefined) ? (
+                    <Input
+                      placeholder="Enter custom brand"
+                      value={customBrand}
+                      onChange={(e) => {
+                        setCustomBrand(e.target.value);
+                        setValue("applianceBrand", e.target.value);
+                      }}
+                    />
+                  ) : null}
                   {errors.applianceBrand && (
                     <p className="text-sm text-red-500">{errors.applianceBrand.message}</p>
                   )}

@@ -7,14 +7,14 @@ export default auth((req) => {
   const userRole = req.auth?.user?.role;
 
   // Public routes
-  const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/error"];
+  const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/error", "/submit-job", "/track-job"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
   // Customer portal routes (accessible via QR code)
   const isCustomerPortal = pathname.startsWith("/portal");
 
   // API routes that should be public
-  const isPublicApi = pathname.startsWith("/api/auth") || pathname.startsWith("/api/portal");
+  const isPublicApi = pathname.startsWith("/api/auth") || pathname.startsWith("/api/portal") || pathname.startsWith("/api/public");
 
   // Allow public routes
   if (isPublicRoute || isPublicApi || isCustomerPortal) {

@@ -21,7 +21,14 @@
       "Bash(git remote set-url:*)",
       "Bash(mkdir:*)",
       "Bash(npm run db:push:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(wc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []

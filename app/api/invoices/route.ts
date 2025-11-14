@@ -160,21 +160,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate invoice number
+    // Generate invoice number - use invoiceNumber field for ordering to ensure uniqueness
     const lastInvoice = await db.invoice.findFirst({
-      orderBy: { createdAt: "desc" },
+      orderBy: { invoiceNumber: "desc" },
       select: { invoiceNumber: true },
     });
 
     let nextNumber = 1;
     if (lastInvoice) {
-      const match = lastInvoice.invoiceNumber.match(/INV-(\\d+)/);
+      const match = lastInvoice.invoiceNumber.match(/INV-(\d+)/);
       if (match) {
         nextNumber = parseInt(match[1]) + 1;
       }
     }
 
-    const invoiceNumber = `INV-${nextNumber.toString().padStart(5, "0")}`;
+    // Ensure uniqueness by checking if this invoice number already exists
+    let invoiceNumber = `INV-${nextNumber.toString().padStart(5, "0")}`;
+    let existingInvoice = await db.invoice.findUnique({
+      where: { invoiceNumber },
+    });
+
+    // If it exists, keep incrementing until we find a unique number
+    while (existingInvoice) {
+      nextNumber++;
+      invoiceNumber = `INV-${nextNumber.toString().padStart(5, "0")}`;
+      existingInvoice = await db.invoice.findUnique({
+        where: { invoiceNumber },
+      });
+    }
 
     // Calculate totals
     const subtotal = validatedData.items.reduce(

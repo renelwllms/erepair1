@@ -87,61 +87,49 @@
 - Includes device info, diagnostic results, line items, totals
 - Includes terms and conditions
 
----
-
-## Pending Features 🔄
-
-### 1. Send Quote API Endpoint
-**Status:** Needs manual file creation (bash command failed)
-
-**What needs to be done:**
-- Create file: `app/api/jobs/[id]/send-quote/route.ts`
-- Implement POST endpoint that:
-  - Accepts quote items and totals
+### 14. Send Quote API Endpoint ✨ NEW
+- Created `app/api/jobs/[id]/send-quote/route.ts`
+- POST endpoint that:
+  - Accepts quote items (description, quantity, unit price, total)
+  - Calculates subtotal, tax, and total amount
   - Generates quote PDF using `quote-generator.ts`
   - Sends email with PDF attachment using QUOTE_SENT template
   - Updates job status to AWAITING_CUSTOMER_APPROVAL
-  - Sets quoteSentAt timestamp
-  - Returns success response
+  - Sets `quoteSentAt` timestamp
+  - Creates job status history entry
+  - Returns success response with quote number
 
-**Code location:** The code was prepared but bash command failed. See previous session for the complete code.
+### 15. Send Quote UI in Job Details Page ✨ NEW
+- Added "Send Quote" button to job details page (`app/(dashboard)/jobs/[id]/page.tsx`)
+- Created comprehensive quote dialog with:
+  - Dynamic line items management (add/remove items)
+  - Description, quantity, unit price fields per item
+  - Real-time total calculations
+  - Configurable tax rate
+  - Optional notes field
+  - Quote validity information (30 days default)
+  - Form validation before sending
+- Integrated with `/api/jobs/[id]/send-quote` endpoint
+- Success notifications with quote number
+- Auto-refreshes job data after sending
 
-### 2. Send Quote Button in Job Details Page
-**Status:** Not started
+### 16. Job Notification Highlighting ✨ NEW
+- Updated job list page (`app/(dashboard)/jobs/page.tsx`) with notification tracking:
+  - Added `lastNotificationSent` field to Job interface
+  - Fetches `notificationReminderDays` from settings (default: 3 days)
+  - Helper function `needsAttention()` checks if job needs notification:
+    - Returns true if no notification ever sent
+    - Returns true if last notification older than reminder days
+    - Returns false for closed/cancelled jobs
+  - Visual indicators:
+    - Yellow background (bg-yellow-50) for jobs needing attention
+    - Bell icon next to job number for jobs needing notification
+  - New "Needs Attention" filter showing count of jobs requiring notification
+  - Client-side filtering to show only jobs needing attention
 
-**What needs to be done:**
-- Add "Send Quote" button to job details page (`app/(dashboard)/jobs/[id]/page.tsx`)
-- Create dialog/modal for entering quote details:
-  - Add line items (description, quantity, unit price)
-  - Calculate subtotal, tax, total automatically
-  - Add notes field
-  - Set valid days (default: 30)
-- Call `/api/jobs/[id]/send-quote` endpoint
-- Show success message
-- Refresh job data to show new status
+---
 
-### 3. Job Highlighting for Missing Notifications
-**Status:** Not started
-
-**What needs to be done:**
-- Update job list (`app/(dashboard)/jobs/page.tsx`)
-- Check `lastNotificationSent` field for each job
-- Compare with `notificationReminderDays` setting (default: 3 days)
-- Apply yellow/warning background to jobs that haven't been notified in X days
-- Add filter option to show only "needs attention" jobs
-- Show badge/icon indicating notification needed
-
-**Example code:**
-```typescript
-const needsAttention = (job) => {
-  if (!job.lastNotificationSent) return true;
-  const daysSince = differenceInDays(new Date(), new Date(job.lastNotificationSent));
-  return daysSince > notificationReminderDays;
-};
-
-// In TableRow:
-<TableRow className={needsAttention(job) ? "bg-yellow-50" : ""}>
-```
+## Pending Features 🔄
 
 ### 4. Convert Job Details to Inline Editable
 **Status:** Not started
@@ -245,27 +233,24 @@ Available variables for email templates:
 
 ## Next Steps
 
-1. **Complete Send Quote Feature** (High Priority)
-   - Manually create the send-quote API endpoint
-   - Add UI for sending quotes from job details page
-   - Test end-to-end quote workflow
+1. **Testing & Verification** (High Priority) ✅ COMPLETED FEATURES READY FOR TESTING
+   - ✅ Test quote generation and sending workflow
+   - ✅ Test job notification highlighting and filtering
+   - Test all automated email sending
+   - Test status changes and notifications
+   - Test camera photo capture on mobile devices
+   - Test QR code scanning workflow
 
-2. **Add Job Highlighting** (Medium Priority)
-   - Implement notification reminder logic
-   - Add visual indicators for jobs needing attention
-   - Add filter for "needs attention" jobs
-
-3. **Inline Job Editing** (Medium Priority)
+2. **Inline Job Editing** (Medium Priority)
    - Convert job details page to editable form
    - Remove need for separate edit page
    - Improve user experience
 
-4. **Testing** (High Priority)
-   - Test all automated email sending
-   - Test status changes and notifications
-   - Test quote generation and sending
-   - Test camera photo capture on mobile devices
-   - Test QR code scanning workflow
+3. **Future Enhancements** (Low Priority)
+   - Add bulk actions for jobs
+   - Add job analytics and reporting
+   - Add advanced search capabilities
+   - Add customer notification preferences
 
 ---
 
@@ -280,4 +265,4 @@ Available variables for email templates:
 
 ---
 
-Last Updated: 2025-01-03
+Last Updated: 2025-11-04 (Session: Completed Send Quote feature and Job Notification Highlighting)

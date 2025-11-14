@@ -10,15 +10,39 @@ const settingsSchema = z.object({
   companyPhone: z.string().optional(),
   companyAddress: z.string().optional(),
   companyLogo: z.string().optional(),
+  companyFavicon: z.string().optional(),
   taxRate: z.number().min(0).max(100).optional(),
   laborHourlyRate: z.number().min(0).optional(),
   termsAndConditions: z.string().optional(),
+
+  // Theme settings
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  accentColor: z.string().optional(),
+
+  // Email settings
+  emailProvider: z.string().optional(),
   smtpHost: z.string().optional(),
   smtpPort: z.number().min(1).max(65535).optional(),
   smtpUser: z.string().optional(),
   smtpPassword: z.string().optional(),
   smtpFromEmail: z.string().email("Invalid email").optional().or(z.literal("")),
   smtpFromName: z.string().optional(),
+
+  // Office 365 settings
+  office365ClientId: z.string().optional(),
+  office365ClientSecret: z.string().optional(),
+  office365TenantId: z.string().optional(),
+
+  // Google Workspace settings
+  googleClientId: z.string().optional(),
+  googleClientSecret: z.string().optional(),
+
+  // Notification settings
+  notificationReminderDays: z.number().min(1).max(30).optional(),
+  quoteReminderDays: z.number().min(1).max(30).optional(),
+  quoteReminderFrequency: z.number().min(1).max(30).optional(),
+  quoteMaxReminders: z.number().min(1).max(10).optional(),
 });
 
 // GET /api/settings - Get system settings
@@ -58,10 +82,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Don't send password to frontend
-    const { smtpPassword, ...settingsWithoutPassword } = settings;
+    // Don't send passwords and secrets to frontend
+    const {
+      smtpPassword,
+      office365ClientSecret,
+      googleClientSecret,
+      office365RefreshToken,
+      googleRefreshToken,
+      ...settingsWithoutSecrets
+    } = settings;
 
-    return NextResponse.json(settingsWithoutPassword);
+    return NextResponse.json(settingsWithoutSecrets);
   } catch (error) {
     console.error("Error fetching settings:", error);
     return NextResponse.json(
@@ -100,19 +131,49 @@ export async function PUT(request: NextRequest) {
       companyPhone: validatedData.companyPhone || null,
       companyAddress: validatedData.companyAddress || null,
       companyLogo: validatedData.companyLogo || null,
+      companyFavicon: validatedData.companyFavicon || null,
       taxRate: validatedData.taxRate || 0,
       laborHourlyRate: validatedData.laborHourlyRate || 0,
       termsAndConditions: validatedData.termsAndConditions || null,
+
+      // Theme settings
+      primaryColor: validatedData.primaryColor || "#2563eb",
+      secondaryColor: validatedData.secondaryColor || "#64748b",
+      accentColor: validatedData.accentColor || "#0ea5e9",
+
+      // Email settings
+      emailProvider: validatedData.emailProvider || "SMTP",
       smtpHost: validatedData.smtpHost || null,
       smtpPort: validatedData.smtpPort || 587,
       smtpUser: validatedData.smtpUser || null,
       smtpFromEmail: validatedData.smtpFromEmail || null,
       smtpFromName: validatedData.smtpFromName || null,
+
+      // Office 365 settings
+      office365ClientId: validatedData.office365ClientId || null,
+      office365TenantId: validatedData.office365TenantId || null,
+
+      // Google Workspace settings
+      googleClientId: validatedData.googleClientId || null,
+
+      // Notification settings
+      notificationReminderDays: validatedData.notificationReminderDays || 3,
+      quoteReminderDays: validatedData.quoteReminderDays || 3,
+      quoteReminderFrequency: validatedData.quoteReminderFrequency || 3,
+      quoteMaxReminders: validatedData.quoteMaxReminders || 3,
     };
 
-    // Only update password if provided (not empty)
+    // Only update passwords and secrets if provided (not empty)
     if (validatedData.smtpPassword && validatedData.smtpPassword.trim() !== "") {
       updateData.smtpPassword = validatedData.smtpPassword;
+    }
+
+    if (validatedData.office365ClientSecret && validatedData.office365ClientSecret.trim() !== "") {
+      updateData.office365ClientSecret = validatedData.office365ClientSecret;
+    }
+
+    if (validatedData.googleClientSecret && validatedData.googleClientSecret.trim() !== "") {
+      updateData.googleClientSecret = validatedData.googleClientSecret;
     }
 
     let settings;
@@ -130,10 +191,17 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Don't send password to frontend
-    const { smtpPassword, ...settingsWithoutPassword } = settings;
+    // Don't send passwords and secrets to frontend
+    const {
+      smtpPassword,
+      office365ClientSecret,
+      googleClientSecret,
+      office365RefreshToken,
+      googleRefreshToken,
+      ...settingsWithoutSecrets
+    } = settings;
 
-    return NextResponse.json(settingsWithoutPassword);
+    return NextResponse.json(settingsWithoutSecrets);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

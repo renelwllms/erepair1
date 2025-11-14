@@ -73,6 +73,7 @@ export async function POST(
       companyEmail: settings?.companyEmail || undefined,
       companyPhone: settings?.companyPhone || undefined,
       companyAddress: settings?.companyAddress || undefined,
+      companyLogo: settings?.companyLogo || undefined,
     };
 
     // Generate PDF
@@ -208,11 +209,13 @@ export async function POST(
       to: invoice.customer.email,
       subject: `Invoice ${invoice.invoiceNumber} from ${settings?.companyName || "E-Repair Shop"}`,
       html: emailHtml,
+      emailType: "INVOICE",
+      relatedId: invoice.id,
+      sentById: session.user.id,
       attachments: [
         {
           filename: `Invoice-${invoice.invoiceNumber}.pdf`,
-          content: pdfBuffer,
-          contentType: "application/pdf",
+          content: pdfBuffer.toString("base64"),
         },
       ],
     });
