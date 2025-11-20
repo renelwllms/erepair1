@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Mail, Building, CheckCircle, XCircle, Info, Upload, QrCode, FileText, Image as ImageIcon, Edit, Trash2, Plus, Database, Palette, Bell } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { QRCodeSVG } from "qrcode.react";
+import ImageCropper from "@/components/image-cropper";
 import {
   Dialog,
   DialogContent,
@@ -96,6 +97,12 @@ export default function SettingsPage() {
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Image cropper states
+  const [showLogoCropper, setShowLogoCropper] = useState(false);
+  const [showFaviconCropper, setShowFaviconCropper] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<string | null>(null);
+  const [selectedFaviconFile, setSelectedFaviconFile] = useState<string | null>(null);
 
   const {
     register,
@@ -340,9 +347,13 @@ export default function SettingsPage() {
       if (response.ok) {
         toast({
           title: "Success",
-          description: "Settings saved successfully",
+          description: "Settings saved successfully. Refreshing page...",
         });
         await loadSettings();
+        // Force a page refresh to update logo/favicon across the app
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         throw new Error("Failed to save settings");
       }
@@ -382,11 +393,24 @@ export default function SettingsPage() {
       return;
     }
 
+    // Read file as data URL for cropper
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedLogoFile(reader.result as string);
+      setShowLogoCropper(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset the input
+    event.target.value = "";
+  };
+
+  const handleLogoCropComplete = async (croppedImageBlob: Blob) => {
     setIsUploadingLogo(true);
 
     try {
       const formData = new FormData();
-      formData.append("logo", file);
+      formData.append("logo", croppedImageBlob, "logo.png");
 
       const response = await fetch("/api/settings/upload-logo", {
         method: "POST",
@@ -396,15 +420,19 @@ export default function SettingsPage() {
       const result = await response.json();
 
       if (response.ok) {
-        setLogoPreview(result.path);
+        // Add timestamp to force cache refresh
+        setLogoPreview(`${result.path}?t=${Date.now()}`);
         // Update the form field with the new logo path
         const currentValues = watch();
         reset({ ...currentValues, companyLogo: result.path });
 
         toast({
           title: "Success",
-          description: "Logo uploaded successfully",
+          description: "Logo uploaded successfully. Make sure to save settings to apply changes.",
         });
+
+        setShowLogoCropper(false);
+        setSelectedLogoFile(null);
       } else {
         throw new Error(result.error || "Failed to upload logo");
       }
@@ -444,11 +472,24 @@ export default function SettingsPage() {
       return;
     }
 
+    // Read file as data URL for cropper
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedFaviconFile(reader.result as string);
+      setShowFaviconCropper(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset the input
+    event.target.value = "";
+  };
+
+  const handleFaviconCropComplete = async (croppedImageBlob: Blob) => {
     setIsUploadingFavicon(true);
 
     try {
       const formData = new FormData();
-      formData.append("favicon", file);
+      formData.append("favicon", croppedImageBlob, "favicon.png");
 
       const response = await fetch("/api/settings/upload-favicon", {
         method: "POST",
@@ -458,14 +499,18 @@ export default function SettingsPage() {
       const result = await response.json();
 
       if (response.ok) {
-        setFaviconPreview(result.path);
+        // Add timestamp to force cache refresh
+        setFaviconPreview(`${result.path}?t=${Date.now()}`);
         const currentValues = watch();
         reset({ ...currentValues, companyFavicon: result.path });
 
         toast({
           title: "Success",
-          description: "Favicon uploaded successfully",
+          description: "Favicon uploaded successfully. Make sure to save settings to apply changes.",
         });
+
+        setShowFaviconCropper(false);
+        setSelectedFaviconFile(null);
       } else {
         throw new Error(result.error || "Failed to upload favicon");
       }
@@ -1626,6 +1671,36 @@ export default function SettingsPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Logo Cropper */}
+        {selectedLogoFile && (
+          <ImageCropper
+            image={selectedLogoFile}
+            onCropComplete={handleLogoCropComplete}
+            onCancel={() => {
+              setShowLogoCropper(false);
+              setSelectedLogoFile(null);
+            }}
+            isOpen={showLogoCropper}
+            aspect={16 / 9}
+            isUploading={isUploadingLogo}
+          />
+        )}
+
+        {/* Favicon Cropper */}
+        {selectedFaviconFile && (
+          <ImageCropper
+            image={selectedFaviconFile}
+            onCropComplete={handleFaviconCropComplete}
+            onCancel={() => {
+              setShowFaviconCropper(false);
+              setSelectedFaviconFile(null);
+            }}
+            isOpen={showFaviconCropper}
+            aspect={1}
+            isUploading={isUploadingFavicon}
+          />
+        )}
 
         <div className="flex justify-end gap-3 pt-4">
           <Button

@@ -12,16 +12,34 @@ export async function GET() {
     });
 
     if (!settings) {
-      return NextResponse.json({
-        companyName: "",
-        companyLogo: null,
-      });
+      return NextResponse.json(
+        {
+          companyName: "",
+          companyLogo: null,
+        },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        }
+      );
     }
 
-    return NextResponse.json({
-      companyName: settings.companyName || "",
-      companyLogo: settings.companyLogo || null,
-    });
+    return NextResponse.json(
+      {
+        companyName: settings.companyName || "",
+        companyLogo: settings.companyLogo || null,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      }
+    );
   } catch (error) {
     console.error("Error fetching public settings:", error);
     return NextResponse.json(

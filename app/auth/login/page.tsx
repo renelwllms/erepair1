@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [logoTimestamp, setLogoTimestamp] = useState(Date.now());
 
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
@@ -26,6 +27,7 @@ export default function LoginPage() {
       .then((res) => res.json())
       .then((data) => {
         setCompanyLogo(data.companyLogo);
+        setLogoTimestamp(Date.now()); // Update timestamp when logo is fetched
       })
       .catch((error) => {
         console.error("Failed to fetch settings:", error);
@@ -83,7 +85,7 @@ export default function LoginPage() {
           ) : companyLogo ? (
             <div className="flex items-center justify-center w-44 h-44">
               <img
-                src={companyLogo}
+                src={`${companyLogo}?t=${logoTimestamp}`}
                 alt="Company Logo"
                 className="max-w-full max-h-full object-contain"
               />

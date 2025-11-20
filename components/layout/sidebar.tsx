@@ -91,6 +91,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     companyLogo: null,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [logoTimestamp, setLogoTimestamp] = useState(Date.now());
 
   useEffect(() => {
     // Fetch company settings (logo and name)
@@ -101,6 +102,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
           companyName: data.companyName || "E-Repair",
           companyLogo: data.companyLogo || null,
         });
+        setLogoTimestamp(Date.now()); // Update timestamp when logo is fetched
       })
       .catch((error) => {
         console.error("Error fetching company settings:", error);
@@ -119,11 +121,11 @@ export default function Sidebar({ userRole }: SidebarProps) {
       <div className="p-6 border-b border-gray-200">
         <Link href="/dashboard" className="flex items-center justify-center">
           {companySettings.companyLogo ? (
-            <div className="flex items-center justify-center h-12">
+            <div className="flex items-center justify-center h-16 w-full px-2">
               <img
-                src={companySettings.companyLogo}
+                src={`${companySettings.companyLogo}?t=${logoTimestamp}`}
                 alt={companySettings.companyName}
-                className="max-h-full object-contain"
+                className="max-h-full max-w-full object-contain"
               />
             </div>
           ) : (
