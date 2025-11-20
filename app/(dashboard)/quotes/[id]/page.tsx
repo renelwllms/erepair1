@@ -154,7 +154,7 @@ export default function QuoteDetailPage() {
         <div className="text-center">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Quote Not Found</h2>
-          <p className="text-gray-600 mb-4">The quote you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-4">The quote you&apos;re looking for doesn&apos;t exist.</p>
           <button
             onClick={() => router.push("/quotes")}
             className="text-blue-600 hover:text-blue-800 font-medium"

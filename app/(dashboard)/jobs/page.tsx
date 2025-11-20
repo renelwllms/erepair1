@@ -340,7 +340,7 @@ export default function JobsPage() {
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {needsAttention(job) && (
-                            <Bell className="h-4 w-4 text-yellow-600" title="Needs notification" />
+                            <Bell className="h-4 w-4 text-yellow-600" />
                           )}
                           {job.jobNumber}
                         </div>

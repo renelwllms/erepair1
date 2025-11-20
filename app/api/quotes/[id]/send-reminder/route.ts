@@ -170,7 +170,7 @@ export async function POST(
 
     if (!emailResult.success) {
       return NextResponse.json(
-        { error: "Failed to send reminder email", details: emailResult.error },
+        { error: "Failed to send reminder email" },
         { status: 500 }
       );
     }

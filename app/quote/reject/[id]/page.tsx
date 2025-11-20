@@ -49,7 +49,7 @@ export default function RejectQuotePage() {
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Decline Quote</h1>
               <p className="text-gray-600 mb-6">
-                We're sorry to hear you'd like to decline this quote.
+                We&apos;re sorry to hear you&apos;d like to decline this quote.
                 Would you mind sharing why? (Optional)
               </p>
 
@@ -97,7 +97,7 @@ export default function RejectQuotePage() {
               <p className="text-gray-600 mb-6">{message}</p>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <p className="text-blue-800 text-sm">
-                  Thank you for letting us know. We've recorded your decision.
+                  Thank you for letting us know. We&apos;ve recorded your decision.
                   {reason && " Your feedback helps us improve our service."}
                   {" "}Feel free to contact us if you change your mind or have any questions.
                 </p>

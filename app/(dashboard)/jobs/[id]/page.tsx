@@ -971,7 +971,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 • PDF will be automatically generated and sent to {job.customer.email}
               </p>
               <p className="text-xs text-blue-700">
-                • Job status will be updated to "Awaiting Customer Approval"
+                • Job status will be updated to &ldquo;Awaiting Customer Approval&rdquo;
               </p>
             </div>
           </div>

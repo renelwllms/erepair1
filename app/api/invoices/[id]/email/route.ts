@@ -57,8 +57,19 @@ export async function POST(
       issueDate: invoice.issueDate.toISOString(),
       dueDate: invoice.dueDate.toISOString(),
       status: invoice.status,
-      customer: invoice.customer,
-      job: invoice.job,
+      customer: {
+        ...invoice.customer,
+        address: invoice.customer.address || undefined,
+        city: invoice.customer.city || undefined,
+        state: invoice.customer.state || undefined,
+        zipCode: invoice.customer.zipCode || undefined,
+        userId: invoice.customer.userId || undefined,
+      },
+      job: invoice.job ? {
+        ...invoice.job,
+        modelNumber: invoice.job.modelNumber || undefined,
+        serialNumber: invoice.job.serialNumber || undefined,
+      } : invoice.job,
       invoiceItems: invoice.invoiceItems,
       subtotal: invoice.subtotal,
       taxRate: invoice.taxRate,
@@ -228,7 +239,7 @@ export async function POST(
         subject: `Invoice ${invoice.invoiceNumber}`,
         body: emailHtml,
         status: emailResult.success ? "SENT" : "FAILED",
-        errorMsg: emailResult.error || null,
+        errorMsg: emailResult.success ? null : "Failed to send email",
         emailType: "INVOICE",
         relatedId: invoice.id,
       },
@@ -236,7 +247,7 @@ export async function POST(
 
     if (!emailResult.success) {
       return NextResponse.json(
-        { error: emailResult.error || "Failed to send email" },
+        { error: "Failed to send email" },
         { status: 500 }
       );
     }

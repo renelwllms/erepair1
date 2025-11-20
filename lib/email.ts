@@ -175,7 +175,7 @@ export async function sendEmail({
       },
     });
 
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: (info as any).messageId };
   } catch (error: any) {
     console.error("Error sending email:", error);
 

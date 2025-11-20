@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
           {
             customer: {
               OR: [
-                { name: { contains: searchTerm, mode: "insensitive" } },
+                { firstName: { contains: searchTerm, mode: "insensitive" } },
+                { lastName: { contains: searchTerm, mode: "insensitive" } },
                 { email: { contains: searchTerm, mode: "insensitive" } },
                 { phone: { contains: searchTerm, mode: "insensitive" } },
               ],
@@ -43,7 +44,8 @@ export async function GET(request: NextRequest) {
       include: {
         customer: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -57,7 +59,8 @@ export async function GET(request: NextRequest) {
     const customers = await db.customer.findMany({
       where: {
         OR: [
-          { name: { contains: searchTerm, mode: "insensitive" } },
+          { firstName: { contains: searchTerm, mode: "insensitive" } },
+          { lastName: { contains: searchTerm, mode: "insensitive" } },
           { email: { contains: searchTerm, mode: "insensitive" } },
           { phone: { contains: searchTerm, mode: "insensitive" } },
           { address: { contains: searchTerm, mode: "insensitive" } },
@@ -65,7 +68,7 @@ export async function GET(request: NextRequest) {
       },
       take: 10,
       orderBy: {
-        name: "asc",
+        firstName: "asc",
       },
     });
 
@@ -80,7 +83,10 @@ export async function GET(request: NextRequest) {
                 { jobNumber: { contains: searchTerm, mode: "insensitive" } },
                 {
                   customer: {
-                    name: { contains: searchTerm, mode: "insensitive" },
+                    OR: [
+                      { firstName: { contains: searchTerm, mode: "insensitive" } },
+                      { lastName: { contains: searchTerm, mode: "insensitive" } },
+                    ],
                   },
                 },
               ],
@@ -93,7 +99,8 @@ export async function GET(request: NextRequest) {
           include: {
             customer: {
               select: {
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
@@ -111,13 +118,13 @@ export async function GET(request: NextRequest) {
         type: "job" as const,
         id: job.id,
         title: `${job.jobNumber} - ${job.applianceBrand} ${job.applianceType}`,
-        subtitle: job.customer?.name || "",
+        subtitle: job.customer ? `${job.customer.firstName} ${job.customer.lastName}` : "",
         status: job.status,
       })),
       ...customers.map((customer) => ({
         type: "customer" as const,
         id: customer.id,
-        title: customer.name,
+        title: `${customer.firstName} ${customer.lastName}`,
         subtitle: customer.email || customer.phone || "",
         status: undefined,
       })),
@@ -125,7 +132,7 @@ export async function GET(request: NextRequest) {
         type: "invoice" as const,
         id: invoice.id,
         title: invoice.invoiceNumber,
-        subtitle: invoice.job?.customer?.name || "",
+        subtitle: invoice.job?.customer ? `${invoice.job.customer.firstName} ${invoice.job.customer.lastName}` : "",
         status: invoice.status,
       })),
     ];

@@ -283,7 +283,7 @@ export default function TrackJobPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <p className="font-medium text-gray-800">Can't find your job number?</p>
+                <p className="font-medium text-gray-800">Can&apos;t find your job number?</p>
                 <p className="text-gray-600">
                   Check your email for the confirmation message we sent when you submitted your repair request.
                 </p>
@@ -291,7 +291,7 @@ export default function TrackJobPage() {
               <div>
                 <p className="font-medium text-gray-800">Job number format</p>
                 <p className="text-gray-600">
-                  Job numbers are in the format JOB-00001 (letters "JOB" followed by a dash and 5 digits).
+                  Job numbers are in the format JOB-00001 (letters &ldquo;JOB&rdquo; followed by a dash and 5 digits).
                 </p>
               </div>
               <div>

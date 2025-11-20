@@ -58,8 +58,8 @@ export default function AcceptQuotePage() {
               <p className="text-gray-600 mb-6">{message}</p>
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <p className="text-green-800 text-sm">
-                  Thank you for accepting our quote. We'll begin working on your repair right away.
-                  You'll receive updates via email as we progress.
+                  Thank you for accepting our quote. We&apos;ll begin working on your repair right away.
+                  You&apos;ll receive updates via email as we progress.
                 </p>
               </div>
               <p className="text-sm text-gray-500">

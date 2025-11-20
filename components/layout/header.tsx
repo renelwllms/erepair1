@@ -161,7 +161,7 @@ export default function Header({ user }: HeaderProps) {
           {/* No Results */}
           {showResults && searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
-              <p className="text-sm text-gray-500 text-center">No results found for "{searchQuery}"</p>
+              <p className="text-sm text-gray-500 text-center">No results found for &ldquo;{searchQuery}&rdquo;</p>
             </div>
           )}
         </div>

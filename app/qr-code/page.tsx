@@ -58,7 +58,7 @@ export default function QRCodePage() {
                 </div>
                 <Smartphone className="h-8 w-8 text-blue-600" />
                 <p className="text-sm font-medium">
-                  Open your phone's camera and point it at the QR code
+                  Open your phone&apos;s camera and point it at the QR code
                 </p>
               </div>
 

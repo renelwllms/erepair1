@@ -987,7 +987,7 @@ export default function SettingsPage() {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    Automatic reminders will be sent to customers who haven't responded to quotes within the specified time frame.
+                    Automatic reminders will be sent to customers who haven&apos;t responded to quotes within the specified time frame.
                     Reminders will stop once the customer accepts, rejects, or the maximum number of reminders is reached.
                   </AlertDescription>
                 </Alert>
@@ -1384,7 +1384,7 @@ export default function SettingsPage() {
                     <Alert className="mb-4">
                       <Info className="h-4 w-4" />
                       <AlertDescription>
-                        Templates support variables: {"{{"}}customerName{"}}"}, {"{{"}}jobNumber{"}}"}, {"{{"}}applianceBrand{"}}"}, {"{{"}}applianceType{"}}"}, {"{{"}}issueDescription{"}}"}, {"{{"}}companyName{"}}"}
+                        Templates support variables: &lbrace;&lbrace;customerName&rbrace;&rbrace;, &lbrace;&lbrace;jobNumber&rbrace;&rbrace;, &lbrace;&lbrace;applianceBrand&rbrace;&rbrace;, &lbrace;&lbrace;applianceType&rbrace;&rbrace;, &lbrace;&lbrace;issueDescription&rbrace;&rbrace;, &lbrace;&lbrace;companyName&rbrace;&rbrace;
                       </AlertDescription>
                     </Alert>
 

@@ -434,7 +434,7 @@ export default function SubmitJobPage() {
           )}
           <CardTitle className="text-2xl">Submit a Repair Request</CardTitle>
           <CardDescription className="text-base">
-            Fill out the form below and we'll get back to you shortly
+            Fill out the form below and we&apos;ll get back to you shortly
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -446,7 +446,7 @@ export default function SubmitJobPage() {
               <Alert className="bg-blue-50 border-blue-200">
                 <User className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
-                  <strong>Tip:</strong> Enter your phone number first. We'll automatically search for your existing records and fill in your details to save you time!
+                  <strong>Tip:</strong> Enter your phone number first. We&apos;ll automatically search for your existing records and fill in your details to save you time!
                 </AlertDescription>
               </Alert>
 
@@ -689,7 +689,7 @@ export default function SubmitJobPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="issueDescription">
-                  What's wrong with your device? <span className="text-red-500">*</span>
+                  What&apos;s wrong with your device? <span className="text-red-500">*</span>
                 </Label>
                 <textarea
                   id="issueDescription"
