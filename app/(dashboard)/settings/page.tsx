@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Mail, Building, CheckCircle, XCircle, Info, Upload, QrCode, FileText, Image as ImageIcon, Edit, Trash2, Plus, Database, Palette, Bell } from "lucide-react";
+import { Loader2, Mail, Building, CheckCircle, XCircle, Info, Upload, QrCode, FileText, Image as ImageIcon, Edit, Trash2, Plus, Database, Palette, Bell, MapPin, Users } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import ImageCropper from "@/components/image-cropper";
@@ -40,6 +40,8 @@ const settingsSchema = z.object({
   companyAddress: z.string().optional(),
   companyLogo: z.string().optional(),
   companyFavicon: z.string().optional(),
+  diagnosticFees: z.string().optional(),
+  diagnosticFeeDefaultOther: z.number().min(0).optional(),
   taxRate: z.number().min(0).max(100).optional(),
   laborHourlyRate: z.number().min(0).optional(),
   termsAndConditions: z.string().optional(),
@@ -72,6 +74,12 @@ const settingsSchema = z.object({
   quoteReminderDays: z.number().min(1).max(30).optional(),
   quoteReminderFrequency: z.number().min(1).max(30).optional(),
   quoteMaxReminders: z.number().min(1).max(10).optional(),
+
+  // Callout Settings
+  calloutLocations: z.string().optional(),
+  calloutTerms: z.string().optional(),
+  geocodingApiKey: z.string().optional(),
+  geocodingProvider: z.string().optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -97,12 +105,56 @@ export default function SettingsPage() {
   const [databaseInfo, setDatabaseInfo] = useState<any>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [confirmUserPassword, setConfirmUserPassword] = useState("");
+  const [savingUserPassword, setSavingUserPassword] = useState(false);
 
   // Image cropper states
   const [showLogoCropper, setShowLogoCropper] = useState(false);
   const [showFaviconCropper, setShowFaviconCropper] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState<string | null>(null);
   const [selectedFaviconFile, setSelectedFaviconFile] = useState<string | null>(null);
+
+  const [diagnosticFees, setDiagnosticFees] = useState<Record<string, string>>({});
+  const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState("");
+
+  // Callout settings state
+  const [calloutLocations, setCalloutLocations] = useState<Array<{
+    name: string;
+    fee: number;
+    bounds: { north: number; south: number; east: number; west: number };
+  }>>([]);
+
+  const DIAGNOSTIC_APPLIANCE_TYPES = [
+    "Refrigerator",
+    "Washing Machine",
+    "Dryer",
+    "Dishwasher",
+    "Oven",
+    "Microwave",
+    "Air Conditioner",
+    "Water Heater",
+    "Freezer",
+    "Range Hood",
+    "Garbage Disposal",
+    "Ice Maker",
+    "Cooktop",
+    "Wall Oven",
+    "Trash Compactor",
+    "TV / Television",
+    "Home Theater System",
+    "Soundbar",
+    "Amplifier",
+    "Receiver",
+    "Speakers",
+    "Subwoofer",
+    "Turntable",
+    "CD Player",
+    "DVD/Blu-ray Player",
+    "Projector",
+  ];
 
   const {
     register,
@@ -119,11 +171,82 @@ export default function SettingsPage() {
     loadSettings();
     loadEmailTemplates();
     loadDatabaseInfo();
+    loadUsers();
     // Set submit job URL for QR code
     if (typeof window !== "undefined") {
       setSubmitJobUrl(`${window.location.origin}/submit-job`);
     }
   }, []);
+
+  const loadUsers = async () => {
+    try {
+      const response = await fetch("/api/users");
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
+    } catch (error) {
+      console.error("Error loading users:", error);
+    }
+  };
+
+  const handleChangeUserPassword = async () => {
+    if (!selectedUserId) {
+      toast({
+        title: "Select a user",
+        description: "Please choose a user to update the password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newUserPassword.length < 8) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 8 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newUserPassword !== confirmUserPassword) {
+      toast({
+        title: "Passwords do not match",
+        description: "Please confirm the same password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingUserPassword(true);
+    try {
+      const response = await fetch(`/api/users/${selectedUserId}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: newUserPassword }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update password");
+      }
+
+      toast({
+        title: "Password updated",
+        description: "The user password has been changed successfully.",
+      });
+      setNewUserPassword("");
+      setConfirmUserPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingUserPassword(false);
+    }
+  };
 
   const loadEmailTemplates = async () => {
     setLoadingTemplates(true);
@@ -230,6 +353,8 @@ export default function SettingsPage() {
           companyAddress: data.companyAddress || "",
           companyLogo: data.companyLogo || "",
           companyFavicon: data.companyFavicon || "",
+          diagnosticFees: data.diagnosticFees || "",
+          diagnosticFeeDefaultOther: data.diagnosticFeeDefaultOther || 0,
           taxRate: data.taxRate || 15,
           laborHourlyRate: data.laborHourlyRate || 0,
           termsAndConditions: data.termsAndConditions || "",
@@ -262,6 +387,12 @@ export default function SettingsPage() {
           quoteReminderDays: data.quoteReminderDays || 3,
           quoteReminderFrequency: data.quoteReminderFrequency || 3,
           quoteMaxReminders: data.quoteMaxReminders || 3,
+
+          // Callout settings
+          calloutLocations: data.calloutLocations || "",
+          calloutTerms: data.calloutTerms || "",
+          geocodingApiKey: data.geocodingApiKey || "",
+          geocodingProvider: data.geocodingProvider || "GOOGLE",
         });
 
         // Set previews if exists
@@ -273,6 +404,44 @@ export default function SettingsPage() {
         }
         if (data.emailProvider) {
           setEmailProvider(data.emailProvider);
+        }
+
+        if (data.diagnosticFees) {
+          try {
+            const parsed = JSON.parse(data.diagnosticFees);
+            const fees: Record<string, string> = {};
+            Object.entries(parsed || {}).forEach(([key, value]) => {
+              if (typeof value === "number") {
+                fees[key] = value.toString();
+              } else if (value !== undefined && value !== null) {
+                fees[key] = String(value);
+              }
+            });
+            setDiagnosticFees(fees);
+          } catch (error) {
+            setDiagnosticFees({});
+          }
+        } else {
+          setDiagnosticFees({});
+        }
+
+        if (typeof data.diagnosticFeeDefaultOther === "number") {
+          setDiagnosticFeeDefaultOther(data.diagnosticFeeDefaultOther.toString());
+        } else {
+          setDiagnosticFeeDefaultOther("");
+        }
+
+        // Parse callout locations
+        if (data.calloutLocations) {
+          try {
+            const locations = JSON.parse(data.calloutLocations);
+            setCalloutLocations(locations);
+          } catch (error) {
+            console.error("Error parsing callout locations:", error);
+            setCalloutLocations([]);
+          }
+        } else {
+          setCalloutLocations([]);
         }
       }
     } catch (error) {
@@ -338,10 +507,29 @@ export default function SettingsPage() {
   const onSubmit = async (data: SettingsFormData) => {
     setIsSaving(true);
     try {
+      // Serialize callout locations to JSON string
+      const payload = {
+        ...data,
+        calloutLocations: JSON.stringify(calloutLocations),
+        diagnosticFees: JSON.stringify(
+          Object.entries(diagnosticFees).reduce<Record<string, number>>((acc, [key, value]) => {
+            const num = Number(value);
+            if (!Number.isNaN(num)) {
+              acc[key] = num;
+            }
+            return acc;
+          }, {})
+        ),
+        diagnosticFeeDefaultOther:
+          diagnosticFeeDefaultOther.trim() === ""
+            ? undefined
+            : Number(diagnosticFeeDefaultOther),
+      };
+
       const response = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -366,6 +554,40 @@ export default function SettingsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Callout location management functions
+  const handleAddLocation = () => {
+    setCalloutLocations([
+      ...calloutLocations,
+      {
+        name: "",
+        fee: 0,
+        bounds: { north: 0, south: 0, east: 0, west: 0 }
+      }
+    ]);
+  };
+
+  const updateLocation = (index: number, field: string, value: any) => {
+    const updated = [...calloutLocations];
+    updated[index] = { ...updated[index], [field]: value };
+    setCalloutLocations(updated);
+  };
+
+  const updateLocationBound = (index: number, bound: string, value: string) => {
+    const updated = [...calloutLocations];
+    updated[index] = {
+      ...updated[index],
+      bounds: {
+        ...updated[index].bounds,
+        [bound]: parseFloat(value) || 0
+      }
+    };
+    setCalloutLocations(updated);
+  };
+
+  const removeLocation = (index: number) => {
+    setCalloutLocations(calloutLocations.filter((_, i) => i !== index));
   };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -592,7 +814,7 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Tabs defaultValue="business" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex w-full flex-wrap justify-start gap-2 h-auto">
             <TabsTrigger value="business">
               <Building className="h-4 w-4 mr-2" />
               Business Info
@@ -613,6 +835,10 @@ export default function SettingsPage() {
               <QrCode className="h-4 w-4 mr-2" />
               Customer Portal
             </TabsTrigger>
+            <TabsTrigger value="callout">
+              <MapPin className="h-4 w-4 mr-2" />
+              Callout Settings
+            </TabsTrigger>
             <TabsTrigger value="email">
               <Mail className="h-4 w-4 mr-2" />
               Email Configuration
@@ -624,6 +850,10 @@ export default function SettingsPage() {
             <TabsTrigger value="database">
               <Database className="h-4 w-4 mr-2" />
               Database
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <Users className="h-4 w-4 mr-2" />
+              Users
             </TabsTrigger>
           </TabsList>
 
@@ -898,6 +1128,56 @@ export default function SettingsPage() {
           <TabsContent value="invoice" className="space-y-4">
             <Card>
               <CardHeader>
+                <CardTitle>Diagnostic Fees</CardTitle>
+                <CardDescription>
+                  Set diagnostic fees by appliance type for new jobs
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  {DIAGNOSTIC_APPLIANCE_TYPES.map((type) => (
+                    <div key={type} className="flex items-center justify-between gap-4">
+                      <div className="text-sm font-medium text-gray-700">{type}</div>
+                      <div className="w-40">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={diagnosticFees[type] ?? ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setDiagnosticFees((prev) => ({
+                              ...prev,
+                              [type]: value,
+                            }));
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t pt-4 space-y-2">
+                  <Label htmlFor="diagnosticFeeDefaultOther">Default diagnostic fee for Other (optional)</Label>
+                  <Input
+                    id="diagnosticFeeDefaultOther"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={diagnosticFeeDefaultOther}
+                    onChange={(event) => setDiagnosticFeeDefaultOther(event.target.value)}
+                    placeholder="Leave blank to require manual entry"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Applies to new jobs only. Existing jobs keep their diagnostic fee unless manually updated.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Invoice Settings & Terms</CardTitle>
                 <CardDescription>
                   Configure invoice appearance and set your terms and conditions
@@ -1093,7 +1373,7 @@ export default function SettingsPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => window.print()}
+                        onClick={() => window.open('/qr-print', '_blank')}
                         className="mt-4"
                       >
                         <QrCode className="h-4 w-4 mr-2" />
@@ -1145,6 +1425,168 @@ export default function SettingsPage() {
                       <p className="text-gray-600">Customers receive automatic confirmation emails</p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="callout" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Callout Service Configuration</CardTitle>
+                <CardDescription>
+                  Configure location-based callout fees and service areas
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Geocoding API Setup */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Geocoding Configuration</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="geocodingProvider">Geocoding Provider</Label>
+                      <select
+                        id="geocodingProvider"
+                        {...register("geocodingProvider")}
+                        className="w-full px-3 py-2 border rounded-md"
+                      >
+                        <option value="GOOGLE">Google Maps</option>
+                        <option value="OPENCAGE">OpenCage</option>
+                        <option value="MAPBOX">Mapbox</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="geocodingApiKey">API Key</Label>
+                      <Input
+                        id="geocodingApiKey"
+                        type="password"
+                        {...register("geocodingApiKey")}
+                        placeholder="Enter API key"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Callout Locations Management */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Service Locations & Fees</h3>
+                    <Button type="button" onClick={handleAddLocation}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Location
+                    </Button>
+                  </div>
+
+                  {calloutLocations.length === 0 ? (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        No callout locations configured. Add locations to enable callout booking.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-3">
+                      {calloutLocations.map((location, index) => (
+                        <div key={index} className="flex items-start gap-4 p-4 border rounded-lg bg-gray-50">
+                          <div className="flex-1 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-xs">Location Name</Label>
+                                <Input
+                                  placeholder="e.g., East Auckland"
+                                  value={location.name}
+                                  onChange={(e) => updateLocation(index, "name", e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Callout Fee ($)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={location.fee}
+                                  onChange={(e) => updateLocation(index, "fee", parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-xs">Geographic Boundaries (Lat/Lng)</Label>
+                              <div className="grid grid-cols-4 gap-2 mt-1">
+                                <Input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="North"
+                                  value={location.bounds.north}
+                                  onChange={(e) => updateLocationBound(index, "north", e.target.value)}
+                                  className="text-xs"
+                                />
+                                <Input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="South"
+                                  value={location.bounds.south}
+                                  onChange={(e) => updateLocationBound(index, "south", e.target.value)}
+                                  className="text-xs"
+                                />
+                                <Input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="East"
+                                  value={location.bounds.east}
+                                  onChange={(e) => updateLocationBound(index, "east", e.target.value)}
+                                  className="text-xs"
+                                />
+                                <Input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="West"
+                                  value={location.bounds.west}
+                                  onChange={(e) => updateLocationBound(index, "west", e.target.value)}
+                                  className="text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeLocation(index)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      <strong>Finding coordinates:</strong> Use tools like{" "}
+                      <a href="http://bboxfinder.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                        bboxfinder.com
+                      </a>{" "}
+                      to get latitude/longitude boundaries for your service areas.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+
+                {/* Callout Terms */}
+                <div className="space-y-2 border-t pt-6">
+                  <Label htmlFor="calloutTerms">Callout Terms & Conditions</Label>
+                  <textarea
+                    id="calloutTerms"
+                    {...register("calloutTerms")}
+                    className="w-full min-h-[200px] px-3 py-2 text-sm border rounded-md font-mono"
+                    placeholder="Example:&#10;&#10;CALLOUT FEE INFORMATION:&#10;&#10;The callout fee covers:&#10;- Travel to your location&#10;- Initial diagnostic assessment (up to 1 hour)&#10;- Detailed fault report&#10;&#10;The callout fee DOES NOT cover:&#10;- Parts required for repair&#10;- Additional labor beyond diagnostic&#10;&#10;If you proceed with the repair, the callout fee will be applied as a credit toward the total invoice."
+                  />
+                  <p className="text-xs text-gray-500">
+                    These terms will be displayed to customers before they book a callout
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -1315,7 +1757,8 @@ export default function SettingsPage() {
                     <Alert>
                       <Info className="h-4 w-4" />
                       <AlertDescription>
-                        To use Google Workspace, you need to create OAuth credentials in Google Cloud Console.
+                        To use Google Workspace OAuth, you need to create OAuth credentials in Google Cloud Console.
+                        The redirect URI should be: {typeof window !== 'undefined' ? window.location.origin : ''}/api/settings/gmail-callback
                         <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" className="underline ml-1">
                           Go to Google Cloud
                         </a>
@@ -1346,14 +1789,73 @@ export default function SettingsPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="smtpFromEmail">From Email</Label>
+                        <Label htmlFor="smtpUser">Sending Email Address</Label>
+                        <Input
+                          id="smtpUser"
+                          type="email"
+                          {...register("smtpUser")}
+                          placeholder="support@erepair.co.nz"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          The Google Workspace email address to send from
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="smtpFromEmail">From Email (optional)</Label>
                         <Input
                           id="smtpFromEmail"
                           type="email"
                           {...register("smtpFromEmail")}
-                          placeholder="noreply@yourcompany.com"
+                          placeholder="support@erepair.co.nz"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Leave blank to use sending email address
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="smtpFromName">From Name</Label>
+                        <Input
+                          id="smtpFromName"
+                          {...register("smtpFromName")}
+                          placeholder="E-Repair Support"
                         />
                       </div>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <h4 className="font-medium mb-3">Gmail Authorization</h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        After saving your Client ID and Secret above, authorize Gmail to send emails.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch("/api/settings/gmail-auth");
+                            const data = await response.json();
+                            if (data.authUrl) {
+                              window.location.href = data.authUrl;
+                            } else {
+                              toast({
+                                title: "Error",
+                                description: "Failed to generate authorization URL. Make sure Client ID and Secret are saved.",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to initiate Gmail authorization",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        Authorize Gmail
+                      </Button>
                     </div>
                   </>
                 )}
@@ -1587,6 +2089,67 @@ export default function SettingsPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Passwords</CardTitle>
+                <CardDescription>
+                  Change passwords for local staff accounts (admins and technicians).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="userSelect">Select User</Label>
+                  <select
+                    id="userSelect"
+                    value={selectedUserId}
+                    onChange={(event) => setSelectedUserId(event.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Choose a user</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} ({user.email}) - {user.role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="newUserPassword">New Password</Label>
+                    <Input
+                      id="newUserPassword"
+                      type="password"
+                      value={newUserPassword}
+                      onChange={(event) => setNewUserPassword(event.target.value)}
+                      placeholder="Minimum 8 characters"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirmUserPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmUserPassword"
+                      type="password"
+                      value={confirmUserPassword}
+                      onChange={(event) => setConfirmUserPassword(event.target.value)}
+                      placeholder="Re-enter password"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleChangeUserPassword} disabled={savingUserPassword}>
+                    {savingUserPassword ? "Updating..." : "Update Password"}
+                  </Button>
+                  <span className="text-xs text-gray-500">
+                    Password changes apply immediately.
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

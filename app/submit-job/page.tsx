@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { CheckCircle, Wrench, Camera, Loader2, User } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TermsSummary } from "@/components/legal/terms-summary";
+import { getDiagnosticFeeForAppliance } from "@/lib/diagnostic-fees";
 
 // Common appliances and brands
 const COMMON_APPLIANCES = [
@@ -101,6 +103,8 @@ const jobSubmissionSchema = z.object({
   serialNumber: z.string().optional(),
   issueDescription: z.string().min(10, "Please provide more details (at least 10 characters)"),
   preferredContactMethod: z.enum(["EMAIL", "PHONE"]),
+  captcha: z.string().min(1, "Please answer the captcha"),
+  website: z.string().optional(),
 });
 
 type JobSubmissionFormData = z.infer<typeof jobSubmissionSchema>;
@@ -119,6 +123,11 @@ export default function SubmitJobPage() {
   const [brandSearchTerm, setBrandSearchTerm] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>("");
+  const [diagnosticFees, setDiagnosticFees] = useState<Record<string, number>>({});
+  const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState<number | null>(null);
+  const [diagnosticFeeAmount, setDiagnosticFeeAmount] = useState<number | null>(null);
+  const [captchaQuestion, setCaptchaQuestion] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -127,6 +136,7 @@ export default function SubmitJobPage() {
     register,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useForm<JobSubmissionFormData>({
@@ -140,6 +150,12 @@ export default function SubmitJobPage() {
   const preferredContactMethod = watch("preferredContactMethod");
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -162,6 +178,12 @@ export default function SubmitJobPage() {
         if (data.companyName) {
           setCompanyName(data.companyName);
         }
+        if (data.diagnosticFees) {
+          setDiagnosticFees(data.diagnosticFees);
+        }
+        if (typeof data.diagnosticFeeDefaultOther === "number") {
+          setDiagnosticFeeDefaultOther(data.diagnosticFeeDefaultOther);
+        }
       }
     } catch (error) {
       console.error("Error fetching company settings:", error);
@@ -172,6 +194,30 @@ export default function SubmitJobPage() {
   useEffect(() => {
     fetchCompanySettings();
   }, []);
+
+  const regenerateCaptcha = () => {
+    const left = Math.floor(Math.random() * 8) + 2;
+    const right = Math.floor(Math.random() * 8) + 2;
+    setCaptchaQuestion(`What is ${left} + ${right}?`);
+    setCaptchaAnswer(left + right);
+  };
+
+  useEffect(() => {
+    regenerateCaptcha();
+  }, []);
+
+  useEffect(() => {
+    if (!applianceType) {
+      setDiagnosticFeeAmount(null);
+      return;
+    }
+    const fee = getDiagnosticFeeForAppliance(
+      applianceType,
+      diagnosticFees,
+      diagnosticFeeDefaultOther
+    );
+    setDiagnosticFeeAmount(typeof fee === "number" ? fee : null);
+  }, [applianceType, diagnosticFees, diagnosticFeeDefaultOther]);
 
   // Search for customer by phone number
   const searchCustomer = async (phoneNumber: string) => {
@@ -267,6 +313,13 @@ export default function SubmitJobPage() {
   const onSubmit = async (data: JobSubmissionFormData) => {
     setLoading(true);
     try {
+      if (captchaAnswer === null || Number(data.captcha) !== captchaAnswer) {
+        setError("captcha", { type: "manual", message: "Incorrect answer. Please try again." });
+        regenerateCaptcha();
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/public/submit-job", {
         method: "POST",
         headers: {
@@ -335,7 +388,7 @@ export default function SubmitJobPage() {
                 <div>
                   <p className="font-medium">Initial Assessment</p>
                   <p className="text-gray-600">
-                    Our team will review your submission and contact you within 24 hours.
+                    Our team will review your submission and contact you within 2-5 working days.
                   </p>
                 </div>
               </div>
@@ -421,7 +474,7 @@ export default function SubmitJobPage() {
           {companyLogo && (
             <div className="mx-auto mb-6 flex items-center justify-center">
               <img
-                src={companyLogo}
+                src={`${companyLogo}?t=${new Date().getTime()}`}
                 alt={companyName || "Company Logo"}
                 className="max-h-40 max-w-[400px] object-contain"
               />
@@ -508,6 +561,26 @@ export default function SubmitJobPage() {
                   )}
                 </div>
               </div>
+
+              {applianceType ? (
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertDescription className="text-amber-900 text-sm">
+                    {typeof diagnosticFeeAmount === "number" && diagnosticFeeAmount > 0 ? (
+                      <>
+                        <strong>Diagnostic fee:</strong> {formatCurrency(diagnosticFeeAmount)}. This fee is
+                        non-refundable if you decide not to proceed. If you approve the repair, it will be
+                        credited toward your final invoice.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Diagnostic fee:</strong> This will be confirmed after assessment. If you
+                        decide not to proceed, any diagnostic fee charged is non-refundable. If you approve
+                        the repair, the diagnostic fee will be credited toward your final invoice.
+                      </>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -667,6 +740,37 @@ export default function SubmitJobPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="captcha">
+                  Quick Check <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm text-gray-700">{captchaQuestion}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={regenerateCaptcha}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+                <Input
+                  id="captcha"
+                  {...register("captcha")}
+                  placeholder="Your answer"
+                  className="max-w-xs"
+                />
+                {errors.captcha && (
+                  <p className="text-sm text-red-500">{errors.captcha.message}</p>
+                )}
+              </div>
+
+              <div className="hidden">
+                <Label htmlFor="website">Website</Label>
+                <Input id="website" {...register("website")} autoComplete="off" />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="modelNumber">Model Number (Optional)</Label>
@@ -754,9 +858,7 @@ export default function SubmitJobPage() {
               )}
             </Button>
 
-            <p className="text-xs text-center text-gray-500">
-              By submitting this form, you agree to our terms of service and privacy policy.
-            </p>
+            <TermsSummary className="mt-4" />
           </form>
         </CardContent>
       </Card>

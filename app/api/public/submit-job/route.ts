@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
 import { jobConfirmationEmail } from "@/lib/email-templates";
+import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
 
 // Validation schema for customer job submission
 const publicJobSchema = z.object({
@@ -22,15 +23,21 @@ const publicJobSchema = z.object({
   // Additional info
   preferredContactMethod: z.enum(["EMAIL", "PHONE"]).default("EMAIL"),
   devicePhoto: z.string().optional(), // Base64 encoded image
+  website: z.string().optional(),
 });
 
 // POST /api/public/submit-job - Public job submission (no auth required)
 export async function POST(request: NextRequest) {
   try {
+    const dbAny = db as any;
     const body = await request.json();
 
     // Validate input
     const validatedData = publicJobSchema.parse(body);
+
+    if (validatedData.website && validatedData.website.trim().length > 0) {
+      return NextResponse.json({ error: "Invalid submission" }, { status: 400 });
+    }
 
     // Check if customer exists by phone number first, then by email
     let customer = await db.customer.findFirst({
@@ -46,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     if (!customer) {
       // Create new customer
-      customer = await db.customer.create({
+      customer = await dbAny.customer.create({
         data: {
           firstName: validatedData.firstName,
           lastName: validatedData.lastName,
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // Update customer info if changed
-      customer = await db.customer.update({
+      customer = await dbAny.customer.update({
         where: { id: customer.id },
         data: {
           firstName: validatedData.firstName,
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get or create system user for public submissions
-    let systemUser = await db.user.findFirst({
+    let systemUser = await dbAny.user.findFirst({
       where: {
         email: "system@erepair.com",
       },
@@ -80,7 +87,7 @@ export async function POST(request: NextRequest) {
       const bcrypt = require("bcryptjs");
       const hashedPassword = await bcrypt.hash("system-password-" + Date.now(), 10);
 
-      systemUser = await db.user.create({
+      systemUser = await dbAny.user.create({
         data: {
           email: "system@erepair.com",
           password: hashedPassword,
@@ -93,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate job number
-    const lastJob = await db.job.findFirst({
+    const lastJob = await dbAny.job.findFirst({
       orderBy: { createdAt: "desc" },
       select: { jobNumber: true },
     });
@@ -108,11 +115,26 @@ export async function POST(request: NextRequest) {
 
     const jobNumber = `JOB-${nextNumber.toString().padStart(5, "0")}`;
 
+    const settings = (await db.settings.findFirst({
+      select: {
+        diagnosticFees: true,
+        diagnosticFeeDefaultOther: true,
+      },
+    })) as any;
+    const diagnosticFeeMap = parseDiagnosticFees(settings?.diagnosticFees);
+    const diagnosticFeeAmount =
+      getDiagnosticFeeForAppliance(
+        validatedData.applianceType,
+        diagnosticFeeMap,
+        settings?.diagnosticFeeDefaultOther ?? null
+      ) ?? 0;
+
     // Create job
-    const job = await db.job.create({
+    const ensuredCustomer = customer as NonNullable<typeof customer>;
+    const job = await dbAny.job.create({
       data: {
         jobNumber,
-        customerId: customer.id,
+        customerId: ensuredCustomer.id,
         applianceBrand: validatedData.applianceBrand,
         applianceType: validatedData.applianceType,
         modelNumber: validatedData.modelNumber,
@@ -123,6 +145,7 @@ export async function POST(request: NextRequest) {
         createdById: systemUser.id,
         customerNotes: `Preferred contact: ${validatedData.preferredContactMethod}`,
         beforePhotos: validatedData.devicePhoto ? [validatedData.devicePhoto] : [],
+        diagnosticFeeAmount,
       },
     });
 
@@ -153,7 +176,7 @@ export async function POST(request: NextRequest) {
       const trackingUrl = `${request.nextUrl.origin}/track-job?jobNumber=${job.jobNumber}`;
       const emailContent = jobConfirmationEmail({
         jobNumber: job.jobNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName: `${ensuredCustomer.firstName} ${ensuredCustomer.lastName}`,
         applianceType: job.applianceType,
         applianceBrand: job.applianceBrand,
         issueDescription: job.issueDescription,
@@ -161,7 +184,7 @@ export async function POST(request: NextRequest) {
       });
 
       await sendEmail({
-        to: customer.email,
+        to: ensuredCustomer.email,
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,

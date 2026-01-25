@@ -1,10 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaClient, UserRole } from "@prisma/client";
+import Google from "next-auth/providers/google";
+import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { db } from "./db";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
@@ -15,6 +15,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/auth/error",
   },
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
+    }),
     Credentials({
       name: "credentials",
       credentials: {
@@ -36,7 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { email, password } = parsedCredentials.data;
 
         try {
-          const user = await prisma.user.findUnique({
+          const user = await db.user.findUnique({
             where: { email },
           });
 
@@ -51,7 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           // Update last login
-          await prisma.user.update({
+          await db.user.update({
             where: { id: user.id },
             data: { lastLogin: new Date() },
           });
@@ -72,13 +83,71 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      // Handle Google OAuth sign-in
+      if (account?.provider === "google" && user.email) {
+        // Check if email domain is @erepair.co.nz
+        if (!user.email.endsWith("@erepair.co.nz")) {
+          // Redirect to unauthorized page
+          return "/auth/unauthorized";
+        }
+
+        try {
+          // Check if user exists
+          let dbUser = await db.user.findUnique({
+            where: { email: user.email },
+          });
+
+          // If user doesn't exist, create them
+          if (!dbUser) {
+            const nameParts = user.name?.split(" ") || [];
+            dbUser = await db.user.create({
+              data: {
+                email: user.email,
+                firstName: nameParts[0] || "User",
+                lastName: nameParts.slice(1).join(" ") || "",
+                password: "", // No password for OAuth users
+                role: "ADMIN", // Default role, you can change this
+                isActive: true,
+                lastLogin: new Date(),
+              },
+            });
+          } else {
+            // Update last login
+            await db.user.update({
+              where: { id: dbUser.id },
+              data: { lastLogin: new Date() },
+            });
+          }
+
+          // Check if user is active
+          if (!dbUser.isActive) {
+            return false;
+          }
+
+          // Attach user data to the user object for JWT callback
+          user.role = dbUser.role;
+          user.firstName = dbUser.firstName;
+          user.lastName = dbUser.lastName;
+          user.id = dbUser.id;
+
+          return true;
+        } catch (error) {
+          console.error("Google sign-in error:", error);
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
+      // For credentials login or initial Google sign-in, user object has all the info
       if (user) {
         token.role = user.role;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
         token.id = user.id;
       }
+
       return token;
     },
     async session({ session, token }) {

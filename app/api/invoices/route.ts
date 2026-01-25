@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
 import { z } from "zod";
+
+export const dynamic = 'force-dynamic';
 
 // Validation schema for invoice creation
 const invoiceCreateSchema = z.object({
@@ -141,10 +144,10 @@ export async function POST(request: NextRequest) {
     const validatedData = invoiceCreateSchema.parse(body);
 
     // Check if job exists and doesn't already have an invoice
-    const existingJob = await db.job.findUnique({
+    const existingJob = (await db.job.findUnique({
       where: { id: validatedData.jobId },
       include: { invoice: true },
-    });
+    })) as any;
 
     if (!existingJob) {
       return NextResponse.json(
@@ -189,8 +192,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const shouldApplyDiagnosticFee =
+      existingJob.diagnosticFeeAmount > 0 &&
+      existingJob.diagnosticFeePaid &&
+      !existingJob.diagnosticFeeAppliedToInvoice;
+
+    const invoiceItems = [
+      ...validatedData.items,
+      ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(existingJob.diagnosticFeeAmount)] : []),
+    ];
+
     // Calculate totals
-    const subtotal = validatedData.items.reduce(
+    const subtotal = invoiceItems.reduce(
       (sum, item) => sum + item.quantity * item.unitPrice,
       0
     );
@@ -207,7 +220,7 @@ export async function POST(request: NextRequest) {
     const totalAmount = subtotal + taxAmount - discountAmount;
 
     // Create invoice with items in a transaction
-    const invoice = await db.$transaction(async (tx) => {
+    const invoice = await db.$transaction(async (tx: any) => {
       const newInvoice = await tx.invoice.create({
         data: {
           invoiceNumber,
@@ -242,7 +255,7 @@ export async function POST(request: NextRequest) {
 
       // Create invoice items
       await tx.invoiceItem.createMany({
-        data: validatedData.items.map((item) => ({
+        data: invoiceItems.map((item) => ({
           invoiceId: newInvoice.id,
           description: item.description,
           quantity: item.quantity,
@@ -252,12 +265,23 @@ export async function POST(request: NextRequest) {
         })),
       });
 
+      if (shouldApplyDiagnosticFee) {
+        const txAny = tx as any;
+        await txAny.job.update({
+          where: { id: existingJob.id },
+          data: {
+            diagnosticFeeAppliedToInvoice: true,
+            repairApproved: true,
+          },
+        });
+      }
+
       // Fetch the created items
-      const invoiceItems = await tx.invoiceItem.findMany({
+      const createdItems = await tx.invoiceItem.findMany({
         where: { invoiceId: newInvoice.id },
       });
 
-      return { ...newInvoice, invoiceItems };
+      return { ...newInvoice, invoiceItems: createdItems };
     });
 
     return NextResponse.json(invoice, { status: 201 });

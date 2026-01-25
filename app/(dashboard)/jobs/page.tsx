@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -29,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreHorizontal, Eye, Edit, FileText, Clock, AlertCircle, Bell } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Eye, Edit, FileText, Clock, AlertCircle, Bell, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { differenceInDays } from "date-fns";
 
@@ -39,9 +40,17 @@ interface Job {
   applianceBrand: string;
   applianceType: string;
   status: string;
+  diagnosticFeeAmount?: number;
+  diagnosticFeePaid?: boolean;
   priority: string;
   createdAt: string;
   lastNotificationSent?: string | null;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    totalAmount: number;
+  } | null;
   customer: {
     id: string;
     firstName: string;
@@ -72,6 +81,7 @@ export default function JobsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [settings, setSettings] = useState<Settings>({ notificationReminderDays: 3 });
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
 
   const fetchSettings = async () => {
     try {
@@ -123,12 +133,15 @@ export default function JobsPage() {
       const data = await response.json();
       setJobs(data.jobs);
       setTotalPages(data.pagination.totalPages);
+      setSelectedJobs(new Set());
+      return data.jobs as Job[];
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load jobs",
         variant: "destructive",
       });
+      return [];
     } finally {
       setLoading(false);
     }
@@ -142,8 +155,76 @@ export default function JobsPage() {
     fetchJobs();
   }, [page, searchQuery, statusFilter, priorityFilter]);
 
+  const toggleSelectAll = (checked: boolean) => {
+    if (!checked) {
+      setSelectedJobs(new Set());
+      return;
+    }
+    const next = new Set(filteredJobs.map((job) => job.id));
+    setSelectedJobs(next);
+  };
+
+  const toggleSelectJob = (jobId: string, checked: boolean) => {
+    const next = new Set(selectedJobs);
+    if (checked) {
+      next.add(jobId);
+    } else {
+      next.delete(jobId);
+    }
+    setSelectedJobs(next);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedJobs.size === 0) return;
+    const confirmDelete = confirm(
+      `Delete ${selectedJobs.size} selected job(s)? This action cannot be undone.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedJobs) }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        const blocked = Array.isArray(data.jobs) ? ` Jobs with invoices: ${data.jobs.join(", ")}` : "";
+        throw new Error((data.error || "Failed to delete jobs") + blocked);
+      }
+
+      toast({
+        title: "Jobs deleted",
+        description: `Deleted ${data.deleted || 0} job(s).`,
+      });
+
+      setSelectedJobs(new Set());
+      fetchJobs();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete jobs",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleStatusChange = async (jobId: string, newStatus: string, job: Job) => {
     try {
+      if (
+        newStatus === "READY_FOR_PICKUP" &&
+        job.diagnosticFeeAmount &&
+        job.diagnosticFeeAmount > 0 &&
+        !job.diagnosticFeePaid
+      ) {
+        const proceed = confirm(
+          "Diagnostic fee is not marked as paid for this job. Please record the payment before generating the invoice. Do you want to continue anyway?"
+        );
+        if (!proceed) {
+          return;
+        }
+      }
+
       const response = await fetch(`/api/jobs/${jobId}/status`, {
         method: "PUT",
         headers: {
@@ -151,7 +232,6 @@ export default function JobsPage() {
         },
         body: JSON.stringify({
           status: newStatus,
-          notes: `Status changed from ${job.status} to ${newStatus} via job list`,
         }),
       });
 
@@ -165,11 +245,16 @@ export default function JobsPage() {
       });
 
       // Refresh the job list
-      await fetchJobs();
+      const refreshedJobs = await fetchJobs();
 
-      // If status changed to CLOSED, redirect to invoice creation
-      if (newStatus === "CLOSED") {
-        router.push(`/invoices/new?jobId=${jobId}`);
+      // If status changed to READY_FOR_PICKUP, redirect to invoice creation
+      if (newStatus === "READY_FOR_PICKUP") {
+        const updatedJob = refreshedJobs.find((item) => item.id === jobId);
+        if (updatedJob?.invoice?.id) {
+          router.push(`/invoices/${updatedJob.invoice.id}`);
+        } else {
+          router.push(`/invoices/new?jobId=${jobId}`);
+        }
       }
     } catch (error) {
       toast({
@@ -240,7 +325,7 @@ export default function JobsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-6">
+          <div className="flex flex-wrap gap-4 mb-6 items-center">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
@@ -299,6 +384,12 @@ export default function JobsPage() {
                 </SelectItem>
               </SelectContent>
             </Select>
+            {selectedJobs.size > 0 && (
+              <Button variant="destructive" onClick={handleBulkDelete}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete ({selectedJobs.size})
+              </Button>
+            )}
           </div>
 
           {loading ? (
@@ -320,6 +411,16 @@ export default function JobsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={
+                          filteredJobs.length > 0 &&
+                          filteredJobs.every((job) => selectedJobs.has(job.id))
+                        }
+                        onCheckedChange={(value) => toggleSelectAll(Boolean(value))}
+                        aria-label="Select all jobs"
+                      />
+                    </TableHead>
                     <TableHead>Job #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Appliance</TableHead>
@@ -337,6 +438,13 @@ export default function JobsPage() {
                       className={needsAttention(job) ? "bg-yellow-50 hover:bg-yellow-100 cursor-pointer" : "cursor-pointer"}
                       onDoubleClick={() => router.push(`/jobs/${job.id}`)}
                     >
+                      <TableCell onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedJobs.has(job.id)}
+                          onCheckedChange={(value) => toggleSelectJob(job.id, Boolean(value))}
+                          aria-label={`Select job ${job.jobNumber}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {needsAttention(job) && (
@@ -423,10 +531,17 @@ export default function JobsPage() {
                               <Eye className="h-4 w-4 mr-2" />
                               View Customer
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/invoices/new?jobId=${job.id}`)}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              Create Invoice
-                            </DropdownMenuItem>
+                            {job.invoice ? (
+                              <DropdownMenuItem onClick={() => router.push(`/invoices/${job.invoice?.id}`)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                View Invoice
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => router.push(`/invoices/new?jobId=${job.id}`)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Create Invoice
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

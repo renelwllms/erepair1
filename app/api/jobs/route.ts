@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { sendEmail } from "@/lib/email";
+import { jobConfirmationEmail } from "@/lib/email-templates";
+import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
+
+export const dynamic = 'force-dynamic';
 
 // Validation schema for job
 const jobSchema = z.object({
@@ -16,6 +21,7 @@ const jobSchema = z.object({
   warrantyStatus: z.string().optional(),
   serviceLocation: z.string().optional(),
   estimatedCompletion: z.string().optional(),
+  diagnosticFeeAmount: z.number().min(0).optional(),
 });
 
 // GET /api/jobs - Get all jobs with optional filters
@@ -106,6 +112,14 @@ export async function GET(request: NextRequest) {
             lastName: true,
           },
         },
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            totalAmount: true,
+          },
+        },
       },
       skip,
       take: limit,
@@ -132,9 +146,60 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// DELETE /api/jobs - Bulk delete jobs (admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "No job IDs provided" }, { status: 400 });
+    }
+
+    const jobsWithInvoices = await db.job.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        jobNumber: true,
+        invoice: { select: { id: true } },
+      },
+    });
+
+    const blocked = jobsWithInvoices.filter((job) => job.invoice);
+    if (blocked.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Some jobs have invoices and cannot be deleted",
+          jobs: blocked.map((job) => job.jobNumber),
+        },
+        { status: 400 }
+      );
+    }
+
+    const result = await db.job.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return NextResponse.json({ deleted: result.count });
+  } catch (error) {
+    console.error("Error deleting jobs:", error);
+    return NextResponse.json({ error: "Failed to delete jobs" }, { status: 500 });
+  }
+}
+
 // POST /api/jobs - Create a new job
 export async function POST(request: NextRequest) {
   try {
+    const dbAny = db as any;
     const session = await auth();
 
     if (!session) {
@@ -150,6 +215,33 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     const validatedData = jobSchema.parse(body);
+
+    const settings = (await db.settings.findFirst({
+      select: {
+        diagnosticFees: true,
+        diagnosticFeeDefaultOther: true,
+      },
+    })) as any;
+    const diagnosticFeeMap = parseDiagnosticFees(settings?.diagnosticFees);
+    let diagnosticFeeAmount =
+      typeof validatedData.diagnosticFeeAmount === "number"
+        ? validatedData.diagnosticFeeAmount
+        : getDiagnosticFeeForAppliance(
+            validatedData.applianceType,
+            diagnosticFeeMap,
+            settings?.diagnosticFeeDefaultOther ?? null
+          );
+
+    if (validatedData.applianceType === "Other" && diagnosticFeeAmount === null) {
+      return NextResponse.json(
+        { error: "Diagnostic fee is required for appliance type Other" },
+        { status: 400 }
+      );
+    }
+
+    if (diagnosticFeeAmount === null) {
+      diagnosticFeeAmount = 0;
+    }
 
     // Check if customer exists
     const customer = await db.customer.findUnique({
@@ -185,7 +277,7 @@ export async function POST(request: NextRequest) {
       : null;
 
     // Create job
-    const job = await db.job.create({
+    const job = await dbAny.job.create({
       data: {
         jobNumber,
         customerId: validatedData.customerId,
@@ -201,6 +293,7 @@ export async function POST(request: NextRequest) {
         warrantyStatus: validatedData.warrantyStatus,
         serviceLocation: validatedData.serviceLocation,
         estimatedCompletion: estimatedCompletionDate,
+        diagnosticFeeAmount,
       },
       include: {
         customer: true,
@@ -218,6 +311,87 @@ export async function POST(request: NextRequest) {
         changedBy: session.user.id,
       },
     });
+
+    // Send job creation email notification
+    try {
+      const template = await db.emailTemplate.findUnique({
+        where: { name: "JOB_OPEN" },
+      });
+
+      const settings = await db.settings.findFirst();
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const termsUrl = `${baseUrl}/terms-and-conditions`;
+      const trackingUrl = `${baseUrl}/track-job?jobNumber=${job.jobNumber}`;
+
+      if (template && template.isActive) {
+        // Replace template variables
+        const variables = {
+          customerName: `${customer.firstName} ${customer.lastName}`,
+          jobNumber: job.jobNumber,
+          applianceBrand: job.applianceBrand,
+          applianceType: job.applianceType,
+          issueDescription: job.issueDescription,
+          companyName: settings?.companyName || "E-Repair Shop",
+        };
+
+        const subject = template.subject.replace(/{{(\w+)}}/g, (match, key) => variables[key as keyof typeof variables] || match);
+        let body = template.body.replace(/{{(\w+)}}/g, (match, key) => variables[key as keyof typeof variables] || match);
+
+        const termsHtml = `
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <h4 style="color: #111827; margin: 0 0 8px 0; font-size: 14px;">Terms Summary</h4>
+          <ul style="color: #374151; font-size: 13px; line-height: 1.6; margin: 0 0 12px 18px; padding: 0;">
+            <li>Inspection fees are non-refundable if repair is declined.</li>
+            <li>Customer data must be backed up; eRepair is not liable for data loss.</li>
+            <li>3-month return-to-base warranty on repairs (excluding liquid, physical damage &amp; glass replacements).</li>
+            <li>No warranty on liquid damage repairs.</li>
+            <li>Courier damage is subject to courier terms.</li>
+            <li>Devices must be collected within 4 weeks.</li>
+            <li>Rights under the NZ Consumer Guarantees Act apply.</li>
+          </ul>
+          <p style="color: #6b7280; font-size: 12px; margin: 0;">
+            Full Terms &amp; Conditions: <a href="${termsUrl}" style="color: #2563eb; text-decoration: underline;">${termsUrl}</a>
+          </p>
+        `;
+
+        if (!body.includes("terms-and-conditions")) {
+          body += termsHtml;
+        }
+
+        await sendEmail({
+          to: customer.email,
+          subject,
+          html: body,
+          text: `${body.replace(/<[^>]*>/g, "")}\n\nFull Terms & Conditions: ${termsUrl}`,
+          emailType: "JOB_CREATED",
+          relatedId: job.id,
+          sentById: session.user.id,
+        });
+      } else {
+        const fallback = jobConfirmationEmail({
+          jobNumber: job.jobNumber,
+          customerName: `${customer.firstName} ${customer.lastName}`,
+          applianceType: job.applianceType,
+          applianceBrand: job.applianceBrand,
+          issueDescription: job.issueDescription,
+          trackingUrl,
+          companyName: settings?.companyName || "E-Repair Shop",
+        });
+
+        await sendEmail({
+          to: customer.email,
+          subject: fallback.subject,
+          html: fallback.html,
+          text: fallback.text,
+          emailType: "JOB_CREATED",
+          relatedId: job.id,
+          sentById: session.user.id,
+        });
+      }
+    } catch (emailError) {
+      console.error("Failed to send job creation email:", emailError);
+      // Don't fail the job creation if email fails
+    }
 
     return NextResponse.json(job, { status: 201 });
   } catch (error) {

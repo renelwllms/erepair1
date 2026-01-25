@@ -44,6 +44,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { normalizePaymentTerms } from "@/lib/payment-terms";
+import { TermsSummary } from "@/components/legal/terms-summary";
 
 interface InvoiceItem {
   id: string;
@@ -124,6 +126,7 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -220,6 +223,7 @@ export default function InvoiceDetailPage() {
   };
 
   const handleEmailInvoice = async () => {
+    setIsSendingEmail(true);
     try {
       const response = await fetch(`/api/invoices/${params.id}/email`, {
         method: "POST",
@@ -245,6 +249,8 @@ export default function InvoiceDetailPage() {
         description: error.message || "Failed to send invoice email",
         variant: "destructive",
       });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -410,13 +416,28 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {invoice.status === "DRAFT" && (
+            <Button variant="outline" onClick={() => router.push(`/invoices/${params.id}/edit`)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
           <Button variant="outline" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             Download PDF
           </Button>
-          <Button variant="outline" onClick={handleEmailInvoice}>
-            <Mail className="h-4 w-4 mr-2" />
-            Email
+          <Button variant="outline" onClick={handleEmailInvoice} disabled={isSendingEmail}>
+            {isSendingEmail ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                Sending...
+              </>
+            ) : (
+              <>
+                <Mail className="h-4 w-4 mr-2" />
+                Email
+              </>
+            )}
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" />
@@ -480,7 +501,7 @@ export default function InvoiceDetailPage() {
                 <div>
                   {companySettings.companyLogo && (
                     <img
-                      src={companySettings.companyLogo}
+                      src={`${companySettings.companyLogo}?t=${new Date().getTime()}`}
                       alt={companySettings.companyName}
                       className="h-16 w-auto mb-3"
                     />
@@ -505,7 +526,7 @@ export default function InvoiceDetailPage() {
                   <div className="text-sm mt-2 space-y-1">
                     <div><span className="font-semibold">Invoice #:</span> {invoice.invoiceNumber}</div>
                     <div><span className="font-semibold">Issue Date:</span> {format(new Date(invoice.issueDate), "MMM dd, yyyy")}</div>
-                    <div><span className="font-semibold">Due Date:</span> {format(new Date(invoice.dueDate), "MMM dd, yyyy")}</div>
+                    <div><span className="font-semibold">Due Date:</span> Payment due upon collection of the device</div>
                     <div><span className="font-semibold">Job #:</span> {invoice.job.jobNumber}</div>
                   </div>
                 </div>
@@ -545,9 +566,7 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Due Date:</span>
-                  <span className="font-medium">
-                    {format(new Date(invoice.dueDate), "MMM dd, yyyy")}
-                  </span>
+                  <span className="font-medium">Payment due upon collection of the device</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Job Number:</span>
@@ -661,10 +680,12 @@ export default function InvoiceDetailPage() {
             <>
               <Separator />
               <div className="space-y-3">
-                {invoice.paymentTerms && (
+                {normalizePaymentTerms(invoice.paymentTerms) && (
                   <div>
                     <h3 className="font-semibold text-sm mb-1">Payment Terms</h3>
-                    <p className="text-sm text-gray-600">{invoice.paymentTerms}</p>
+                    <p className="text-sm text-gray-600">
+                      {normalizePaymentTerms(invoice.paymentTerms)}
+                    </p>
                   </div>
                 )}
                 {invoice.notes && (
@@ -676,6 +697,9 @@ export default function InvoiceDetailPage() {
               </div>
             </>
           )}
+
+          <Separator />
+          <TermsSummary />
         </CardContent>
       </Card>
 

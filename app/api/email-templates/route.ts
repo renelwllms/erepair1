@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema
 const emailTemplateSchema = z.object({
   name: z.string().min(1, "Name is required"),

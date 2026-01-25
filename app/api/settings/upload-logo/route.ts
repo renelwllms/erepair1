@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { existsSync } from "fs";
@@ -62,9 +63,21 @@ export async function POST(request: NextRequest) {
     // Return the public URL path
     const publicPath = `/uploads/${filename}`;
 
+    // Persist logo path to settings so it applies immediately
+    const settings = await db.settings.findFirst();
+    if (settings) {
+      await db.settings.update({
+        where: { id: settings.id },
+        data: { companyLogo: publicPath },
+      });
+    } else {
+      await db.settings.create({ data: { companyLogo: publicPath } });
+    }
+
     return NextResponse.json({
       success: true,
       path: publicPath,
+      saved: true,
       message: "Logo uploaded successfully"
     });
   } catch (error) {

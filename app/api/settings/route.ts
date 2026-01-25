@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema
 const settingsSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
@@ -11,6 +13,8 @@ const settingsSchema = z.object({
   companyAddress: z.string().optional(),
   companyLogo: z.string().optional(),
   companyFavicon: z.string().optional(),
+  diagnosticFees: z.string().optional(),
+  diagnosticFeeDefaultOther: z.number().min(0).optional(),
   taxRate: z.number().min(0).max(100).optional(),
   laborHourlyRate: z.number().min(0).optional(),
   termsAndConditions: z.string().optional(),
@@ -43,6 +47,12 @@ const settingsSchema = z.object({
   quoteReminderDays: z.number().min(1).max(30).optional(),
   quoteReminderFrequency: z.number().min(1).max(30).optional(),
   quoteMaxReminders: z.number().min(1).max(10).optional(),
+
+  // Callout settings
+  calloutLocations: z.string().optional(),
+  calloutTerms: z.string().optional(),
+  geocodingApiKey: z.string().optional(),
+  geocodingProvider: z.string().optional(),
 });
 
 // GET /api/settings - Get system settings
@@ -105,6 +115,7 @@ export async function GET(request: NextRequest) {
 // PUT /api/settings - Update system settings
 export async function PUT(request: NextRequest) {
   try {
+    const dbAny = db as any;
     const session = await auth();
 
     if (!session) {
@@ -132,6 +143,11 @@ export async function PUT(request: NextRequest) {
       companyAddress: validatedData.companyAddress || null,
       companyLogo: validatedData.companyLogo || null,
       companyFavicon: validatedData.companyFavicon || null,
+      diagnosticFees: validatedData.diagnosticFees || null,
+      diagnosticFeeDefaultOther:
+        typeof validatedData.diagnosticFeeDefaultOther === "number"
+          ? validatedData.diagnosticFeeDefaultOther
+          : null,
       taxRate: validatedData.taxRate || 0,
       laborHourlyRate: validatedData.laborHourlyRate || 0,
       termsAndConditions: validatedData.termsAndConditions || null,
@@ -180,13 +196,13 @@ export async function PUT(request: NextRequest) {
 
     if (existingSettings) {
       // Update existing settings
-      settings = await db.settings.update({
+      settings = await dbAny.settings.update({
         where: { id: existingSettings.id },
         data: updateData,
       });
     } else {
       // Create new settings if none exist
-      settings = await db.settings.create({
+      settings = await dbAny.settings.create({
         data: updateData,
       });
     }

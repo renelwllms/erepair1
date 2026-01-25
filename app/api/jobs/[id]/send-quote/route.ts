@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sendEmail } from "@/lib/email";
 import { generateQuotePDF } from "@/lib/quote-generator";
 import { addDays, format } from "date-fns";
+import { emailLayout, quoteSentEmail } from "@/lib/email-templates";
 
 const quoteItemSchema = z.object({
   description: z.string(),
@@ -60,8 +61,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // Get settings for company info
     const settings = await db.settings.findFirst();
 
-    // Generate quote number (using job number + Q suffix)
-    const quoteNumber = `${job.jobNumber}-Q`;
+    // Generate quote number (use -Q for first quote, then -Q2, -Q3, ...)
+    const existingQuoteCount = await db.quote.count({
+      where: { jobId: job.id },
+    });
+    const quoteNumber =
+      existingQuoteCount === 0
+        ? `${job.jobNumber}-Q`
+        : `${job.jobNumber}-Q${existingQuoteCount + 1}`;
     const issueDate = new Date().toISOString();
     const validUntil = addDays(new Date(), validatedData.validDays).toISOString();
 
@@ -93,6 +100,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       taxRate: validatedData.taxRate,
       taxAmount: validatedData.taxAmount,
       totalAmount: validatedData.totalAmount,
+      diagnosticFeeAmount: typeof job.diagnosticFeeAmount === "number" ? job.diagnosticFeeAmount : undefined,
       notes: validatedData.notes,
       termsAndConditions: settings?.termsAndConditions || undefined,
       companyName: settings?.companyName || "E-Repair Shop",
@@ -101,11 +109,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       companyAddress: settings?.companyAddress || undefined,
       companyLogo: settings?.companyLogo || undefined,
     };
-
-    // Generate PDF
-    const pdfDoc = await generateQuotePDF(quoteData);
-    const pdfBuffer = Buffer.from(pdfDoc.output("arraybuffer"));
-    const pdfBase64 = pdfBuffer.toString("base64");
 
     // Create Quote record in database
     const quote = await db.quote.create({
@@ -157,16 +160,36 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     // Send email with quote PDF
-    try {
-      const template = await db.emailTemplate.findUnique({
-        where: { name: "QUOTE_SENT" },
-      });
+    void (async () => {
+      try {
+        // Generate PDF in the background to avoid blocking the response
+        const pdfDoc = await generateQuotePDF(quoteData);
+        const pdfBuffer = Buffer.from(pdfDoc.output("arraybuffer"));
+        const pdfBase64 = pdfBuffer.toString("base64");
 
-      if (template && template.isActive) {
+        let template = await db.emailTemplate.findUnique({
+          where: { name: "QUOTE_SENT" },
+        });
+        if (!template) {
+          template = await db.emailTemplate.findUnique({
+            where: { name: "quote_sent" },
+          });
+        }
+
         // Generate accept/reject URLs
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const acceptUrl = `${baseUrl}/quote/accept/${quote.id}`;
         const rejectUrl = `${baseUrl}/quote/reject/${quote.id}`;
+
+        const diagnosticFeeAmount =
+          typeof job.diagnosticFeeAmount === "number" ? job.diagnosticFeeAmount : null;
+        const diagnosticFeeNotice =
+          typeof diagnosticFeeAmount === "number" && diagnosticFeeAmount > 0
+            ? `Diagnostic fee of ${new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+              }).format(diagnosticFeeAmount)} is non-refundable if you decide not to proceed. If you approve the repair, this fee will be credited toward your final invoice.`
+            : null;
 
         const variables = {
           customerName: `${job.customer.firstName} ${job.customer.lastName}`,
@@ -181,47 +204,120 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           }).format(validatedData.totalAmount),
           acceptUrl,
           rejectUrl,
+          diagnosticFeeAmount:
+            typeof diagnosticFeeAmount === "number"
+              ? new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                }).format(diagnosticFeeAmount)
+              : "",
+          diagnosticFeeNotice: diagnosticFeeNotice || "",
         };
 
-        const subject = replaceTemplateVariables(template.subject, variables);
-        let body = replaceTemplateVariables(template.body, variables);
+        let subject: string | null = null;
+        let body: string | null = null;
+        let text: string | null = null;
 
-        // Add accept/reject buttons if not in template
-        if (!body.includes("acceptUrl") && !body.includes("rejectUrl")) {
-          body += `
-            <div style="margin: 30px 0; text-align: center;">
-              <a href="${acceptUrl}" style="display: inline-block; padding: 12px 30px; margin: 0 10px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                Accept Quote
-              </a>
-              <a href="${rejectUrl}" style="display: inline-block; padding: 12px 30px; margin: 0 10px; background-color: #ef4444; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                Decline Quote
-              </a>
-            </div>
-          `;
+        const extractBody = (html: string) => {
+          const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          return bodyMatch ? bodyMatch[1] : html;
+        };
+
+        if (template && template.isActive) {
+          subject = replaceTemplateVariables(template.subject, variables);
+          body = replaceTemplateVariables(template.body, variables);
+
+          const templateHasLinks =
+            template.body.includes("{{acceptUrl}}") ||
+            template.body.includes("{{rejectUrl}}") ||
+            template.body.includes("acceptUrl") ||
+            template.body.includes("rejectUrl");
+
+          // Add accept/reject buttons if not in template
+          if (!templateHasLinks) {
+            body += `
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${acceptUrl}" style="display: inline-block; padding: 12px 30px; margin: 0 10px; background-color: #10b981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                  Accept Quote
+                </a>
+                <a href="${rejectUrl}" style="display: inline-block; padding: 12px 30px; margin: 0 10px; background-color: #ef4444; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                  Decline Quote
+                </a>
+              </div>
+            `;
+          }
+
+          if (diagnosticFeeNotice && !body.toLowerCase().includes("diagnostic fee")) {
+            body += `
+              <div style="margin: 20px 0; padding: 14px 16px; border-radius: 8px; background: #fff7ed; color: #7c2d12; font-size: 13px; line-height: 1.6;">
+                <strong>Diagnostic Fee Notice:</strong> ${diagnosticFeeNotice}
+              </div>
+            `;
+          }
+
+          if (!body.includes("terms-and-conditions")) {
+            body += `
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+              <h4 style="color: #111827; margin: 0 0 8px 0; font-size: 14px;">Terms Summary</h4>
+              <ul style="color: #374151; font-size: 13px; line-height: 1.6; margin: 0 0 12px 18px; padding: 0;">
+                <li>Inspection fees are non-refundable if repair is declined.</li>
+                <li>Customer data must be backed up; eRepair is not liable for data loss.</li>
+                <li>3-month return-to-base warranty on repairs (excluding liquid, physical damage &amp; glass replacements).</li>
+                <li>No warranty on liquid damage repairs.</li>
+                <li>Courier damage is subject to courier terms.</li>
+                <li>Devices must be collected within 4 weeks.</li>
+                <li>Rights under the NZ Consumer Guarantees Act apply.</li>
+              </ul>
+              <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                Full Terms &amp; Conditions: <a href="${baseUrl}/terms-and-conditions" style="color: #2563eb; text-decoration: underline;">${baseUrl}/terms-and-conditions</a>
+              </p>
+            `;
+          }
+
+          body = emailLayout(extractBody(body), variables.companyName);
+          text = `${body.replace(/<[^>]*>/g, "")}\n\nFull Terms & Conditions: ${baseUrl}/terms-and-conditions`;
+        } else if (!template) {
+          const fallback = quoteSentEmail({
+            customerName: variables.customerName,
+            jobNumber: variables.jobNumber,
+            applianceBrand: variables.applianceBrand,
+            applianceType: variables.applianceType,
+            issueDescription: variables.issueDescription,
+            quotedAmount: variables.quotedAmount,
+            acceptUrl,
+            rejectUrl,
+            companyName: variables.companyName,
+            diagnosticFeeAmount:
+              typeof diagnosticFeeAmount === "number" ? diagnosticFeeAmount : undefined,
+          });
+          subject = fallback.subject;
+          body = fallback.html;
+          text = fallback.text;
         }
 
-        await sendEmail({
-          to: job.customer.email,
-          subject,
-          html: body,
-          text: body.replace(/<[^>]*>/g, ""),
-          emailType: "QUOTE_SENT",
-          relatedId: job.id,
-          sentById: session.user.id,
-          attachments: [
-            {
-              filename: `Quote-${quoteNumber}.pdf`,
-              content: pdfBase64,
-              encoding: "base64",
-              contentType: "application/pdf",
-            },
-          ],
-        });
+        if (subject && body && text) {
+          await sendEmail({
+            to: job.customer.email,
+            subject,
+            html: body,
+            text,
+            emailType: "QUOTE_SENT",
+            relatedId: job.id,
+            sentById: session.user.id,
+            attachments: [
+              {
+                filename: `Quote-${quoteNumber}.pdf`,
+                content: pdfBase64,
+                encoding: "base64",
+                contentType: "application/pdf",
+              },
+            ],
+          });
+        }
+      } catch (emailError) {
+        console.error("Failed to send quote email:", emailError);
       }
-    } catch (emailError) {
-      console.error("Failed to send quote email:", emailError);
-      // Don't fail the entire request if email fails
-    }
+    })();
 
     return NextResponse.json({
       success: true,

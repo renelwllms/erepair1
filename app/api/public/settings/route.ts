@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { parseDiagnosticFees } from "@/lib/diagnostic-fees";
+
+export const dynamic = 'force-dynamic';
 
 // GET /api/public/settings - Get public company settings (logo and name only)
 export async function GET() {
@@ -8,6 +11,10 @@ export async function GET() {
       select: {
         companyName: true,
         companyLogo: true,
+        companyPhone: true,
+        diagnosticFees: true,
+        diagnosticFeeDefaultOther: true,
+        primaryColor: true,
       },
     });
 
@@ -16,6 +23,10 @@ export async function GET() {
         {
           companyName: "",
           companyLogo: null,
+          companyPhone: null,
+          diagnosticFees: {},
+          diagnosticFeeDefaultOther: null,
+          primaryColor: "#2563eb",
         },
         {
           headers: {
@@ -31,6 +42,13 @@ export async function GET() {
       {
         companyName: settings.companyName || "",
         companyLogo: settings.companyLogo || null,
+        companyPhone: settings.companyPhone || null,
+        diagnosticFees: parseDiagnosticFees(settings.diagnosticFees),
+        diagnosticFeeDefaultOther:
+          typeof settings.diagnosticFeeDefaultOther === "number"
+            ? settings.diagnosticFeeDefaultOther
+            : null,
+        primaryColor: settings.primaryColor || "#2563eb",
       },
       {
         headers: {

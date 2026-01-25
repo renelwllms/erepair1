@@ -43,6 +43,9 @@ interface Quote {
     applianceType: string;
     applianceBrand: string;
     status: string;
+    diagnosticFeeAmount?: number;
+    diagnosticFeePaid?: boolean;
+    diagnosticFeeAppliedToInvoice?: boolean;
   };
   issuedBy: {
     id: string;
@@ -136,9 +139,18 @@ export default function QuotesPage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
-        <p className="text-gray-600">View and manage all quotes sent to customers</p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
+          <p className="text-gray-600">View and manage all quotes sent to customers</p>
+        </div>
+        <Link
+          href="/quotes/new"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          Create Quote
+        </Link>
       </div>
 
       {/* Stats */}
@@ -305,7 +317,12 @@ export default function QuotesPage() {
                     onDoubleClick={() => router.push(`/quotes/${quote.id}`)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{quote.quoteNumber}</div>
+                      <Link
+                        href={`/quotes/${quote.id}`}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {quote.quoteNumber}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
@@ -384,6 +401,19 @@ export default function QuotesPage() {
                         {quote.status === "ACCEPTED" && !quote.convertedToInvoiceId && (
                           <button
                             onClick={async () => {
+                              if (
+                                quote.job.diagnosticFeeAmount &&
+                                quote.job.diagnosticFeeAmount > 0 &&
+                                !quote.job.diagnosticFeePaid
+                              ) {
+                                const proceed = confirm(
+                                  "Diagnostic fee is not marked as paid for this job. Please record the payment before generating the invoice. Do you want to continue anyway?"
+                                );
+                                if (!proceed) {
+                                  return;
+                                }
+                              }
+
                               if (confirm("Convert this quote to an invoice?")) {
                                 try {
                                   const response = await fetch(`/api/quotes/${quote.id}/convert-to-invoice`, {

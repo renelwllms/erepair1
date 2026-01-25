@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
 import { addDays } from "date-fns";
 
 // POST /api/quotes/[id]/convert-to-invoice - Convert accepted quote to invoice
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const dbAny = db as any;
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Get quote with all details
-    const quote = await db.quote.findUnique({
+    const quote = await dbAny.quote.findUnique({
       where: { id: params.id },
       include: {
         job: true,
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Check if job already has an invoice
-    const existingInvoice = await db.invoice.findUnique({
+    const existingInvoice = await dbAny.invoice.findUnique({
       where: { jobId: quote.jobId },
     });
 
@@ -57,10 +59,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Get settings for invoice configuration
-    const settings = await db.settings.findFirst();
+    const settings = await dbAny.settings.findFirst();
 
     // Generate invoice number
-    const lastInvoice = await db.invoice.findFirst({
+    const lastInvoice = await dbAny.invoice.findFirst({
       orderBy: { createdAt: "desc" },
     });
 
@@ -81,8 +83,31 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // Calculate due date (default 30 days from now)
     const dueDate = addDays(new Date(), 30);
 
+    const jobWithDiagnostics = quote.job as any;
+    const shouldApplyDiagnosticFee =
+      jobWithDiagnostics.diagnosticFeeAmount > 0 &&
+      jobWithDiagnostics.diagnosticFeePaid &&
+      !jobWithDiagnostics.diagnosticFeeAppliedToInvoice;
+
+    const invoiceItems = [
+      ...quote.quoteItems.map((item: any) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        itemType: item.itemType,
+      })),
+      ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(jobWithDiagnostics.diagnosticFeeAmount)] : []),
+    ];
+
+    const subtotal = invoiceItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const taxRate = quote.taxRate;
+    const taxAmount = (subtotal * taxRate) / 100;
+    const discountAmount = quote.discountAmount || 0;
+    const totalAmount = subtotal + taxAmount - discountAmount;
+
     // Create invoice from quote
-    const invoice = await db.invoice.create({
+    const invoice = await dbAny.invoice.create({
       data: {
         invoiceNumber,
         jobId: quote.jobId,
@@ -91,17 +116,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         status: "DRAFT",
         issueDate: new Date(),
         dueDate,
-        subtotal: quote.subtotal,
-        taxRate: quote.taxRate,
-        taxAmount: quote.taxAmount,
-        discountAmount: quote.discountAmount,
-        totalAmount: quote.totalAmount,
+        subtotal,
+        taxRate,
+        taxAmount,
+        discountAmount,
+        totalAmount,
         paidAmount: 0,
-        balanceAmount: quote.totalAmount,
+        balanceAmount: totalAmount,
         notes: quote.notes,
-        paymentTerms: "Net 30",
+        paymentTerms: "Payment due upon collection of the device",
         invoiceItems: {
-          create: quote.quoteItems.map((item) => ({
+          create: invoiceItems.map((item) => ({
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
@@ -116,7 +141,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     // Update quote to mark as converted
-    await db.quote.update({
+    await dbAny.quote.update({
       where: { id: params.id },
       data: {
         status: "CONVERTED_TO_INVOICE",
@@ -125,15 +150,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     // Update job status
-    await db.job.update({
+    await dbAny.job.update({
       where: { id: quote.jobId },
       data: {
         status: "IN_PROGRESS",
+        repairApproved: true,
+        diagnosticFeeAppliedToInvoice: shouldApplyDiagnosticFee || jobWithDiagnostics.diagnosticFeeAppliedToInvoice,
       },
     });
 
     // Create status history entry
-    await db.jobStatusHistory.create({
+    await dbAny.jobStatusHistory.create({
       data: {
         jobId: quote.jobId,
         status: "IN_PROGRESS",

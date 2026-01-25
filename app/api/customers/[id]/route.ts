@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema for customer update
 const customerUpdateSchema = z.object({
   firstName: z.string().min(1, "First name is required").optional(),
@@ -72,12 +74,12 @@ export async function GET(
     // Calculate customer statistics
     const stats = {
       totalJobs: customer.jobs.length,
-      openJobs: customer.jobs.filter((job) =>
+      openJobs: customer.jobs.filter((job: any) =>
         job.status === "OPEN" || job.status === "IN_PROGRESS" || job.status === "AWAITING_PARTS"
       ).length,
-      completedJobs: customer.jobs.filter((job) => job.status === "CLOSED").length,
-      totalRevenue: customer.invoices.reduce((sum, inv) => sum + inv.paidAmount, 0),
-      totalOwed: customer.invoices.reduce((sum, inv) => sum + inv.balanceAmount, 0),
+      completedJobs: customer.jobs.filter((job: any) => job.status === "CLOSED").length,
+      totalRevenue: customer.invoices.reduce((sum: number, inv: any) => sum + inv.paidAmount, 0),
+      totalOwed: customer.invoices.reduce((sum: number, inv: any) => sum + inv.balanceAmount, 0),
     };
 
     return NextResponse.json({

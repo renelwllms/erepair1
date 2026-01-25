@@ -3,12 +3,28 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema for invoice update
 const invoiceUpdateSchema = z.object({
   status: z.enum(["DRAFT", "SENT", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED"]).optional(),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().optional(),
   notes: z.string().optional(),
   paymentTerms: z.string().optional(),
+  items: z.array(z.object({
+    id: z.string().optional(),
+    description: z.string(),
+    quantity: z.number(),
+    unitPrice: z.number(),
+    totalPrice: z.number(),
+    itemType: z.string(),
+  })).optional(),
+  subtotal: z.number().optional(),
+  taxRate: z.number().optional(),
+  taxAmount: z.number().optional(),
+  discountAmount: z.number().optional(),
+  totalAmount: z.number().optional(),
+  balanceAmount: z.number().optional(),
 });
 
 // GET /api/invoices/[id] - Get invoice by ID
@@ -105,6 +121,14 @@ export async function PUT(
       );
     }
 
+    // Only allow editing DRAFT invoices for item/amount changes
+    if (validatedData.items && existingInvoice.status !== "DRAFT") {
+      return NextResponse.json(
+        { error: "Can only edit items on draft invoices" },
+        { status: 400 }
+      );
+    }
+
     // Prevent editing paid invoices unless changing to cancelled
     if (existingInvoice.status === "PAID" && validatedData.status !== "CANCELLED") {
       return NextResponse.json(
@@ -113,15 +137,47 @@ export async function PUT(
       );
     }
 
+    // If items are provided, delete old items and create new ones
+    if (validatedData.items) {
+      // Delete existing items
+      await db.invoiceItem.deleteMany({
+        where: { invoiceId: params.id },
+      });
+
+      // Create new items
+      await db.invoiceItem.createMany({
+        data: validatedData.items.map(item => ({
+          invoiceId: params.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          itemType: item.itemType,
+        })),
+      });
+    }
+
     // Update invoice
+    const updateData: any = {
+      status: validatedData.status,
+      notes: validatedData.notes,
+      paymentTerms: validatedData.paymentTerms,
+    };
+
+    if (validatedData.dueDate) {
+      updateData.dueDate = new Date(validatedData.dueDate);
+    }
+
+    if (validatedData.subtotal !== undefined) updateData.subtotal = validatedData.subtotal;
+    if (validatedData.taxRate !== undefined) updateData.taxRate = validatedData.taxRate;
+    if (validatedData.taxAmount !== undefined) updateData.taxAmount = validatedData.taxAmount;
+    if (validatedData.discountAmount !== undefined) updateData.discountAmount = validatedData.discountAmount;
+    if (validatedData.totalAmount !== undefined) updateData.totalAmount = validatedData.totalAmount;
+    if (validatedData.balanceAmount !== undefined) updateData.balanceAmount = validatedData.balanceAmount;
+
     const invoice = await db.invoice.update({
       where: { id: params.id },
-      data: {
-        status: validatedData.status,
-        dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
-        notes: validatedData.notes,
-        paymentTerms: validatedData.paymentTerms,
-      },
+      data: updateData,
       include: {
         customer: true,
         job: true,

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateInvoicePDF } from "@/lib/pdf-generator";
+import { normalizePaymentTerms } from "@/lib/payment-terms";
+
+export const dynamic = 'force-dynamic';
 
 // GET /api/invoices/[id]/pdf - Generate and download invoice PDF
 export async function GET(
@@ -72,7 +75,7 @@ export async function GET(
       paidAmount: invoice.paidAmount,
       balanceAmount: invoice.balanceAmount,
       notes: invoice.notes || undefined,
-      paymentTerms: invoice.paymentTerms || undefined,
+      paymentTerms: normalizePaymentTerms(invoice.paymentTerms),
       termsAndConditions: settings?.termsAndConditions || undefined,
       companyName: settings?.companyName,
       companyEmail: settings?.companyEmail || undefined,

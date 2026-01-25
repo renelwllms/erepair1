@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/analytics/dashboard - Get dashboard analytics data
 export async function GET(request: NextRequest) {
   try {
@@ -75,7 +77,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Group jobs by date for line chart
-    const jobsByDate = jobsInPeriod.reduce((acc: any, job) => {
+    const jobsByDate = jobsInPeriod.reduce((acc: any, job: any) => {
       const date = new Date(job.createdAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Group by appliance type for pie chart
-    const applianceTypeCounts = jobsInPeriod.reduce((acc: any, job) => {
+    const applianceTypeCounts = jobsInPeriod.reduce((acc: any, job: any) => {
       const type = job.applianceType || "Unknown";
       if (!acc[type]) {
         acc[type] = 0;
@@ -108,7 +110,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 10); // Top 10
 
     // Group by brand for pie chart
-    const brandCounts = jobsInPeriod.reduce((acc: any, job) => {
+    const brandCounts = jobsInPeriod.reduce((acc: any, job: any) => {
       const brand = job.applianceBrand || "Unknown";
       if (!acc[brand]) {
         acc[brand] = 0;
@@ -147,7 +149,7 @@ export async function GET(request: NextRequest) {
       _count: true,
     });
 
-    const statusDistribution = statusCounts.map((item) => ({
+    const statusDistribution = statusCounts.map((item: any) => ({
       status: item.status,
       count: item._count,
     }));

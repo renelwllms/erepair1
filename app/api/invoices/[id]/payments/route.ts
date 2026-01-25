@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema for payment creation
 const paymentCreateSchema = z.object({
   amount: z.number().min(0.01, "Amount must be greater than 0"),
@@ -91,7 +93,7 @@ export async function POST(
     }
 
     // Create payment and update invoice in transaction
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: any) => {
       // Create payment
       const payment = await tx.payment.create({
         data: {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/public/track-job - Public job tracking (no auth required)
 export async function GET(request: NextRequest) {
   try {

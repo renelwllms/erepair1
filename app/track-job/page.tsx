@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, Clock, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import { Search, Package, Clock, CheckCircle, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 
 interface JobStatus {
   jobNumber: string;
@@ -28,14 +28,28 @@ interface JobStatus {
   }>;
 }
 
-export default function TrackJobPage() {
+function TrackJobContent() {
   const searchParams = useSearchParams();
   const [jobNumber, setJobNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [job, setJob] = useState<JobStatus | null>(null);
   const [error, setError] = useState("");
+  const [companyPhone, setCompanyPhone] = useState<string | null>(null);
 
   useEffect(() => {
+    const loadPublicSettings = async () => {
+      try {
+        const response = await fetch("/api/public/settings");
+        if (!response.ok) return;
+        const data = await response.json();
+        setCompanyPhone(data.companyPhone || null);
+      } catch (error) {
+        // Ignore public settings fetch failures
+      }
+    };
+
+    loadPublicSettings();
+
     const prefilledJobNumber = searchParams.get("jobNumber");
     if (prefilledJobNumber) {
       setJobNumber(prefilledJobNumber);
@@ -256,7 +270,9 @@ export default function TrackJobPage() {
               {/* Actions */}
               <div className="border-t pt-6 space-y-3">
                 <p className="text-sm text-gray-600 text-center">
-                  Need help? Contact us at support@erepair.com or call (555) 123-4567
+                  {companyPhone
+                    ? `Need help? Call us at ${companyPhone}`
+                    : "Need help? Please contact our support team."}
                 </p>
                 <Button
                   variant="outline"
@@ -309,5 +325,27 @@ export default function TrackJobPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function TrackJobPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-bold text-gray-900">Track Your Repair</h1>
+            <p className="text-lg text-gray-600">Loading...</p>
+          </div>
+          <Card>
+            <CardContent className="flex items-center justify-center p-12">
+              <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    }>
+      <TrackJobContent />
+    </Suspense>
   );
 }

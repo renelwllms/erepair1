@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/search - Search across jobs, customers, and invoices
 export async function GET(request: NextRequest) {
   try {

@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { MailtrapTransport } from "mailtrap";
 import { db } from "./db";
+import { getGmailAccessToken } from "./gmail-oauth";
 
 // Email configuration interface
 interface EmailConfig {
@@ -10,7 +11,9 @@ interface EmailConfig {
   secure?: boolean;
   auth?: {
     user: string;
-    pass: string;
+    pass?: string;
+    type?: string;
+    accessToken?: string;
   };
   mailtrapToken?: string;
   from: {
@@ -34,6 +37,37 @@ async function getEmailConfig(): Promise<EmailConfig> {
         email: settings?.smtpFromEmail || process.env.SMTP_FROM_EMAIL || "hello@demomailtrap.co",
       },
     };
+  }
+
+  // Check for Google Workspace OAuth configuration
+  if (
+    settings?.emailProvider === "GOOGLE_WORKSPACE" &&
+    settings?.googleClientId &&
+    settings?.googleClientSecret &&
+    settings?.googleRefreshToken &&
+    settings?.smtpUser
+  ) {
+    try {
+      const accessToken = await getGmailAccessToken();
+      return {
+        provider: "gmail-oauth",
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          type: "OAuth2",
+          user: settings.smtpUser,
+          accessToken: accessToken,
+        },
+        from: {
+          name: settings.smtpFromName || settings.companyName || "E-Repair Shop",
+          email: settings.smtpFromEmail || settings.smtpUser,
+        },
+      };
+    } catch (error) {
+      console.error("Gmail OAuth error, falling back to SMTP:", error);
+      // Fall through to SMTP if OAuth fails
+    }
   }
 
   // Check for SMTP configuration in database
@@ -98,12 +132,12 @@ async function createTransporter() {
     );
   }
 
-  // Use SMTP
+  // Use SMTP (including OAuth)
   return nodemailer.createTransport({
     host: config.host!,
     port: config.port!,
     secure: config.secure!,
-    auth: config.auth!,
+    auth: config.auth as any, // TypeScript workaround for OAuth2 type
   });
 }
 

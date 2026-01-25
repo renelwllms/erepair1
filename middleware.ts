@@ -7,7 +7,7 @@ export default auth((req) => {
   const userRole = req.auth?.user?.role;
 
   // Public routes
-  const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/error", "/submit-job", "/track-job"];
+  const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/error", "/submit-job", "/track-job", "/qr-code", "/qr-print"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
   // Customer portal routes (accessible via QR code)

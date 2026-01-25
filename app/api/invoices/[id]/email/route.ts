@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { generateInvoicePDF } from "@/lib/pdf-generator";
+import { normalizePaymentTerms } from "@/lib/payment-terms";
 import { format } from "date-fns";
+import { emailLayout, termsSummaryHtml } from "@/lib/email-templates";
 
 // POST /api/invoices/[id]/email - Email invoice to customer
 export async function POST(
@@ -79,7 +81,7 @@ export async function POST(
       paidAmount: invoice.paidAmount,
       balanceAmount: invoice.balanceAmount,
       notes: invoice.notes || undefined,
-      paymentTerms: invoice.paymentTerms || undefined,
+      paymentTerms: normalizePaymentTerms(invoice.paymentTerms),
       companyName: settings?.companyName,
       companyEmail: settings?.companyEmail || undefined,
       companyPhone: settings?.companyPhone || undefined,
@@ -99,121 +101,103 @@ export async function POST(
       }).format(amount);
     };
 
-    // Create email HTML
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-          .invoice-details { background-color: white; padding: 20px; border-radius: 5px; margin: 20px 0; }
-          .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-          .detail-row:last-child { border-bottom: none; }
-          .label { color: #6b7280; }
-          .value { font-weight: 600; }
-          .total-section { margin-top: 20px; padding-top: 20px; border-top: 2px solid #4F46E5; }
-          .total-row { display: flex; justify-content: space-between; padding: 5px 0; }
-          .total-amount { font-size: 24px; font-weight: bold; color: #4F46E5; }
-          .balance-due { font-size: 20px; font-weight: bold; color: #EF4444; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Invoice from ${settings?.companyName || "E-Repair Shop"}</h1>
-          </div>
-          <div class="content">
-            <p>Dear ${invoice.customer.firstName} ${invoice.customer.lastName},</p>
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const dueDateText = "Payment due upon collection of the device";
+    const termsUrl = `${baseUrl}/terms-and-conditions`;
+    const termsHtml = termsSummaryHtml(termsUrl);
 
-            <p>Thank you for your business. Please find attached your invoice for the recent repair service.</p>
+    const content = `
+      <h2 style="color: #1f2937; margin: 0 0 20px 0;">
+        Invoice
+      </h2>
 
-            <div class="invoice-details">
-              <h2 style="margin-top: 0; color: #4F46E5;">Invoice Details</h2>
-              <div class="detail-row">
-                <span class="label">Invoice Number:</span>
-                <span class="value">${invoice.invoiceNumber}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Job Number:</span>
-                <span class="value">${invoice.job.jobNumber}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Issue Date:</span>
-                <span class="value">${format(invoice.issueDate, "MMMM dd, yyyy")}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Due Date:</span>
-                <span class="value">${format(invoice.dueDate, "MMMM dd, yyyy")}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Appliance:</span>
-                <span class="value">${invoice.job.applianceBrand} ${invoice.job.applianceType}</span>
-              </div>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+        Dear ${invoice.customer.firstName} ${invoice.customer.lastName},
+      </p>
 
-              <div class="total-section">
-                <div class="total-row">
-                  <span class="label">Subtotal:</span>
-                  <span class="value">${formatCurrency(invoice.subtotal)}</span>
-                </div>
-                <div class="total-row">
-                  <span class="label">Tax (${invoice.taxRate}%):</span>
-                  <span class="value">${formatCurrency(invoice.taxAmount)}</span>
-                </div>
-                ${invoice.discountAmount > 0 ? `
-                <div class="total-row">
-                  <span class="label">Discount:</span>
-                  <span class="value" style="color: #10b981;">-${formatCurrency(invoice.discountAmount)}</span>
-                </div>
-                ` : ''}
-                <div class="total-row" style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #e5e7eb;">
-                  <span style="font-size: 18px; font-weight: 600;">Total Amount:</span>
-                  <span class="total-amount">${formatCurrency(invoice.totalAmount)}</span>
-                </div>
-                ${invoice.paidAmount > 0 ? `
-                <div class="total-row">
-                  <span class="label">Paid:</span>
-                  <span class="value" style="color: #10b981;">${formatCurrency(invoice.paidAmount)}</span>
-                </div>
-                ` : ''}
-                ${invoice.balanceAmount > 0 ? `
-                <div class="total-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-                  <span style="font-size: 16px; font-weight: 600;">Balance Due:</span>
-                  <span class="balance-due">${formatCurrency(invoice.balanceAmount)}</span>
-                </div>
-                ` : ''}
-              </div>
-            </div>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+        Thank you for your business. Please find your invoice attached.
+      </p>
 
-            ${invoice.paymentTerms ? `
-            <p><strong>Payment Terms:</strong><br>${invoice.paymentTerms}</p>
-            ` : ''}
+      <div style="background-color: #f9fafb; border-radius: 6px; padding: 20px; margin: 0 0 30px 0;">
+        <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px;">
+          Invoice Details
+        </h3>
+        <table width="100%" cellpadding="8" cellspacing="0">
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Invoice Number:</td>
+            <td style="color: #1f2937; font-size: 14px; font-weight: bold; padding: 8px 0;">${invoice.invoiceNumber}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Job Number:</td>
+            <td style="color: #1f2937; font-size: 14px; font-weight: bold; padding: 8px 0;">${invoice.job.jobNumber}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Issue Date:</td>
+            <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${format(invoice.issueDate, "MMMM dd, yyyy")}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Due Date:</td>
+            <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${dueDateText}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Appliance:</td>
+            <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${invoice.job.applianceBrand} ${invoice.job.applianceType}</td>
+          </tr>
+        </table>
+      </div>
 
-            ${invoice.notes ? `
-            <p><strong>Notes:</strong><br>${invoice.notes}</p>
-            ` : ''}
+      <div style="background-color: #eff6ff; border: 2px solid #2563eb; border-radius: 8px; padding: 20px; margin: 0 0 30px 0;">
+        <table width="100%" cellpadding="6" cellspacing="0">
+          <tr>
+            <td style="color: #6b7280; font-size: 14px;">Subtotal:</td>
+            <td style="color: #111827; font-size: 14px; font-weight: bold; text-align: right;">${formatCurrency(invoice.subtotal)}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; font-size: 14px;">Tax (${invoice.taxRate}%):</td>
+            <td style="color: #111827; font-size: 14px; font-weight: bold; text-align: right;">${formatCurrency(invoice.taxAmount)}</td>
+          </tr>
+          ${invoice.discountAmount > 0 ? `
+          <tr>
+            <td style="color: #6b7280; font-size: 14px;">Discount:</td>
+            <td style="color: #10b981; font-size: 14px; font-weight: bold; text-align: right;">-${formatCurrency(invoice.discountAmount)}</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="color: #1e40af; font-size: 16px; font-weight: bold; padding-top: 10px;">Total Amount:</td>
+            <td style="color: #1e3a8a; font-size: 20px; font-weight: bold; text-align: right; padding-top: 10px;">${formatCurrency(invoice.totalAmount)}</td>
+          </tr>
+          ${invoice.paidAmount > 0 ? `
+          <tr>
+            <td style="color: #6b7280; font-size: 14px;">Paid:</td>
+            <td style="color: #10b981; font-size: 14px; font-weight: bold; text-align: right;">${formatCurrency(invoice.paidAmount)}</td>
+          </tr>
+          ` : ''}
+          ${invoice.balanceAmount > 0 ? `
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding-top: 6px;">Balance Due:</td>
+            <td style="color: #ef4444; font-size: 16px; font-weight: bold; text-align: right; padding-top: 6px;">${formatCurrency(invoice.balanceAmount)}</td>
+          </tr>
+          ` : ''}
+        </table>
+      </div>
 
-            <p>The complete invoice is attached as a PDF document. If you have any questions about this invoice, please don't hesitate to contact us.</p>
+      ${normalizePaymentTerms(invoice.paymentTerms) ? `
+      <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;"><strong>Payment Terms:</strong><br>${normalizePaymentTerms(invoice.paymentTerms)}</p>
+      ` : ''}
 
-            <p>Thank you for choosing ${settings?.companyName || "E-Repair Shop"}!</p>
-          </div>
+      ${invoice.notes ? `
+      <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;"><strong>Notes:</strong><br>${invoice.notes}</p>
+      ` : ''}
 
-          <div class="footer">
-            <p>
-              ${settings?.companyName || "E-Repair Shop"}<br>
-              ${settings?.companyEmail ? `Email: ${settings.companyEmail}<br>` : ''}
-              ${settings?.companyPhone ? `Phone: ${settings.companyPhone}<br>` : ''}
-              ${settings?.companyAddress ? settings.companyAddress : ''}
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
+      ${termsHtml}
+
+      <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0;">
+        The complete invoice is attached as a PDF document. If you have any questions, please contact us.
+      </p>
     `;
+
+    const emailHtml = emailLayout(content, settings?.companyName || "E-Repair Shop");
 
     // Send email with PDF attachment
     const emailResult = await sendEmail({
@@ -227,6 +211,8 @@ export async function POST(
         {
           filename: `Invoice-${invoice.invoiceNumber}.pdf`,
           content: pdfBuffer.toString("base64"),
+          encoding: "base64",
+          contentType: "application/pdf",
         },
       ],
     });

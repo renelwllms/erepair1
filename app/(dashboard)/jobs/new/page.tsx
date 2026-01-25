@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { TermsSummary } from "@/components/legal/terms-summary";
+import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
 
 // Common appliances and brands
 const COMMON_APPLIANCES = [
@@ -111,6 +113,15 @@ const jobSchema = z.object({
   warrantyStatus: z.string().optional(),
   serviceLocation: z.string().optional(),
   estimatedCompletion: z.string().optional(),
+  diagnosticFeeAmount: z.number().min(0).optional(),
+}).superRefine((data, ctx) => {
+  if (data.applianceType === "Other" && (data.diagnosticFeeAmount === undefined || Number.isNaN(data.diagnosticFeeAmount))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["diagnosticFeeAmount"],
+      message: "Diagnostic fee is required when appliance type is Other",
+    });
+  }
 });
 
 const customerSchema = z.object({
@@ -156,6 +167,9 @@ export default function NewJobPage() {
   const [customBrand, setCustomBrand] = useState("");
   const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
   const [brandSearchTerm, setBrandSearchTerm] = useState("");
+  const [diagnosticFees, setDiagnosticFees] = useState<Record<string, number>>({});
+  const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState<number | null>(null);
+  const [diagnosticFeeTouched, setDiagnosticFeeTouched] = useState(false);
 
   const preselectedCustomerId = searchParams.get("customerId");
 
@@ -190,6 +204,7 @@ export default function NewJobPage() {
   const assignedTechnicianId = watch("assignedTechnicianId");
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
+  const diagnosticFeeAmount = watch("diagnosticFeeAmount");
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -204,11 +219,25 @@ export default function NewJobPage() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (!applianceType || diagnosticFeeTouched) {
+      return;
+    }
+
+    const fee = getDiagnosticFeeForAppliance(applianceType, diagnosticFees, diagnosticFeeDefaultOther);
+    if (typeof fee === "number") {
+      setValue("diagnosticFeeAmount", fee);
+    } else {
+      setValue("diagnosticFeeAmount", 0);
+    }
+  }, [applianceType, diagnosticFees, diagnosticFeeDefaultOther, diagnosticFeeTouched, setValue]);
+
   const fetchData = async () => {
     try {
-      const [customersRes, techniciansRes] = await Promise.all([
+      const [customersRes, techniciansRes, settingsRes] = await Promise.all([
         fetch("/api/customers?limit=1000"),
         fetch("/api/users/technicians"),
+        fetch("/api/settings"),
       ]);
 
       if (customersRes.ok) {
@@ -219,6 +248,14 @@ export default function NewJobPage() {
       if (techniciansRes.ok) {
         const data = await techniciansRes.json();
         setTechnicians(data);
+      }
+
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        setDiagnosticFees(parseDiagnosticFees(data.diagnosticFees));
+        setDiagnosticFeeDefaultOther(
+          typeof data.diagnosticFeeDefaultOther === "number" ? data.diagnosticFeeDefaultOther : null
+        );
       }
     } catch (error) {
       toast({
@@ -514,6 +551,33 @@ export default function NewJobPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="diagnosticFeeAmount">
+                  Diagnostic Fee <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="diagnosticFeeAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={diagnosticFeeAmount ?? ""}
+                  {...register("diagnosticFeeAmount", { valueAsNumber: true })}
+                  onChange={(event) => {
+                    setDiagnosticFeeTouched(true);
+                    setValue("diagnosticFeeAmount", Number(event.target.value));
+                  }}
+                  placeholder={applianceType === "Other" ? "Enter diagnostic fee" : "Auto-filled from settings"}
+                />
+                {applianceType === "Other" && diagnosticFeeDefaultOther === null && (
+                  <p className="text-xs text-gray-500">
+                    No default diagnostic fee for Other. Please enter a manual amount.
+                  </p>
+                )}
+                {errors.diagnosticFeeAmount && (
+                  <p className="text-sm text-red-500">{errors.diagnosticFeeAmount.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="applianceBrand">
                   Brand <span className="text-red-500">*</span>
                 </Label>
@@ -681,6 +745,8 @@ export default function NewJobPage() {
             </div>
           </CardContent>
         </Card>
+
+        <TermsSummary className="mt-6" />
 
         <div className="flex gap-4 mt-6">
           <Button

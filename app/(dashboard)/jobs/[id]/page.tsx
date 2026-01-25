@@ -57,9 +57,17 @@ interface JobDetails {
   warrantyStatus?: string;
   serviceLocation?: string;
   laborHours: number;
+  diagnosticFeeAmount: number;
+  diagnosticFeePaid: boolean;
+  diagnosticFeePaidAt?: string | null;
+  diagnosticFeePaymentMethod?: string | null;
+  diagnosticFeeAppliedToInvoice?: boolean;
+  repairApproved?: boolean;
   diagnosticResults?: string;
   technicianNotes?: string;
   customerNotes?: string;
+  beforePhotos: string[];
+  afterPhotos: string[];
   createdAt: string;
   customer: {
     id: string;
@@ -122,6 +130,11 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     message: "",
   });
   const [addingComm, setAddingComm] = useState(false);
+  const [diagnosticFeeAmount, setDiagnosticFeeAmount] = useState("");
+  const [diagnosticFeePaid, setDiagnosticFeePaid] = useState(false);
+  const [diagnosticFeePaidAt, setDiagnosticFeePaidAt] = useState("");
+  const [diagnosticFeePaymentMethod, setDiagnosticFeePaymentMethod] = useState("CASH");
+  const [savingDiagnosticFee, setSavingDiagnosticFee] = useState(false);
 
   // Quote state
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
@@ -148,6 +161,14 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
       const data = await response.json();
       setJob(data);
       setNewStatus(data.status);
+      setDiagnosticFeeAmount(
+        typeof data.diagnosticFeeAmount === "number" ? data.diagnosticFeeAmount.toString() : "0"
+      );
+      setDiagnosticFeePaid(Boolean(data.diagnosticFeePaid));
+      setDiagnosticFeePaidAt(
+        data.diagnosticFeePaidAt ? new Date(data.diagnosticFeePaidAt).toISOString().slice(0, 10) : ""
+      );
+      setDiagnosticFeePaymentMethod(data.diagnosticFeePaymentMethod || "CASH");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -172,6 +193,21 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
     setUpdatingStatus(true);
     try {
+      if (
+        newStatus === "READY_FOR_PICKUP" &&
+        job &&
+        job.diagnosticFeeAmount > 0 &&
+        !job.diagnosticFeePaid
+      ) {
+        const proceed = confirm(
+          "Diagnostic fee is not marked as paid for this job. Please record the payment before generating the invoice. Do you want to continue anyway?"
+        );
+        if (!proceed) {
+          setUpdatingStatus(false);
+          return;
+        }
+      }
+
       const response = await fetch(`/api/jobs/${params.id}/status`, {
         method: "PUT",
         headers: {
@@ -183,9 +219,10 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update status");
+        throw new Error(result.error || "Failed to update status");
       }
 
       toast({
@@ -195,7 +232,15 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
       setStatusDialogOpen(false);
       setStatusNotes("");
-      fetchJob();
+      await fetchJob();
+
+      if (newStatus === "READY_FOR_PICKUP") {
+        if (result.invoice?.id) {
+          router.push(`/invoices/${result.invoice.id}`);
+        } else {
+          router.push(`/invoices/new?jobId=${params.id}`);
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -204,6 +249,48 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
       });
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleDiagnosticFeeSave = async () => {
+    if (!job) return;
+    setSavingDiagnosticFee(true);
+    try {
+      const paidAtValue =
+        diagnosticFeePaid
+          ? diagnosticFeePaidAt || new Date().toISOString().slice(0, 10)
+          : "";
+
+      const response = await fetch(`/api/jobs/${params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          diagnosticFeeAmount: Number(diagnosticFeeAmount || 0),
+          diagnosticFeePaid,
+          diagnosticFeePaidAt: diagnosticFeePaid ? new Date(paidAtValue).toISOString() : null,
+          diagnosticFeePaymentMethod: diagnosticFeePaid ? diagnosticFeePaymentMethod : null,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update diagnostic fee");
+      }
+
+      toast({
+        title: "Success",
+        description: "Diagnostic fee updated",
+      });
+
+      await fetchJob();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingDiagnosticFee(false);
     }
   };
 
@@ -409,7 +496,12 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               Send Quote
             </Button>
           )}
-          {!job.invoice && (
+          {job.invoice ? (
+            <Button onClick={() => router.push(`/invoices/${job.invoice?.id}`)}>
+              <FileText className="h-4 w-4 mr-2" />
+              View Invoice
+            </Button>
+          ) : (
             <Button onClick={() => router.push(`/invoices/new?jobId=${job.id}`)}>
               <FileText className="h-4 w-4 mr-2" />
               Create Invoice
@@ -475,6 +567,146 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Diagnostic Fee</CardTitle>
+              <CardDescription>Record diagnostic fee payment and apply credit to invoices</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="diagnosticFeeAmount">Diagnostic Fee Amount</Label>
+                  <Input
+                    id="diagnosticFeeAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={diagnosticFeeAmount}
+                    onChange={(event) => setDiagnosticFeeAmount(event.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Diagnostic Fee Paid</Label>
+                  <Select
+                    value={diagnosticFeePaid ? "yes" : "no"}
+                    onValueChange={(value) => {
+                      const isPaid = value === "yes";
+                      setDiagnosticFeePaid(isPaid);
+                      if (isPaid && !diagnosticFeePaidAt) {
+                        setDiagnosticFeePaidAt(new Date().toISOString().slice(0, 10));
+                      }
+                      if (!isPaid) {
+                        setDiagnosticFeePaidAt("");
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Yes</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="diagnosticFeePaidAt">Paid Date</Label>
+                  <Input
+                    id="diagnosticFeePaidAt"
+                    type="date"
+                    value={diagnosticFeePaidAt}
+                    onChange={(event) => setDiagnosticFeePaidAt(event.target.value)}
+                    disabled={!diagnosticFeePaid}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  <Select
+                    value={diagnosticFeePaymentMethod}
+                    onValueChange={setDiagnosticFeePaymentMethod}
+                    disabled={!diagnosticFeePaid}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
+                      <SelectItem value="DEBIT_CARD">Debit Card</SelectItem>
+                      <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                      <SelectItem value="CHECK">Check</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {job.diagnosticFeeAppliedToInvoice && (
+                <p className="text-xs text-green-600">
+                  Diagnostic fee credit has already been applied to an invoice.
+                </p>
+              )}
+
+              <div>
+                <Button onClick={handleDiagnosticFeeSave} disabled={savingDiagnosticFee}>
+                  {savingDiagnosticFee ? "Saving..." : "Save Diagnostic Fee"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Device Photos */}
+          {(job.beforePhotos.length > 0 || job.afterPhotos.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Device Photos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {job.beforePhotos.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-3">Before Photos</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {job.beforePhotos.map((photo, index) => (
+                        <div key={index} className="border rounded-lg overflow-hidden">
+                          <a href={photo} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={photo}
+                              alt={`Before photo ${index + 1}`}
+                              className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {job.afterPhotos.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-3">After Photos</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {job.afterPhotos.map((photo, index) => (
+                        <div key={index} className="border rounded-lg overflow-hidden">
+                          <a href={photo} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={photo}
+                              alt={`After photo ${index + 1}`}
+                              className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Technician Notes */}
           {job.technicianNotes && (
@@ -590,19 +822,23 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                   variant="outline"
                   size="sm"
                   className="flex-1"
-                  onClick={() => window.location.href = `tel:${job.customer.phone}`}
+                  asChild
                 >
-                  <Phone className="h-3 w-3 mr-1" />
-                  Call
+                  <a href={`tel:${job.customer.phone}`}>
+                    <Phone className="h-3 w-3 mr-1" />
+                    Call
+                  </a>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="flex-1"
-                  onClick={() => window.location.href = `mailto:${job.customer.email}`}
+                  asChild
                 >
-                  <Mail className="h-3 w-3 mr-1" />
-                  Email
+                  <a href={`mailto:${job.customer.email}`} target="_blank" rel="noopener noreferrer">
+                    <Mail className="h-3 w-3 mr-1" />
+                    Email
+                  </a>
                 </Button>
               </div>
               <div>

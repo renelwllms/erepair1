@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { sendEmail } from "@/lib/email";
+import { diagnosticFeePaidEmail } from "@/lib/email-templates";
+
+export const dynamic = 'force-dynamic';
 
 // Validation schema for job update
 const jobUpdateSchema = z.object({
@@ -19,6 +23,12 @@ const jobUpdateSchema = z.object({
   diagnosticResults: z.string().optional(),
   technicianNotes: z.string().optional(),
   customerNotes: z.string().optional(),
+  diagnosticFeeAmount: z.number().min(0).optional(),
+  diagnosticFeePaid: z.boolean().optional(),
+  diagnosticFeePaidAt: z.string().nullable().optional(),
+  diagnosticFeePaymentMethod: z.enum(["CASH", "CREDIT_CARD", "DEBIT_CARD", "BANK_TRANSFER", "CHECK", "OTHER"]).nullable().optional(),
+  diagnosticFeeAppliedToInvoice: z.boolean().optional(),
+  repairApproved: z.boolean().optional(),
 });
 
 // GET /api/jobs/[id] - Get a single job
@@ -121,6 +131,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const dbAny = db as any;
     const session = await auth();
 
     if (!session) {
@@ -165,12 +176,20 @@ export async function PUT(
         : null;
     }
 
+    let diagnosticFeePaidAtDate: Date | null | undefined = undefined;
+    if (validatedData.diagnosticFeePaidAt !== undefined) {
+      diagnosticFeePaidAtDate = validatedData.diagnosticFeePaidAt
+        ? new Date(validatedData.diagnosticFeePaidAt)
+        : null;
+    }
+
     // Update job
-    const job = await db.job.update({
+    const job = await dbAny.job.update({
       where: { id: params.id },
       data: {
         ...validatedData,
         estimatedCompletion: estimatedCompletionDate,
+        diagnosticFeePaidAt: diagnosticFeePaidAtDate,
       },
       include: {
         customer: true,
@@ -178,6 +197,46 @@ export async function PUT(
         createdBy: true,
       },
     });
+
+    const diagnosticFeePaidNow =
+      validatedData.diagnosticFeePaid === true &&
+      existingJob.diagnosticFeePaid !== true &&
+      Number(job.diagnosticFeeAmount || 0) > 0;
+
+    if (diagnosticFeePaidNow && job.customer?.email) {
+      try {
+        const settings = await db.settings.findFirst({
+          select: {
+            companyName: true,
+            companyLogo: true,
+          },
+        });
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const logoUrl =
+          settings?.companyLogo && settings.companyLogo.startsWith("/")
+            ? `${baseUrl}${settings.companyLogo}`
+            : settings?.companyLogo || null;
+
+        const emailContent = diagnosticFeePaidEmail({
+          customerName: `${job.customer.firstName} ${job.customer.lastName}`,
+          jobNumber: job.jobNumber,
+          diagnosticFeeAmount: Number(job.diagnosticFeeAmount || 0),
+          companyName: settings?.companyName || "E-Repair Shop",
+        });
+
+        await sendEmail({
+          to: job.customer.email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+          emailType: "DIAGNOSTIC_FEE_PAID",
+          relatedId: job.id,
+          sentById: session.user.id,
+        });
+      } catch (emailError) {
+        console.error("Failed to send diagnostic fee paid email:", emailError);
+      }
+    }
 
     return NextResponse.json(job);
   } catch (error) {

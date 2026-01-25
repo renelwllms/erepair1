@@ -100,6 +100,7 @@ const jobSchema = z.object({
   serviceLocation: z.string().optional(),
   estimatedCompletion: z.string().optional(),
   laborHours: z.number().optional(),
+  diagnosticFeeAmount: z.number().min(0).optional(),
   diagnosticResults: z.string().optional(),
   technicianNotes: z.string().optional(),
   customerNotes: z.string().optional(),
@@ -177,6 +178,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       setValue("warrantyStatus", job.warrantyStatus || "");
       setValue("serviceLocation", job.serviceLocation || "");
       setValue("laborHours", job.laborHours || 0);
+      setValue("diagnosticFeeAmount", job.diagnosticFeeAmount || 0);
       setValue("diagnosticResults", job.diagnosticResults || "");
       setValue("technicianNotes", job.technicianNotes || "");
       setValue("customerNotes", job.customerNotes || "");
@@ -501,6 +503,20 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                   step="0.5"
                   {...register("laborHours", { valueAsNumber: true })}
                   placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="diagnosticFeeAmount">Diagnostic Fee</Label>
+                <Input
+                  id="diagnosticFeeAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  {...register("diagnosticFeeAmount", { valueAsNumber: true })}
+                  placeholder="0.00"
                 />
               </div>
             </div>

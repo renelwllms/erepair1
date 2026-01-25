@@ -9,11 +9,12 @@ const rejectQuoteSchema = z.object({
 // POST /api/quotes/[id]/reject - Reject a quote (public endpoint)
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const dbAny = db as any;
     const body = await request.json();
     const validatedData = rejectQuoteSchema.parse(body);
 
     // Get quote with job and customer details
-    const quote = await db.quote.findUnique({
+    const quote = await dbAny.quote.findUnique({
       where: { id: params.id },
       include: {
         job: true,
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Update quote status to REJECTED
-    const updatedQuote = await db.quote.update({
+    const updatedQuote = await dbAny.quote.update({
       where: { id: params.id },
       data: {
         status: "REJECTED",
@@ -45,15 +46,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
 
     // Update job status back to OPEN
-    await db.job.update({
+    await dbAny.job.update({
       where: { id: quote.jobId },
       data: {
         status: "OPEN",
+        repairApproved: false,
       },
     });
 
     // Create status history entry
-    await db.jobStatusHistory.create({
+    await dbAny.jobStatusHistory.create({
       data: {
         jobId: quote.jobId,
         status: "OPEN",

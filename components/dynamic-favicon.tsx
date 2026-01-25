@@ -9,21 +9,30 @@ export function DynamicFavicon() {
       .then((res) => res.json())
       .then((data) => {
         if (data.companyFavicon) {
-          // Update favicon
-          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-          if (link) {
-            link.href = data.companyFavicon;
-          } else {
-            const newLink = document.createElement("link");
-            newLink.rel = "icon";
-            newLink.href = data.companyFavicon;
-            document.head.appendChild(newLink);
-          }
+          // Add cache-busting timestamp to favicon URL
+          const timestamp = new Date().getTime();
+          const faviconUrl = `${data.companyFavicon}?v=${timestamp}`;
 
-          // Update apple-touch-icon if exists
+          // Remove all existing favicon links to force refresh
+          const existingLinks = document.querySelectorAll("link[rel~='icon']");
+          existingLinks.forEach(link => link.remove());
+
+          // Create new favicon link with cache-busting
+          const newLink = document.createElement("link");
+          newLink.rel = "icon";
+          newLink.type = "image/png";
+          newLink.href = faviconUrl;
+          document.head.appendChild(newLink);
+
+          // Update apple-touch-icon if exists, or create new one
           const appleLink = document.querySelector("link[rel~='apple-touch-icon']") as HTMLLinkElement;
           if (appleLink) {
-            appleLink.href = data.companyFavicon;
+            appleLink.href = faviconUrl;
+          } else {
+            const newAppleLink = document.createElement("link");
+            newAppleLink.rel = "apple-touch-icon";
+            newAppleLink.href = faviconUrl;
+            document.head.appendChild(newAppleLink);
           }
         }
 

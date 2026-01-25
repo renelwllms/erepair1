@@ -99,6 +99,7 @@ model User {
   sentEmails        EmailLog[]
   notifications     Notification[]
   activityLogs      ActivityLog[]
+  pushSubscriptions PushSubscription[]
 
   @@index([email])
   @@index([role])
@@ -158,6 +159,21 @@ model Job {
   afterPhotos           String[]     @default([])
   lastNotificationSent  DateTime?
   quoteSentAt           DateTime?
+
+  // Callout-specific fields
+  isCallout             Boolean      @default(false)
+  calloutLocation       String?
+  calloutFee            Float?
+  calloutAddress        String?      @db.Text
+  preferredCalloutDate  DateTime?
+
+  diagnosticFeeAmount       Float        @default(0)
+  diagnosticFeePaid         Boolean      @default(false)
+  diagnosticFeePaidAt       DateTime?
+  diagnosticFeePaymentMethod PaymentMethod?
+  diagnosticFeeAppliedToInvoice Boolean  @default(false)
+  repairApproved            Boolean      @default(false)
+
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -397,6 +413,8 @@ model Settings {
   companyLogo               String?
   companyFavicon            String?
   companyWebsite            String?
+  diagnosticFees            String?  @db.Text
+  diagnosticFeeDefaultOther Float?
   taxRate                   Float    @default(15)
   currency                  String   @default("USD")
   laborHourlyRate           Float    @default(50)
@@ -433,6 +451,13 @@ model Settings {
   googleClientId            String?
   googleClientSecret        String?
   googleRefreshToken        String?
+  googleAccessToken         String?
+
+  // Callout Settings
+  calloutLocations          String?      @db.Text  // JSON: [{name, fee, bounds: {north, south, east, west}}]
+  calloutTerms              String?      @db.Text
+  geocodingApiKey           String?      // Google Maps or alternative
+  geocodingProvider         String       @default("GOOGLE")  // GOOGLE, OPENCAGE, MAPBOX
 
   updatedAt                 DateTime @updatedAt
 }
@@ -508,4 +533,21 @@ model EmailTemplate {
 
   @@index([name])
   @@index([isActive])
+}
+
+// 16. Push Subscription Model (Web Push Notifications)
+model PushSubscription {
+  id            String   @id @default(cuid())
+  userId        String?
+  endpoint      String   @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([endpoint])
 }

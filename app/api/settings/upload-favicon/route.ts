@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,9 +62,21 @@ export async function POST(request: NextRequest) {
     // Return the public path
     const publicPath = `/uploads/branding/${filename}`;
 
+    // Persist favicon path to settings so it applies immediately
+    const settings = await db.settings.findFirst();
+    if (settings) {
+      await db.settings.update({
+        where: { id: settings.id },
+        data: { companyFavicon: publicPath },
+      });
+    } else {
+      await db.settings.create({ data: { companyFavicon: publicPath } });
+    }
+
     return NextResponse.json({
       success: true,
       path: publicPath,
+      saved: true,
     });
   } catch (error) {
     console.error("Favicon upload error:", error);

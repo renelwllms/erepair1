@@ -18,9 +18,12 @@ import {
   Wrench,
   Download,
   Printer,
+  Edit,
+  Send,
 } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { TermsSummary } from "@/components/legal/terms-summary";
 
 interface QuoteItem {
   id: string;
@@ -78,6 +81,7 @@ export default function QuoteDetailPage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [companySettings, setCompanySettings] = useState<any>(null);
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     fetchQuote();
@@ -110,6 +114,32 @@ export default function QuoteDetailPage() {
       }
     } catch (error) {
       console.error("Error fetching company settings:", error);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!confirm("Resend this quote to the customer?")) {
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const response = await fetch(`/api/quotes/${params.id}/resend`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to resend quote");
+      }
+
+      alert("Quote resent successfully!");
+      fetchQuote(); // Refresh data
+    } catch (error: any) {
+      console.error("Error resending quote:", error);
+      alert(error.message || "Failed to resend quote");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -286,6 +316,34 @@ export default function QuoteDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            {(quote?.status === "DRAFT" || quote?.status === "SENT") && (
+              <button
+                onClick={() => router.push(`/quotes/${params.id}/edit`)}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors"
+              >
+                <Edit className="h-4 w-4" />
+                Edit
+              </button>
+            )}
+            {quote?.status === "SENT" && new Date(quote.validUntil) > new Date() && (
+              <button
+                onClick={handleResend}
+                disabled={isResending}
+                className="flex items-center gap-2 px-4 py-2 border border-blue-600 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isResending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Resend
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -508,6 +566,8 @@ export default function QuoteDetailPage() {
             </p>
           </div>
         )}
+
+        <TermsSummary className="mb-8" />
 
         {/* Footer */}
         <div className="border-t-2 border-gray-200 pt-6 mt-8">

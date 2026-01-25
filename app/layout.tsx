@@ -1,15 +1,30 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Footer } from "@/components/layout/footer";
 import { DynamicFavicon } from "@/components/dynamic-favicon";
+import PWAInstallPrompt from "@/components/pwa-install-prompt";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "E-Repair Shop Management",
   description: "Modern appliance repair shop management system",
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'E-Repair'
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
@@ -21,12 +36,16 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body className={`${inter.className} pb-16`} suppressHydrationWarning>
         <DynamicFavicon />
         <Providers>
           {children}
           <Footer />
+          <PWAInstallPrompt />
         </Providers>
       </body>
     </html>

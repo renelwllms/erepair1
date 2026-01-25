@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/quotes - Get all quotes
 export async function GET(request: NextRequest) {
   try {
@@ -48,6 +50,9 @@ export async function GET(request: NextRequest) {
             applianceType: true,
             applianceBrand: true,
             status: true,
+            diagnosticFeeAmount: true,
+            diagnosticFeePaid: true,
+            diagnosticFeeAppliedToInvoice: true,
           },
         },
         issuedBy: {

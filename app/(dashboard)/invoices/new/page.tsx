@@ -40,6 +40,9 @@ interface Job {
   applianceType: string;
   status: string;
   laborHours: number;
+  diagnosticFeeAmount: number;
+  diagnosticFeePaid: boolean;
+  diagnosticFeeAppliedToInvoice: boolean;
 }
 
 interface InvoiceItem {
@@ -65,7 +68,7 @@ export default function NewInvoicePage() {
   const [dueDate, setDueDate] = useState("");
   const [taxRate, setTaxRate] = useState("15");
   const [discountAmount, setDiscountAmount] = useState("0");
-  const [paymentTerms, setPaymentTerms] = useState("Payment due within 30 days");
+  const [paymentTerms, setPaymentTerms] = useState("Payment due upon collection of the device");
   const [notes, setNotes] = useState("");
 
   // Line items
@@ -88,26 +91,48 @@ export default function NewInvoicePage() {
   const fetchJobs = async () => {
     setLoadingJobs(true);
     try {
-      // Fetch jobs that don't have invoices yet and are closed or ready for pickup
+      // Fetch jobs that don't have invoices yet
       const response = await fetch("/api/jobs?limit=100");
       if (!response.ok) throw new Error("Failed to fetch jobs");
 
       const data = await response.json();
-      // Filter jobs that are closed or ready for pickup
-      const eligibleJobs = data.jobs.filter(
-        (job: Job) =>
-          job.status === "CLOSED" ||
-          job.status === "READY_FOR_PICKUP"
-      );
-      setJobs(eligibleJobs);
 
-      // Check if there's a jobId in the URL params and auto-select it
+      // Check if there's a jobId in the URL params
       const jobIdParam = searchParams.get("jobId");
+
+      // If jobId is provided, fetch that specific job and include it
       if (jobIdParam) {
-        const matchingJob = eligibleJobs.find((job: Job) => job.id === jobIdParam);
-        if (matchingJob) {
+        const jobResponse = await fetch(`/api/jobs/${jobIdParam}`);
+        if (jobResponse.ok) {
+          const specificJob = await jobResponse.json();
+          // Include the specific job along with eligible jobs
+          const eligibleJobs = data.jobs.filter(
+            (job: Job) => job.status === "READY_FOR_PICKUP"
+          );
+
+          // Add the specific job if it's not already in the list
+          const jobExists = eligibleJobs.find((job: Job) => job.id === jobIdParam);
+          if (!jobExists) {
+            setJobs([specificJob, ...eligibleJobs]);
+          } else {
+            setJobs(eligibleJobs);
+          }
+
+          // Auto-select the job from URL param
           handleJobSelect(jobIdParam);
+        } else {
+          // If can't fetch specific job, just show eligible jobs
+          const eligibleJobs = data.jobs.filter(
+            (job: Job) => job.status === "READY_FOR_PICKUP"
+          );
+          setJobs(eligibleJobs);
         }
+      } else {
+        // No jobId param, just show eligible jobs
+        const eligibleJobs = data.jobs.filter(
+          (job: Job) => job.status === "READY_FOR_PICKUP"
+        );
+        setJobs(eligibleJobs);
       }
     } catch (error) {
       toast({
@@ -146,19 +171,35 @@ export default function NewInvoicePage() {
     const job = jobs.find(j => j.id === jobId);
     setSelectedJob(job || null);
 
+    const nextItems: InvoiceItem[] = [];
+
     // Auto-populate labor if job has labor hours
     if (job && job.laborHours > 0) {
-      const laborItem: InvoiceItem = {
+      nextItems.push({
         id: crypto.randomUUID(),
         description: `Labor - ${job.applianceBrand} ${job.applianceType} Repair`,
         quantity: job.laborHours,
         unitPrice: 50, // This should come from settings
         itemType: "LABOR",
-      };
-      setItems([laborItem]);
-    } else {
-      setItems([]);
+      });
     }
+
+    if (
+      job &&
+      job.diagnosticFeeAmount > 0 &&
+      job.diagnosticFeePaid &&
+      !job.diagnosticFeeAppliedToInvoice
+    ) {
+      nextItems.push({
+        id: crypto.randomUUID(),
+        description: "Diagnostic Fee (credited)",
+        quantity: 1,
+        unitPrice: -Math.abs(job.diagnosticFeeAmount),
+        itemType: "DISCOUNT",
+      });
+    }
+
+    setItems(nextItems);
   };
 
   const addItem = () => {
@@ -218,6 +259,15 @@ export default function NewInvoicePage() {
         variant: "destructive",
       });
       return;
+    }
+
+    if (selectedJob && selectedJob.diagnosticFeeAmount > 0 && !selectedJob.diagnosticFeePaid) {
+      const proceed = confirm(
+        "Diagnostic fee is not marked as paid for this job. Please record the payment before generating the invoice. Do you want to continue anyway?"
+      );
+      if (!proceed) {
+        return;
+      }
     }
 
     if (items.length === 0) {
@@ -292,7 +342,7 @@ export default function NewInvoicePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Create Invoice</h1>
-          <p className="text-gray-600 mt-1">Generate an invoice from a completed job</p>
+          <p className="text-gray-600 mt-1">Generate an invoice from a ready-for-pickup job</p>
         </div>
       </div>
 
@@ -315,7 +365,7 @@ export default function NewInvoicePage() {
                 <SelectContent>
                   {jobs.length === 0 ? (
                     <div className="p-4 text-center text-sm text-gray-500">
-                      No eligible jobs found. Jobs must be CLOSED or READY_FOR_PICKUP.
+                      No eligible jobs found. Jobs must be READY_FOR_PICKUP.
                     </div>
                   ) : (
                     jobs.map((job) => (
@@ -563,7 +613,7 @@ export default function NewInvoicePage() {
               id="paymentTerms"
               value={paymentTerms}
               onChange={(e) => setPaymentTerms(e.target.value)}
-              placeholder="e.g., Payment due within 30 days"
+              placeholder="e.g., Payment due upon collection of the device"
             />
           </div>
           <div className="space-y-2">
