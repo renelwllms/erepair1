@@ -400,14 +400,14 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-4">
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button variant="ghost" size="sm" onClick={() => router.push(`/jobs/${params.id}`)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Job</h1>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Edit Job</h1>
           <p className="text-gray-600 mt-1">Update job details</p>
         </div>
       </div>
@@ -826,16 +826,17 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
           </CardContent>
         </Card>
 
-        <div className="flex gap-4 mt-6">
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:gap-4">
           <Button
             type="button"
             variant="outline"
             onClick={() => router.push(`/jobs/${params.id}`)}
             disabled={loading}
+            className="h-11 sm:h-10"
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="h-11 sm:h-10">
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
