@@ -1994,49 +1994,51 @@ export default function SettingsPage() {
                       </AlertDescription>
                     </Alert>
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Subject</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead className="w-20">Active</TableHead>
-                          <TableHead className="w-28">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {emailTemplates.map((template) => (
-                          <TableRow key={template.id}>
-                            <TableCell className="font-mono text-sm">{template.name}</TableCell>
-                            <TableCell>{template.subject}</TableCell>
-                            <TableCell className="text-sm text-gray-600">{template.description}</TableCell>
-                            <TableCell>
-                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${template.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-                                {template.isActive ? "Active" : "Inactive"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleEditTemplate(template)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteTemplate(template.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Subject</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="w-20">Active</TableHead>
+                            <TableHead className="w-28">Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {emailTemplates.map((template) => (
+                            <TableRow key={template.id}>
+                              <TableCell className="font-mono text-sm">{template.name}</TableCell>
+                              <TableCell>{template.subject}</TableCell>
+                              <TableCell className="text-sm text-gray-600">{template.description}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${template.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                                  {template.isActive ? "Active" : "Inactive"}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditTemplate(template)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteTemplate(template.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -2278,7 +2280,7 @@ export default function SettingsPage() {
                 <Label htmlFor="template-active">Active (send emails using this template)</Label>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
