@@ -1061,7 +1061,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="primaryColor">Primary Color</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <Input
                         id="primaryColor"
                         type="color"
@@ -1082,7 +1082,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="secondaryColor">Secondary Color</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <Input
                         id="secondaryColor"
                         type="color"
@@ -1103,7 +1103,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="accentColor">Accent Color</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <Input
                         id="accentColor"
                         type="color"
@@ -1456,7 +1456,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="geocodingProvider">Maps Provider</Label>
                       <select
@@ -1484,7 +1484,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="officeAddress">Office Address</Label>
                       <Input
@@ -1494,7 +1494,7 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="officeLatitude">Office Latitude</Label>
                         <Input
@@ -1529,7 +1529,7 @@ export default function SettingsPage() {
 
                 {/* Callout Locations Management */}
                 <div className="space-y-4 border-t pt-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h3 className="text-lg font-semibold">Service Locations & Fees</h3>
                     <Button type="button" onClick={handleAddLocation}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -1549,7 +1549,7 @@ export default function SettingsPage() {
                       {calloutLocations.map((location, index) => (
                         <div key={index} className="flex items-start gap-4 p-4 border rounded-lg bg-gray-50">
                           <div className="flex-1 space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                               <div>
                                 <Label className="text-xs">Location Name</Label>
                                 <Input
@@ -1572,7 +1572,7 @@ export default function SettingsPage() {
 
                             <div>
                               <Label className="text-xs">Geographic Boundaries (Lat/Lng)</Label>
-                              <div className="grid grid-cols-4 gap-2 mt-1">
+                              <div className="mt-1 grid grid-cols-2 gap-2 md:grid-cols-4">
                                 <Input
                                   type="number"
                                   step="0.0001"
@@ -1921,7 +1921,7 @@ export default function SettingsPage() {
 
                 <div className="pt-4 border-t">
                   <h4 className="font-medium mb-3">Test Email Configuration</h4>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Input
                       type="email"
                       placeholder="test@example.com"
@@ -1967,7 +1967,7 @@ export default function SettingsPage() {
           <TabsContent value="email-templates" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <CardTitle>Email Templates</CardTitle>
                     <CardDescription>
@@ -1994,49 +1994,51 @@ export default function SettingsPage() {
                       </AlertDescription>
                     </Alert>
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Subject</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead className="w-20">Active</TableHead>
-                          <TableHead className="w-28">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {emailTemplates.map((template) => (
-                          <TableRow key={template.id}>
-                            <TableCell className="font-mono text-sm">{template.name}</TableCell>
-                            <TableCell>{template.subject}</TableCell>
-                            <TableCell className="text-sm text-gray-600">{template.description}</TableCell>
-                            <TableCell>
-                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${template.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-                                {template.isActive ? "Active" : "Inactive"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleEditTemplate(template)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteTemplate(template.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                </Button>
-                              </div>
-                            </TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Subject</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="w-20">Active</TableHead>
+                            <TableHead className="w-28">Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {emailTemplates.map((template) => (
+                            <TableRow key={template.id}>
+                              <TableCell className="font-mono text-sm">{template.name}</TableCell>
+                              <TableCell>{template.subject}</TableCell>
+                              <TableCell className="text-sm text-gray-600">{template.description}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${template.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                                  {template.isActive ? "Active" : "Inactive"}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditTemplate(template)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteTemplate(template.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -2054,7 +2056,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 {databaseInfo ? (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium text-gray-600">Database Type</Label>
                         <div className="flex items-center gap-2">
@@ -2103,7 +2105,7 @@ export default function SettingsPage() {
 
                     <div className="pt-4 border-t">
                       <h4 className="font-medium mb-3">Test Database Connection</h4>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
                           onClick={testDatabaseConnection}
@@ -2216,7 +2218,7 @@ export default function SettingsPage() {
 
         {/* Email Template Dialog */}
         <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingTemplate ? "Edit" : "Create"} Email Template</DialogTitle>
               <DialogDescription>
@@ -2278,7 +2280,7 @@ export default function SettingsPage() {
                 <Label htmlFor="template-active">Active (send emails using this template)</Label>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"

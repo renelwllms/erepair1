@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { processDueQueuedCustomerNotifications } from "@/lib/customer-notifications";
 import {
   calculateStraightLineDistanceKm,
   estimateTravelTimeFromDistance,
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest) {
     if (session.user.role === "CUSTOMER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    processDueQueuedCustomerNotifications().catch((error) => {
+      console.error("Error processing queued customer notifications:", error);
+    });
 
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search")?.trim().toLowerCase() || "";

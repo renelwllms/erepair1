@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { sendEmail } from "@/lib/email";
+import { sendCustomerNotificationEmail } from "@/lib/customer-notifications";
 import { FIELD_SERVICE_STATUSES, isWithinQuietHours, nextQuietHoursSendTime } from "@/lib/field-service";
 import { z } from "zod";
 
@@ -53,6 +53,7 @@ const notificationSchema = z.object({
   notificationType: z.string().default("TECHNICIAN_ON_THE_WAY"),
   message: z.string().min(1),
   overrideQuietHours: z.boolean().default(false),
+  notificationId: z.string().optional(),
 });
 
 const actionSchema = z.discriminatedUnion("action", [
@@ -245,37 +246,55 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     if (data.action === "notifyCustomer") {
       const queued = isWithinQuietHours() && !data.overrideQuietHours;
-      const notification = await dbAny.customerNotification.create({
-        data: {
-          jobId: params.id,
-          notificationType: data.notificationType,
-          recipient: job.customer.email,
-          message: data.message,
-          status: queued ? "QUEUED" : "SENT",
-          queuedUntil: queued ? nextQuietHoursSendTime() : null,
-          sentAt: queued ? null : new Date(),
-          createdBy: session.user.id,
-        },
-      });
+      if (data.notificationId) {
+        const existingNotification = await dbAny.customerNotification.findFirst({
+          where: { id: data.notificationId, jobId: params.id },
+        });
+        if (!existingNotification) {
+          return NextResponse.json({ error: "Notification does not belong to this job" }, { status: 400 });
+        }
+      }
+
+      const notification = data.notificationId
+        ? await dbAny.customerNotification.update({
+            where: { id: data.notificationId },
+            data: {
+              notificationType: data.notificationType,
+              recipient: job.customer.email,
+              message: data.message,
+              status: queued ? "QUEUED" : "PENDING",
+              queuedUntil: queued ? nextQuietHoursSendTime() : null,
+              sentAt: null,
+            },
+          })
+        : await dbAny.customerNotification.create({
+            data: {
+              jobId: params.id,
+              notificationType: data.notificationType,
+              recipient: job.customer.email,
+              message: data.message,
+              status: queued ? "QUEUED" : "PENDING",
+              queuedUntil: queued ? nextQuietHoursSendTime() : null,
+              sentAt: null,
+              createdBy: session.user.id,
+            },
+          });
 
       if (!queued) {
-        await sendEmail({
-          to: job.customer.email,
-          subject: `Technician update for ${job.jobNumber}`,
-          html: `<p>${data.message}</p>`,
-          text: data.message,
-          emailType: data.notificationType,
-          relatedId: job.id,
+        await sendCustomerNotificationEmail({
+          notificationId: notification.id,
+          job,
+          notificationType: data.notificationType,
+          message: data.message,
           sentById: session.user.id,
-        });
-
-        await dbAny.job.update({
-          where: { id: params.id },
-          data: { customerNotificationSentAt: new Date() },
         });
       }
 
-      return NextResponse.json(notification, { status: 201 });
+      const updatedNotification = await dbAny.customerNotification.findUnique({
+        where: { id: notification.id },
+      });
+
+      return NextResponse.json(updatedNotification, { status: 201 });
     }
 
     return NextResponse.json({ error: "Unsupported POST action" }, { status: 400 });

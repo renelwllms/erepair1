@@ -105,14 +105,14 @@ export default function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      <div className="flex-1 max-w-xl">
+    <header className="flex min-h-16 items-center justify-between gap-3 border-b border-gray-200 bg-white px-3 py-3 sm:px-6">
+      <div className="min-w-0 flex-1 sm:max-w-xl">
         <div className="relative" ref={searchRef}>
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             type="search"
-            placeholder="Search jobs, customers, invoices..."
-            className="pl-10"
+            placeholder="Search..."
+            className="h-11 pl-10 sm:h-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => searchQuery.trim().length >= 2 && searchResults.length > 0 && setShowResults(true)}
@@ -167,14 +167,14 @@ export default function Header({ user }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="relative">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-4">
+        <Button variant="ghost" size="icon" className="relative hidden sm:inline-flex">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
         </Button>
 
-        <div className="flex items-center space-x-3">
-          <div className="text-right">
+        <div className="flex items-center gap-1 sm:gap-3">
+          <div className="hidden text-right md:block">
             <p className="text-sm font-medium text-gray-900">{user.name}</p>
             <div className="text-xs text-gray-500">
               <Badge variant="secondary" className="text-xs">

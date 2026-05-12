@@ -155,20 +155,20 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button variant="ghost" size="sm" onClick={() => router.push("/customers")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               {customer.firstName} {customer.lastName}
             </h1>
             <p className="text-gray-600 mt-1">Customer Details</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button variant="outline" onClick={() => window.location.href = `tel:${customer.phone}`}>
             <Phone className="h-4 w-4 mr-2" />
             Call
@@ -189,7 +189,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">Total Jobs</CardTitle>
@@ -242,7 +242,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       </div>
 
       {/* Customer Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Contact Information</CardTitle>
@@ -317,7 +317,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       {/* Job History */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <CardTitle>Job History</CardTitle>
               <CardDescription>All jobs for this customer</CardDescription>
@@ -334,6 +334,27 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <p className="text-gray-500">No jobs found for this customer</p>
             </div>
           ) : (
+            <>
+            <div className="space-y-3 md:hidden">
+              {customer.jobs.map((job) => (
+                <div key={job.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{job.jobNumber}</p>
+                      <p className="mt-1 text-sm text-gray-600">{job.applianceBrand} {job.applianceType}</p>
+                    </div>
+                    <Badge variant={job.priority === "URGENT" ? "destructive" : "secondary"}>
+                      {job.priority}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <Badge variant={getStatusBadgeVariant(job.status)}>{job.status.replace(/_/g, " ")}</Badge>
+                    <Button className="h-11" onClick={() => router.push(`/jobs/${job.id}`)}>Open</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -387,6 +408,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -403,6 +426,36 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <p className="text-gray-500">No invoices found for this customer</p>
             </div>
           ) : (
+            <>
+            <div className="space-y-3 md:hidden">
+              {customer.invoices.map((invoice) => (
+                <div key={invoice.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{invoice.invoiceNumber}</p>
+                      <p className="mt-1 text-sm text-gray-600">{invoice.job.jobNumber} · {invoice.job.applianceType}</p>
+                    </div>
+                    <Badge variant={invoice.status === "PAID" ? "secondary" : "default"}>{invoice.status}</Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Total</p>
+                      <p className="font-semibold">${invoice.totalAmount.toFixed(0)}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Paid</p>
+                      <p className="font-semibold text-green-600">${invoice.paidAmount.toFixed(0)}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Balance</p>
+                      <p className={`font-semibold ${invoice.balanceAmount > 0 ? "text-orange-600" : ""}`}>${invoice.balanceAmount.toFixed(0)}</p>
+                    </div>
+                  </div>
+                  <Button className="mt-4 h-11 w-full" onClick={() => router.push(`/invoices/${invoice.id}`)}>Open Invoice</Button>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -450,6 +503,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

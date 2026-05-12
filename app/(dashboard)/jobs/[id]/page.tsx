@@ -562,20 +562,20 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button variant="ghost" size="sm" onClick={() => router.push("/jobs")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{job.jobNumber}</h1>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{job.jobNumber}</h1>
             <p className="text-gray-600 mt-1">
               {job.applianceType} - {job.applianceBrand}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {(job.status === "CLOSED" || job.invoice?.status === "PAID") && (
             <Button variant="outline" onClick={() => {
               setWarrantyIssueDescription(`Warranty return for ${job.jobNumber}: `);
@@ -614,7 +614,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Status and Priority Badges */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Badge variant="secondary" className="text-base px-3 py-1">
           {job.jobType === "CALLOUT_REPAIR" || job.isCallout ? "Callout Repair" : "Workshop Repair"}
         </Badge>
@@ -650,7 +650,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                   <p className="text-sm mt-1">{job.diagnosticResults}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {job.modelNumber && (
                   <div>
                     <p className="text-sm font-medium text-gray-600">Model Number</p>
@@ -764,7 +764,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               <CardDescription>Record diagnostic fee payment and apply credit to invoices</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="diagnosticFeeAmount">Diagnostic Fee Amount</Label>
                   <Input
@@ -803,7 +803,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="diagnosticFeePaidAt">Paid Date</Label>
                   <Input
@@ -861,7 +861,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 {job.beforePhotos.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-3">Before Photos</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                       {job.beforePhotos.map((photo, index) => (
                         <div key={index} className="border rounded-lg overflow-hidden">
                           <a href={photo} target="_blank" rel="noopener noreferrer">
@@ -879,7 +879,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 {job.afterPhotos.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-3">After Photos</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                       {job.afterPhotos.map((photo, index) => (
                         <div key={index} className="border rounded-lg overflow-hidden">
                           <a href={photo} target="_blank" rel="noopener noreferrer">
@@ -1205,7 +1205,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
             <DialogDescription>Record customer interaction</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Direction</Label>
                 <Select

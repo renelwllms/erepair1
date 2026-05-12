@@ -257,14 +257,20 @@ export default function FieldServiceDashboardPage() {
   const [noteText, setNoteText] = useState("");
   const [noteType, setNoteType] = useState("Site Visit");
   const [noteVisibility, setNoteVisibility] = useState("Internal");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteSavedMessage, setNoteSavedMessage] = useState("");
   const [photoCategory, setPhotoCategory] = useState("Before Repair");
   const [photoCaption, setPhotoCaption] = useState("");
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
   const [calloutAddressValue, setCalloutAddressValue] = useState("");
+  const [pendingDialogSection, setPendingDialogSection] = useState<"notes" | "photos" | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const notesSectionRef = useRef<HTMLDivElement | null>(null);
+  const photosSectionRef = useRef<HTMLDivElement | null>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectedPlaceRef = useRef<any>(null);
 
   const fetchDashboard = async () => {
@@ -323,6 +329,19 @@ export default function FieldServiceDashboardPage() {
     setCalloutAddressValue(selectedJob?.calloutAddress || "");
     selectedPlaceRef.current = null;
   }, [selectedJob?.id]);
+
+  useEffect(() => {
+    if (!selectedJob || !pendingDialogSection) return;
+
+    window.setTimeout(() => {
+      const target = pendingDialogSection === "notes" ? notesSectionRef.current : photosSectionRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (pendingDialogSection === "notes") {
+        noteTextareaRef.current?.focus();
+      }
+      setPendingDialogSection(null);
+    }, 100);
+  }, [selectedJob, pendingDialogSection]);
 
   useEffect(() => {
     if (!window.google?.maps?.places || !addressInputRef.current || !selectedJob) return;
@@ -408,6 +427,11 @@ export default function FieldServiceDashboardPage() {
       });
   };
 
+  const openJobDialog = (job: FieldJob, section?: "notes" | "photos") => {
+    setSelectedJob(job);
+    setPendingDialogSection(section || null);
+  };
+
   const refreshSelectedJob = (jobs: FieldJob[]) => {
     if (!selectedJob) return;
     const fresh = jobs.find((job) => job.id === selectedJob.id);
@@ -458,12 +482,17 @@ export default function FieldServiceDashboardPage() {
     }
     const timer = window.setTimeout(async () => {
       try {
-        await mutateJob(job.id, {
+        const notification = await mutateJob(job.id, {
           action: "notifyCustomer",
           notificationType: "TECHNICIAN_ON_THE_WAY",
           message: `Hi ${job.customer.firstName}, your eRepair technician is now on the way for Job #${job.jobNumber}.`,
         }, "POST");
-        toast({ title: "Customer notification processed", description: "The on-the-way message was sent or queued." });
+        toast({
+          title: notification.status === "QUEUED" ? "Customer notification queued" : "Customer notification sent",
+          description: notification.status === "QUEUED" && notification.queuedUntil
+            ? `Quiet hours are active. It will send at ${formatDateTime(notification.queuedUntil)}.`
+            : "The on-the-way message was emailed to the customer.",
+        });
       } catch (error: any) {
         toast({ title: "Notification error", description: error.message, variant: "destructive" });
       } finally {
@@ -480,8 +509,28 @@ export default function FieldServiceDashboardPage() {
     setPendingNotification(null);
   };
 
+  const sendQueuedNotificationNow = async (job: FieldJob, notification: FieldJob["customerNotifications"][number]) => {
+    try {
+      const updated = await mutateJob(job.id, {
+        action: "notifyCustomer",
+        notificationId: notification.id,
+        notificationType: notification.notificationType,
+        message: notification.message,
+        overrideQuietHours: true,
+      }, "POST");
+      toast({
+        title: updated.status === "SENT" ? "Customer notification sent" : "Customer notification updated",
+        description: updated.status === "SENT" ? "The queued message was emailed now." : `Status: ${updated.status}`,
+      });
+    } catch (error: any) {
+      toast({ title: "Notification error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const addNote = async () => {
     if (!selectedJob || !noteText.trim()) return;
+    setSavingNote(true);
+    setNoteSavedMessage("");
     try {
       await mutateJob(selectedJob.id, {
         action: "note",
@@ -490,9 +539,12 @@ export default function FieldServiceDashboardPage() {
         visibility: noteVisibility,
       }, "POST");
       setNoteText("");
+      setNoteSavedMessage(`Saved at ${new Date().toLocaleTimeString("en-NZ", { hour: "2-digit", minute: "2-digit" })}`);
       toast({ title: "Note added", description: "Technician note saved." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSavingNote(false);
     }
   };
 
@@ -653,13 +705,13 @@ export default function FieldServiceDashboardPage() {
             <Label htmlFor="search">Search</Label>
             <div className="relative mt-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Job, customer, phone, address" />
+              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 pl-9 xl:h-10" placeholder="Job, customer, phone, address" />
             </div>
           </div>
           <div>
             <Label htmlFor="date">Date</Label>
             <div className="mt-1 flex gap-2">
-              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11 xl:h-10" />
               {date && (
                 <Button type="button" variant="outline" size="sm" onClick={() => setDate("")}>
                   All
@@ -670,7 +722,7 @@ export default function FieldServiceDashboardPage() {
           <div>
             <Label>Technician</Label>
             <Select value={technicianId} onValueChange={setTechnicianId}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All technicians</SelectItem>
                 {data?.technicians.map((tech) => (
@@ -682,7 +734,7 @@ export default function FieldServiceDashboardPage() {
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 {FIELD_SERVICE_STATUSES.map((item) => (
@@ -694,7 +746,7 @@ export default function FieldServiceDashboardPage() {
           <div>
             <Label>Priority</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All priorities</SelectItem>
                 <SelectItem value="LOW">Low</SelectItem>
@@ -706,7 +758,7 @@ export default function FieldServiceDashboardPage() {
           </div>
           <div>
             <Label htmlFor="suburb">Suburb</Label>
-            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1" placeholder="Address contains" />
+            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1 h-11 xl:h-10" placeholder="Address contains" />
           </div>
           <div className="flex items-end gap-2">
             <Button variant={unassignedOnly ? "default" : "outline"} onClick={() => setUnassignedOnly(!unassignedOnly)} className="flex-1">
@@ -727,7 +779,37 @@ export default function FieldServiceDashboardPage() {
             <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
             <p className="text-sm text-slate-500">{jobs.length} callout jobs shown</p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-4 md:hidden">
+            {jobs.map((job) => (
+              <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-950">{job.jobNumber}</p>
+                    <p className="mt-1 truncate text-sm text-slate-700">{job.customer.firstName} {job.customer.lastName}</p>
+                    <a className="mt-1 block text-sm text-blue-700" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a>
+                  </div>
+                  <Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{job.applianceType} · {job.calloutAddress || "Address not selected"}</p>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg bg-white/70 p-3">
+                    <p className="text-xs text-slate-500">Scheduled</p>
+                    <p className="font-medium">{formatDateTime(job.scheduledAt)}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/70 p-3">
+                    <p className="text-xs text-slate-500">Travel</p>
+                    <p className="font-medium">{formatDistance(job.distanceFromOfficeKm)} / {job.estimatedTravelTime || "Pending"}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
+                  <Button className="h-11" onClick={() => openJobDialog(job)}>Open</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -767,7 +849,7 @@ export default function FieldServiceDashboardPage() {
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
                     <TableCell>{formatDateTime(job.updatedAt)}</TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedJob(job)}>Open</Button>
+                      <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -777,7 +859,7 @@ export default function FieldServiceDashboardPage() {
         </div>
 
         <div className="space-y-5">
-          <div className="h-[520px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="h-[340px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[420px] xl:h-[520px]">
             {data?.map.googleApiKey ? (
               <div ref={mapRef} className="h-full w-full" />
             ) : (
@@ -806,8 +888,8 @@ export default function FieldServiceDashboardPage() {
                     <Button size="lg" variant="outline" asChild><a href={`tel:${job.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
                     <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
                     <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
-                    <Button size="lg" variant="outline" onClick={() => setSelectedJob(job)}>Add Note</Button>
-                    <Button size="lg" variant="outline" onClick={() => setSelectedJob(job)}>Upload Photos</Button>
+                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
+                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
                   </div>
                 </div>
               ))}
@@ -901,10 +983,15 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Technician Notes</CardTitle></CardHeader>
+                  <Card ref={notesSectionRef}>
+                    <CardHeader>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <CardTitle className="text-base">Technician Notes</CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedJob(null)}>Back to Dashboard</Button>
+                      </div>
+                    </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="grid gap-3 md:grid-cols-3">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <Select value={noteType} onValueChange={setNoteType}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>{FIELD_NOTE_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
@@ -916,9 +1003,32 @@ export default function FieldServiceDashboardPage() {
                             <SelectItem value="Customer Visible">Customer Visible</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button onClick={addNote}>Add Note</Button>
                       </div>
-                      <Textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add technician note" />
+                      <Textarea
+                        ref={noteTextareaRef}
+                        value={noteText}
+                        onChange={(event) => {
+                          setNoteText(event.target.value);
+                          setNoteSavedMessage("");
+                        }}
+                        placeholder="Add technician note"
+                        className="min-h-32"
+                      />
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-h-5 text-sm">
+                          {noteSavedMessage ? (
+                            <span className="inline-flex items-center text-emerald-700">
+                              <CheckCircle2 className="mr-1 h-4 w-4" />
+                              Note saved. {noteSavedMessage}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">Type a note, then tap Save Note.</span>
+                          )}
+                        </div>
+                        <Button className="h-11 sm:min-w-32" onClick={addNote} disabled={!noteText.trim() || savingNote}>
+                          {savingNote ? "Saving..." : "Save Note"}
+                        </Button>
+                      </div>
                       <div className="space-y-2">
                         {selectedJob.fieldNotes.map((note) => (
                           <div key={note.id} className="rounded-md border border-slate-200 p-3 text-sm">
@@ -934,7 +1044,7 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card ref={photosSectionRef}>
                     <CardHeader><CardTitle className="text-base">Photos</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <div className="grid gap-3 md:grid-cols-3">
@@ -1015,7 +1125,7 @@ export default function FieldServiceDashboardPage() {
                       {selectedJob.customerNotifications.length === 0 && <p className="text-sm text-slate-500">No customer notifications yet.</p>}
                       {selectedJob.customerNotifications.map((notification) => (
                         <div key={notification.id} className="rounded-md border border-slate-200 p-2 text-sm">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <span className="font-medium">{notification.notificationType}</span>
                             <Badge variant="secondary">{notification.status}</Badge>
                           </div>
@@ -1023,6 +1133,16 @@ export default function FieldServiceDashboardPage() {
                           <p className="mt-1 text-xs text-slate-500">
                             {notification.sentAt ? `Sent ${formatDateTime(notification.sentAt)}` : notification.queuedUntil ? `Queued until ${formatDateTime(notification.queuedUntil)}` : formatDateTime(notification.createdAt)}
                           </p>
+                          {notification.status === "QUEUED" && (
+                            <Button
+                              className="mt-2 h-9 w-full"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => sendQueuedNotificationNow(selectedJob, notification)}
+                            >
+                              Send Now
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </CardContent>

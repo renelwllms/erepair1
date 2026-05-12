@@ -296,15 +296,15 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Customers</h1>
           <p className="text-gray-600 mt-1">Manage customer relationships and data</p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="h-11 w-full sm:w-auto">
                 <SlidersHorizontal className="h-4 w-4 mr-2" />
                 Columns
               </Button>
@@ -360,11 +360,11 @@ export default function CustomersPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" onClick={exportToCSV}>
+          <Button variant="outline" onClick={exportToCSV} className="h-11 w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => {
+          <Button className="col-span-2 h-11 w-full sm:w-auto" onClick={() => {
             setEditingCustomer(null);
             setDialogOpen(true);
           }}>
@@ -384,8 +384,8 @@ export default function CustomersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1 relative">
+          <div className="mb-6 grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px]">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search customers..."
@@ -394,14 +394,14 @@ export default function CustomersPage() {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="pl-10"
+                className="h-11 pl-10 md:h-10"
               />
             </div>
             <Select value={customerTypeFilter} onValueChange={(value) => {
               setCustomerTypeFilter(value);
               setPage(1);
             }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="h-11 w-full md:h-10">
                 <SelectValue placeholder="Customer Type" />
               </SelectTrigger>
               <SelectContent>
@@ -420,6 +420,57 @@ export default function CustomersPage() {
             </div>
           ) : (
             <>
+              <div className="space-y-3 md:hidden">
+                {customers.map((customer) => (
+                  <div key={customer.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-950">{customer.firstName} {customer.lastName}</p>
+                        <p className="mt-1 truncate text-sm text-gray-700">{customer.email}</p>
+                        <p className="mt-1 text-sm text-gray-500">{customer.phone}</p>
+                      </div>
+                      <Badge variant={customer.customerType === "COMMERCIAL" ? "default" : "secondary"}>
+                        {customer.customerType}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Jobs</p>
+                        <p className="font-semibold">{customer.totalJobs}</p>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Open</p>
+                        <p className="font-semibold text-orange-600">{customer.openJobs}</p>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Revenue</p>
+                        <p className="font-semibold">${customer.totalRevenue.toFixed(0)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <Button className="h-11" onClick={() => router.push(`/customers/${customer.id}`)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Open
+                      </Button>
+                      <Button variant="outline" className="h-11" onClick={() => {
+                        setEditingCustomer(customer);
+                        setDialogOpen(true);
+                      }}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button variant="outline" className="h-11" onClick={() => window.location.href = `tel:${customer.phone}`}>
+                        Call
+                      </Button>
+                      <Button variant="outline" className="h-11" onClick={() => router.push(`/jobs/new?customerId=${customer.id}`)}>
+                        New Job
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -483,9 +534,10 @@ export default function CustomersPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-gray-500">
                     Page {page} of {totalPages}
                   </p>
