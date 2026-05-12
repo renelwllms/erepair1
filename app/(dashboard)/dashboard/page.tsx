@@ -153,7 +153,7 @@ export default function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent">
+                  <div className={`text-3xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
                     {stat.value.toLocaleString()}
                   </div>
                   {stat.change !== undefined && (
@@ -337,7 +337,7 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {data.charts.statusDistribution.map((item, index) => {
                   const total = data.charts.statusDistribution.reduce((sum, s) => sum + s.count, 0);
-                  const percentage = ((item.count / total) * 100).toFixed(1);
+                  const percentage = total > 0 ? ((item.count / total) * 100).toFixed(1) : "0.0";
 
                   return (
                     <div
