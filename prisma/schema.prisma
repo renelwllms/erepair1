@@ -39,6 +39,11 @@ enum JobPriority {
   URGENT
 }
 
+enum JobType {
+  WORKSHOP_REPAIR
+  CALLOUT_REPAIR
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -137,6 +142,7 @@ model Customer {
 model Job {
   id                    String       @id @default(cuid())
   jobNumber             String       @unique
+  jobType               JobType      @default(WORKSHOP_REPAIR)
   customerId            String
   warrantyParentJobId   String?
   applianceBrand        String
@@ -167,6 +173,9 @@ model Job {
   calloutFee            Float?
   calloutAddress        String?      @db.Text
   preferredCalloutDate  DateTime?
+  calloutAccessInstructions String?  @db.Text
+  calloutParkingNotes   String?      @db.Text
+  calloutApplianceLocation String?   @db.Text
 
   diagnosticFeeAmount       Float        @default(0)
   diagnosticFeePaid         Boolean      @default(false)
