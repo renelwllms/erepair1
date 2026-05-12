@@ -78,6 +78,9 @@ const settingsSchema = z.object({
   // Callout Settings
   calloutLocations: z.string().optional(),
   calloutTerms: z.string().optional(),
+  officeAddress: z.string().optional(),
+  officeLatitude: z.preprocess((value) => Number.isNaN(value) ? undefined : value, z.number().optional()),
+  officeLongitude: z.preprocess((value) => Number.isNaN(value) ? undefined : value, z.number().optional()),
   geocodingApiKey: z.string().optional(),
   geocodingProvider: z.string().optional(),
 });
@@ -391,6 +394,9 @@ export default function SettingsPage() {
           // Callout settings
           calloutLocations: data.calloutLocations || "",
           calloutTerms: data.calloutTerms || "",
+          officeAddress: data.officeAddress || "",
+          officeLatitude: typeof data.officeLatitude === "number" ? data.officeLatitude : undefined,
+          officeLongitude: typeof data.officeLongitude === "number" ? data.officeLongitude : undefined,
           geocodingApiKey: data.geocodingApiKey || "",
           geocodingProvider: data.geocodingProvider || "GOOGLE",
         });
@@ -510,6 +516,8 @@ export default function SettingsPage() {
       // Serialize callout locations to JSON string
       const payload = {
         ...data,
+        officeLatitude: Number.isFinite(data.officeLatitude) ? data.officeLatitude : undefined,
+        officeLongitude: Number.isFinite(data.officeLongitude) ? data.officeLongitude : undefined,
         calloutLocations: JSON.stringify(calloutLocations),
         diagnosticFees: JSON.stringify(
           Object.entries(diagnosticFees).reduce<Record<string, number>>((acc, [key, value]) => {
@@ -1439,13 +1447,18 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Geocoding API Setup */}
+                {/* Google Maps API Setup */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Geocoding Configuration</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold">Google Maps Configuration</h3>
+                    <p className="text-sm text-gray-600">
+                      Required for Field Service map markers, Places address selection, and office-to-job travel estimates.
+                    </p>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="geocodingProvider">Geocoding Provider</Label>
+                      <Label htmlFor="geocodingProvider">Maps Provider</Label>
                       <select
                         id="geocodingProvider"
                         {...register("geocodingProvider")}
@@ -1458,15 +1471,60 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="geocodingApiKey">API Key</Label>
+                      <Label htmlFor="geocodingApiKey">Google Maps API Key</Label>
                       <Input
                         id="geocodingApiKey"
                         type="password"
                         {...register("geocodingApiKey")}
-                        placeholder="Enter API key"
+                        placeholder="AIza..."
                       />
+                      <p className="text-xs text-gray-500">
+                        Enable Maps JavaScript API, Places API, Geocoding API, and Distance Matrix API in Google Cloud.
+                      </p>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="officeAddress">Office Address</Label>
+                      <Input
+                        id="officeAddress"
+                        {...register("officeAddress")}
+                        placeholder="e.g., 123 Queen Street, Auckland"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="officeLatitude">Office Latitude</Label>
+                        <Input
+                          id="officeLatitude"
+                          type="number"
+                          step="0.000001"
+                          {...register("officeLatitude", { valueAsNumber: true })}
+                          placeholder="-36.848461"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="officeLongitude">Office Longitude</Label>
+                        <Input
+                          id="officeLongitude"
+                          type="number"
+                          step="0.000001"
+                          {...register("officeLongitude", { valueAsNumber: true })}
+                          placeholder="174.763336"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Alert>
+                    <MapPin className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      The Field Service Dashboard uses these office coordinates for the office marker and distance/travel-time calculations.
+                    </AlertDescription>
+                  </Alert>
                 </div>
 
                 {/* Callout Locations Management */}
