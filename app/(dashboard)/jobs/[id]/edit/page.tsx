@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 declare global {
@@ -179,12 +179,14 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const [brandSearchTerm, setBrandSearchTerm] = useState("");
   const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
   const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [confirmedPreferredCalloutDate, setConfirmedPreferredCalloutDate] = useState("");
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
@@ -195,6 +197,8 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
   const jobType = watch("jobType");
+  const preferredCalloutDate = watch("preferredCalloutDate");
+  const preferredCalloutDateField = register("preferredCalloutDate");
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -303,7 +307,6 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       setValue("priority", job.priority);
       setValue("assignedTechnicianId", job.assignedTechnicianId || undefined);
       setValue("warrantyStatus", job.warrantyStatus || "");
-      setValue("serviceLocation", job.serviceLocation || "");
       setValue("laborHours", job.laborHours || 0);
       setValue("diagnosticFeeAmount", job.diagnosticFeeAmount || 0);
       setValue("diagnosticResults", job.diagnosticResults || "");

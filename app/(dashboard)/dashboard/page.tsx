@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Users, CheckCircle2, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Briefcase, CalendarDays, CheckCircle2, Activity } from "lucide-react";
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // Define types
@@ -112,8 +112,7 @@ export default function DashboardPage() {
     {
       title: "This Month",
       value: data.metrics.currentMonthJobs,
-      change: data.metrics.growthPercentage,
-      icon: data.metrics.growthPercentage >= 0 ? TrendingUp : TrendingDown,
+      icon: CalendarDays,
       color: "from-amber-500 to-amber-600",
       iconBg: "bg-amber-100",
       iconColor: "text-amber-600",

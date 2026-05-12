@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Check, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { TermsSummary } from "@/components/legal/terms-summary";
 import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
@@ -218,6 +218,7 @@ export default function NewJobPage() {
   const [diagnosticFeeTouched, setDiagnosticFeeTouched] = useState(false);
   const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
   const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [confirmedPreferredCalloutDate, setConfirmedPreferredCalloutDate] = useState("");
 
   const preselectedCustomerId = searchParams.get("customerId");
 
@@ -226,6 +227,7 @@ export default function NewJobPage() {
     handleSubmit,
     setValue,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
@@ -255,6 +257,8 @@ export default function NewJobPage() {
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
   const diagnosticFeeAmount = watch("diagnosticFeeAmount");
+  const preferredCalloutDate = watch("preferredCalloutDate");
+  const preferredCalloutDateField = register("preferredCalloutDate");
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -888,11 +892,37 @@ export default function NewJobPage() {
                     <Label htmlFor="preferredCalloutDate">
                       Preferred Date/Time <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="preferredCalloutDate"
-                      type="datetime-local"
-                      {...register("preferredCalloutDate")}
-                    />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="preferredCalloutDate"
+                        type="datetime-local"
+                        {...preferredCalloutDateField}
+                        onChange={(event) => {
+                          preferredCalloutDateField.onChange(event);
+                          setConfirmedPreferredCalloutDate("");
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="shrink-0"
+                        disabled={!preferredCalloutDate}
+                        onClick={async () => {
+                          const isValid = await trigger("preferredCalloutDate");
+                          if (!isValid || !preferredCalloutDate) {
+                            return;
+                          }
+                          setConfirmedPreferredCalloutDate(preferredCalloutDate);
+                          document.getElementById("preferredCalloutDate")?.blur();
+                        }}
+                      >
+                        <Check className="mr-2 h-4 w-4" />
+                        Confirm
+                      </Button>
+                    </div>
+                    {confirmedPreferredCalloutDate === preferredCalloutDate && (
+                      <p className="text-xs text-emerald-700">Date/time confirmed</p>
+                    )}
                     {errors.preferredCalloutDate && (
                       <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
                     )}
@@ -948,22 +978,13 @@ export default function NewJobPage() {
             )}
 
             {/* Additional Information */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
               <div className="space-y-2">
                 <Label htmlFor="warrantyStatus">Warranty Status</Label>
                 <Input
                   id="warrantyStatus"
                   {...register("warrantyStatus")}
                   placeholder="e.g., In Warranty, Out of Warranty"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="serviceLocation">Service Location</Label>
-                <Input
-                  id="serviceLocation"
-                  {...register("serviceLocation")}
-                  placeholder={jobType === "CALLOUT_REPAIR" ? "e.g., On-site repair visit" : "e.g., Customer Location, Shop"}
                 />
               </div>
             </div>
