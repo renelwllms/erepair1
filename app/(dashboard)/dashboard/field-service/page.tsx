@@ -738,7 +738,10 @@ export default function FieldServiceDashboardPage() {
                     <TableCell>{formatDateTime(job.createdAt)}</TableCell>
                     <TableCell>{formatDateTime(job.scheduledAt)}</TableCell>
                     <TableCell>{job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}</TableCell>
-                    <TableCell>{formatDistance(job.distanceFromOfficeKm)}</TableCell>
+                    <TableCell>
+                      {formatDistance(job.distanceFromOfficeKm)}
+                      {job.travelEstimateSource === "STRAIGHT_LINE_ESTIMATE" && <span className="ml-1 text-xs text-slate-500">(est.)</span>}
+                    </TableCell>
                     <TableCell>{job.estimatedTravelTime || "Not calculated"}</TableCell>
                     <TableCell><Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge></TableCell>
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
@@ -840,7 +843,10 @@ export default function FieldServiceDashboardPage() {
                         </div>
                         <div>
                           <Label>Distance</Label>
-                          <div className="mt-2 text-sm">{formatDistance(selectedJob.distanceFromOfficeKm)} / {selectedJob.estimatedTravelTime || "No travel time"}</div>
+                          <div className="mt-2 text-sm">
+                            {formatDistance(selectedJob.distanceFromOfficeKm)} / {selectedJob.estimatedTravelTime || "No travel time"}
+                            {selectedJob.travelEstimateSource === "STRAIGHT_LINE_ESTIMATE" && <span className="ml-1 text-xs text-slate-500">(estimated)</span>}
+                          </div>
                         </div>
                         <div>
                           <Label htmlFor="accessInstructions">Access Instructions</Label>
