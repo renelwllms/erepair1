@@ -37,6 +37,7 @@ import {
   Download,
   Mail,
   Edit,
+  Trash2,
   DollarSign,
   FileText,
   Printer,
@@ -117,6 +118,12 @@ interface CompanySettings {
   companyLogo?: string;
 }
 
+interface SessionInfo {
+  user?: {
+    role?: string;
+  };
+}
+
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -124,9 +131,11 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
 
   // Payment form state
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -152,6 +161,12 @@ export default function InvoiceDetailPage() {
       if (settingsResponse.ok) {
         const settingsData = await settingsResponse.json();
         setCompanySettings(settingsData);
+      }
+
+      const sessionResponse = await fetch("/api/auth/session");
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+        setSessionInfo(sessionData);
       }
     } catch (error) {
       toast({
@@ -318,6 +333,46 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const handleDeleteInvoice = async () => {
+    if (!invoice) return;
+
+    const confirmed = window.confirm(
+      `Delete invoice ${invoice.invoiceNumber}? This cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingInvoice(true);
+    try {
+      const response = await fetch(`/api/invoices/${params.id}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete invoice");
+      }
+
+      toast({
+        title: "Success",
+        description: "Invoice deleted successfully",
+      });
+
+      router.push(`/invoices/new?jobId=${invoice.job.id}`);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete invoice",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingInvoice(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -332,6 +387,11 @@ export default function InvoiceDetailPage() {
   if (!invoice) {
     return null;
   }
+
+  const canEditInvoice = invoice.status === "DRAFT";
+  const canDeleteInvoice =
+    sessionInfo?.user?.role === "ADMIN" &&
+    invoice.payments.length === 0;
 
   return (
     <>
@@ -416,10 +476,16 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {invoice.status === "DRAFT" && (
+          {canEditInvoice && (
             <Button variant="outline" onClick={() => router.push(`/invoices/${params.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
               Edit
+            </Button>
+          )}
+          {canDeleteInvoice && (
+            <Button variant="destructive" onClick={handleDeleteInvoice} disabled={isDeletingInvoice}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              {isDeletingInvoice ? "Deleting..." : "Delete"}
             </Button>
           )}
           <Button variant="outline" onClick={handleDownloadPDF}>

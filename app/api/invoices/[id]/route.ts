@@ -257,9 +257,32 @@ export async function DELETE(
       );
     }
 
-    // Delete invoice (cascade deletes invoice items)
-    await db.invoice.delete({
-      where: { id: params.id },
+    await db.$transaction(async (tx) => {
+      // If this invoice applied the diagnostic fee credit, allow it to be used again on recreation.
+      if (existingInvoice.jobId) {
+        const job = await tx.job.findUnique({
+          where: { id: existingInvoice.jobId },
+          select: {
+            id: true,
+            diagnosticFeeAppliedToInvoice: true,
+            diagnosticFeePaid: true,
+          },
+        });
+
+        if (job?.diagnosticFeeAppliedToInvoice) {
+          await tx.job.update({
+            where: { id: job.id },
+            data: {
+              diagnosticFeeAppliedToInvoice: false,
+            },
+          });
+        }
+      }
+
+      // Delete invoice (cascade deletes invoice items)
+      await tx.invoice.delete({
+        where: { id: params.id },
+      });
     });
 
     return NextResponse.json({ message: "Invoice deleted successfully" });
