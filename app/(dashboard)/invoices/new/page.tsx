@@ -104,14 +104,12 @@ export default function NewInvoicePage() {
 
           // Add the specific job if it's not already in the list
           const jobExists = eligibleJobs.find((job: Job) => job.id === jobIdParam);
-          if (!jobExists) {
-            setJobs([specificJob, ...eligibleJobs]);
-          } else {
-            setJobs(eligibleJobs);
-          }
+          const nextJobs = jobExists ? eligibleJobs : [specificJob, ...eligibleJobs];
+          setJobs(nextJobs);
 
-          // Auto-select the job from URL param
-          handleJobSelect(jobIdParam);
+          // Auto-select the job from URL param using the fetched object directly
+          setSelectedJobId(jobIdParam);
+          setSelectedJob(specificJob);
         } else {
           // If can't fetch specific job, just show eligible jobs
           const eligibleJobs = data.jobs.filter(
@@ -253,6 +251,15 @@ export default function NewInvoicePage() {
       return;
     }
 
+    if (!selectedJob) {
+      toast({
+        title: "Job Not Ready",
+        description: "Please reselect the job and try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (selectedJob && selectedJob.diagnosticFeeAmount > 0 && !selectedJob.diagnosticFeePaid) {
       const proceed = confirm(
         "Diagnostic fee is not marked as paid for this job. Please record the payment before generating the invoice. Do you want to continue anyway?"
@@ -287,7 +294,6 @@ export default function NewInvoicePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobId: selectedJobId,
-          customerId: selectedJob!.customerId,
           dueDate: new Date(dueDate).toISOString(),
           items: items.map(({ id, ...item }) => item),
           taxRate: parseFloat(taxRate || "0"),

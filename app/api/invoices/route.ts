@@ -10,7 +10,6 @@ export const dynamic = 'force-dynamic';
 // Validation schema for invoice creation
 const invoiceCreateSchema = z.object({
   jobId: z.string().min(1, "Job ID is required"),
-  customerId: z.string().min(1, "Customer ID is required"),
   dueDate: z.string().datetime(),
   items: z.array(z.object({
     description: z.string().min(1, "Description is required"),
@@ -228,7 +227,7 @@ export async function POST(request: NextRequest) {
         data: {
           invoiceNumber,
           jobId: validatedData.jobId,
-          customerId: validatedData.customerId,
+          customerId: existingJob.customerId,
           issuedById: session.user.id,
           status: "DRAFT",
           issueDate: new Date(),
