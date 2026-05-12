@@ -653,13 +653,13 @@ export default function FieldServiceDashboardPage() {
             <Label htmlFor="search">Search</Label>
             <div className="relative mt-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Job, customer, phone, address" />
+              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 pl-9 xl:h-10" placeholder="Job, customer, phone, address" />
             </div>
           </div>
           <div>
             <Label htmlFor="date">Date</Label>
             <div className="mt-1 flex gap-2">
-              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11 xl:h-10" />
               {date && (
                 <Button type="button" variant="outline" size="sm" onClick={() => setDate("")}>
                   All
@@ -670,7 +670,7 @@ export default function FieldServiceDashboardPage() {
           <div>
             <Label>Technician</Label>
             <Select value={technicianId} onValueChange={setTechnicianId}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All technicians</SelectItem>
                 {data?.technicians.map((tech) => (
@@ -682,7 +682,7 @@ export default function FieldServiceDashboardPage() {
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 {FIELD_SERVICE_STATUSES.map((item) => (
@@ -694,7 +694,7 @@ export default function FieldServiceDashboardPage() {
           <div>
             <Label>Priority</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All priorities</SelectItem>
                 <SelectItem value="LOW">Low</SelectItem>
@@ -706,7 +706,7 @@ export default function FieldServiceDashboardPage() {
           </div>
           <div>
             <Label htmlFor="suburb">Suburb</Label>
-            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1" placeholder="Address contains" />
+            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1 h-11 xl:h-10" placeholder="Address contains" />
           </div>
           <div className="flex items-end gap-2">
             <Button variant={unassignedOnly ? "default" : "outline"} onClick={() => setUnassignedOnly(!unassignedOnly)} className="flex-1">
@@ -727,7 +727,37 @@ export default function FieldServiceDashboardPage() {
             <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
             <p className="text-sm text-slate-500">{jobs.length} callout jobs shown</p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-4 md:hidden">
+            {jobs.map((job) => (
+              <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-950">{job.jobNumber}</p>
+                    <p className="mt-1 truncate text-sm text-slate-700">{job.customer.firstName} {job.customer.lastName}</p>
+                    <a className="mt-1 block text-sm text-blue-700" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a>
+                  </div>
+                  <Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{job.applianceType} · {job.calloutAddress || "Address not selected"}</p>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg bg-white/70 p-3">
+                    <p className="text-xs text-slate-500">Scheduled</p>
+                    <p className="font-medium">{formatDateTime(job.scheduledAt)}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/70 p-3">
+                    <p className="text-xs text-slate-500">Travel</p>
+                    <p className="font-medium">{formatDistance(job.distanceFromOfficeKm)} / {job.estimatedTravelTime || "Pending"}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
+                  <Button className="h-11" onClick={() => setSelectedJob(job)}>Open</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -777,7 +807,7 @@ export default function FieldServiceDashboardPage() {
         </div>
 
         <div className="space-y-5">
-          <div className="h-[520px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="h-[340px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[420px] xl:h-[520px]">
             {data?.map.googleApiKey ? (
               <div ref={mapRef} className="h-full w-full" />
             ) : (

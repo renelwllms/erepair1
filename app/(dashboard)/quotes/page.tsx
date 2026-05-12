@@ -139,15 +139,15 @@ export default function QuotesPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
           <p className="text-gray-600">View and manage all quotes sent to customers</p>
         </div>
         <Link
           href="/quotes/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex h-11 w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
         >
           <FileText className="h-4 w-4 mr-2" />
           Create Quote
@@ -155,7 +155,7 @@ export default function QuotesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -208,11 +208,11 @@ export default function QuotesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center gap-2">
+      <div className="rounded-lg bg-white p-4 shadow">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <Filter className="h-5 w-5 text-gray-400" />
           <span className="text-sm font-medium text-gray-700">Filter:</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             <button
               onClick={() => setFilter("all")}
               className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
@@ -280,7 +280,58 @@ export default function QuotesPage() {
             <p className="text-gray-600">No quotes found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="space-y-3 md:hidden">
+            {filteredQuotes.map((quote) => (
+              <div key={quote.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link href={`/quotes/${quote.id}`} className="font-semibold text-blue-700 hover:underline">
+                      {quote.quoteNumber}
+                    </Link>
+                    <p className="mt-1 text-sm text-gray-700">{quote.customer.firstName} {quote.customer.lastName}</p>
+                    <p className="mt-1 text-xs text-gray-500">{quote.job.jobNumber} · {quote.job.applianceBrand} {quote.job.applianceType}</p>
+                  </div>
+                  {getStatusBadge(quote.status)}
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Amount</p>
+                    <p className="font-semibold">${quote.totalAmount.toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Valid Until</p>
+                    <p className="font-semibold">{format(new Date(quote.validUntil), "MMM dd, yyyy")}</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => router.push(`/quotes/${quote.id}`)}
+                    className="inline-flex h-11 items-center justify-center rounded-md bg-blue-600 px-3 text-sm font-medium text-white"
+                  >
+                    Open
+                  </button>
+                  <button
+                    onClick={() => router.push(`/jobs/${quote.job.id}`)}
+                    className="inline-flex h-11 items-center justify-center rounded-md border border-gray-200 px-3 text-sm font-medium"
+                  >
+                    Job
+                  </button>
+                  {quote.status === "SENT" && new Date(quote.validUntil) > new Date() && (
+                    <button
+                      onClick={() => sendReminder(quote.id)}
+                      className="col-span-2 inline-flex h-11 items-center justify-center rounded-md border border-orange-200 px-3 text-sm font-medium text-orange-700"
+                    >
+                      <Bell className="mr-2 h-4 w-4" />
+                      Send Reminder
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -450,6 +501,7 @@ export default function QuotesPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
