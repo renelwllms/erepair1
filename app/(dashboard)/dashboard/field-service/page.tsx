@@ -261,10 +261,14 @@ export default function FieldServiceDashboardPage() {
   const [photoCaption, setPhotoCaption] = useState("");
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
   const [calloutAddressValue, setCalloutAddressValue] = useState("");
+  const [pendingDialogSection, setPendingDialogSection] = useState<"notes" | "photos" | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const notesSectionRef = useRef<HTMLDivElement | null>(null);
+  const photosSectionRef = useRef<HTMLDivElement | null>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectedPlaceRef = useRef<any>(null);
 
   const fetchDashboard = async () => {
@@ -323,6 +327,19 @@ export default function FieldServiceDashboardPage() {
     setCalloutAddressValue(selectedJob?.calloutAddress || "");
     selectedPlaceRef.current = null;
   }, [selectedJob?.id]);
+
+  useEffect(() => {
+    if (!selectedJob || !pendingDialogSection) return;
+
+    window.setTimeout(() => {
+      const target = pendingDialogSection === "notes" ? notesSectionRef.current : photosSectionRef.current;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (pendingDialogSection === "notes") {
+        noteTextareaRef.current?.focus();
+      }
+      setPendingDialogSection(null);
+    }, 100);
+  }, [selectedJob, pendingDialogSection]);
 
   useEffect(() => {
     if (!window.google?.maps?.places || !addressInputRef.current || !selectedJob) return;
@@ -406,6 +423,11 @@ export default function FieldServiceDashboardPage() {
         });
         markersRef.current.push(marker);
       });
+  };
+
+  const openJobDialog = (job: FieldJob, section?: "notes" | "photos") => {
+    setSelectedJob(job);
+    setPendingDialogSection(section || null);
   };
 
   const refreshSelectedJob = (jobs: FieldJob[]) => {
@@ -751,7 +773,7 @@ export default function FieldServiceDashboardPage() {
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
-                  <Button className="h-11" onClick={() => setSelectedJob(job)}>Open</Button>
+                  <Button className="h-11" onClick={() => openJobDialog(job)}>Open</Button>
                 </div>
               </div>
             ))}
@@ -797,7 +819,7 @@ export default function FieldServiceDashboardPage() {
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
                     <TableCell>{formatDateTime(job.updatedAt)}</TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedJob(job)}>Open</Button>
+                      <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -836,8 +858,8 @@ export default function FieldServiceDashboardPage() {
                     <Button size="lg" variant="outline" asChild><a href={`tel:${job.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
                     <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
                     <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
-                    <Button size="lg" variant="outline" onClick={() => setSelectedJob(job)}>Add Note</Button>
-                    <Button size="lg" variant="outline" onClick={() => setSelectedJob(job)}>Upload Photos</Button>
+                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
+                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
                   </div>
                 </div>
               ))}
@@ -868,7 +890,7 @@ export default function FieldServiceDashboardPage() {
 
               <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
                 <div className="space-y-5">
-                  <Card>
+                  <Card ref={notesSectionRef}>
                     <CardHeader><CardTitle className="text-base">Customer and Appliance</CardTitle></CardHeader>
                     <CardContent className="grid gap-3 text-sm md:grid-cols-2">
                       <div><span className="text-slate-500">Customer</span><p className="font-medium">{selectedJob.customer.firstName} {selectedJob.customer.lastName}</p></div>
@@ -948,7 +970,7 @@ export default function FieldServiceDashboardPage() {
                         </Select>
                         <Button onClick={addNote}>Add Note</Button>
                       </div>
-                      <Textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add technician note" />
+                      <Textarea ref={noteTextareaRef} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add technician note" />
                       <div className="space-y-2">
                         {selectedJob.fieldNotes.map((note) => (
                           <div key={note.id} className="rounded-md border border-slate-200 p-3 text-sm">
@@ -964,7 +986,7 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
+                  <Card ref={photosSectionRef}>
                     <CardHeader><CardTitle className="text-base">Photos</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <div className="grid gap-3 md:grid-cols-3">
