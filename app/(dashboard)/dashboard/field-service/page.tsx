@@ -79,6 +79,7 @@ interface FieldJob {
   googlePlaceId?: string | null;
   distanceFromOfficeKm?: number | null;
   estimatedTravelTime?: string | null;
+  travelEstimateSource?: string | null;
   calloutAccessInstructions?: string | null;
   calloutParkingNotes?: string | null;
   calloutApplianceLocation?: string | null;
@@ -173,6 +174,47 @@ const formatDateTime = (value?: string | null) => {
 
 const formatDistance = (value?: number | null) =>
   typeof value === "number" ? `${value.toFixed(1)} km` : "Not calculated";
+
+const calculateGoogleTravel = async (
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+) =>
+  new Promise<{ distanceFromOfficeKm: number; estimatedTravelTime: string } | null>((resolve) => {
+    if (!window.google?.maps?.DistanceMatrixService) {
+      resolve(null);
+      return;
+    }
+
+    const service = new window.google.maps.DistanceMatrixService();
+    service.getDistanceMatrix(
+      {
+        origins: [origin],
+        destinations: [destination],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(Date.now() + 5 * 60 * 1000),
+          trafficModel: "bestguess",
+        },
+      },
+      (result: any, status: string) => {
+        if (status !== "OK") {
+          resolve(null);
+          return;
+        }
+
+        const element = result?.rows?.[0]?.elements?.[0];
+        if (element?.status !== "OK") {
+          resolve(null);
+          return;
+        }
+
+        resolve({
+          distanceFromOfficeKm: element.distance.value / 1000,
+          estimatedTravelTime: element.duration_in_traffic?.text || element.duration?.text,
+        });
+      }
+    );
+  });
 
 const compressImage = async (file: File) => {
   const bitmap = await createImageBitmap(file);
@@ -492,22 +534,29 @@ export default function FieldServiceDashboardPage() {
       payload.calloutLongitude = place.geometry.location.lng();
       payload.googlePlaceId = place.place_id;
 
-      if (window.google?.maps?.DistanceMatrixService && data?.map.officeLatitude && data?.map.officeLongitude) {
-        const service = new window.google.maps.DistanceMatrixService();
-        const result = await service.getDistanceMatrix({
-          origins: [{ lat: data.map.officeLatitude, lng: data.map.officeLongitude }],
-          destinations: [{ lat: payload.calloutLatitude, lng: payload.calloutLongitude }],
-          travelMode: window.google.maps.TravelMode.DRIVING,
-          drivingOptions: {
-            departureTime: new Date(Date.now() + 5 * 60 * 1000),
-            trafficModel: "bestguess",
-          },
-        });
-        const element = result.rows?.[0]?.elements?.[0];
-        if (element?.status === "OK") {
-          payload.distanceFromOfficeKm = element.distance.value / 1000;
-          payload.estimatedTravelTime = element.duration_in_traffic?.text || element.duration?.text;
-        }
+    }
+
+    const destination =
+      typeof payload.calloutLatitude === "number" && typeof payload.calloutLongitude === "number"
+        ? { lat: payload.calloutLatitude, lng: payload.calloutLongitude }
+        : typeof selectedJob.calloutLatitude === "number" && typeof selectedJob.calloutLongitude === "number"
+          ? { lat: selectedJob.calloutLatitude, lng: selectedJob.calloutLongitude }
+          : null;
+
+    if (
+      destination &&
+      data?.map.officeLatitude &&
+      data?.map.officeLongitude &&
+      (!selectedJob.distanceFromOfficeKm || !selectedJob.estimatedTravelTime || payload.calloutAddress)
+    ) {
+      const travel = await calculateGoogleTravel(
+        { lat: data.map.officeLatitude, lng: data.map.officeLongitude },
+        destination
+      );
+
+      if (travel) {
+        payload.distanceFromOfficeKm = travel.distanceFromOfficeKm;
+        payload.estimatedTravelTime = travel.estimatedTravelTime;
       }
     }
 

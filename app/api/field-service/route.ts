@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getCalloutScheduledTime, isRunningLate } from "@/lib/field-service";
+import {
+  calculateStraightLineDistanceKm,
+  estimateTravelTimeFromDistance,
+  getCalloutScheduledTime,
+  isRunningLate,
+} from "@/lib/field-service";
 
 export const dynamic = "force-dynamic";
 
@@ -119,11 +124,23 @@ export async function GET(request: NextRequest) {
     const todayStart = startOfDay(now);
     const todayEnd = endOfDay(now);
 
-    const decoratedJobs = jobs.map((job: any) => ({
-      ...job,
-      scheduledAt: getCalloutScheduledTime(job)?.toISOString() || null,
-      runningLate: isRunningLate(job),
-    }));
+    const decoratedJobs = jobs.map((job: any) => {
+      const fallbackDistance = calculateStraightLineDistanceKm(
+        { latitude: settings?.officeLatitude, longitude: settings?.officeLongitude },
+        { latitude: job.calloutLatitude, longitude: job.calloutLongitude }
+      );
+      const distanceFromOfficeKm =
+        typeof job.distanceFromOfficeKm === "number" ? job.distanceFromOfficeKm : fallbackDistance;
+
+      return {
+        ...job,
+        distanceFromOfficeKm,
+        estimatedTravelTime: job.estimatedTravelTime || estimateTravelTimeFromDistance(distanceFromOfficeKm),
+        travelEstimateSource: typeof job.distanceFromOfficeKm === "number" ? "GOOGLE_DISTANCE_MATRIX" : fallbackDistance ? "STRAIGHT_LINE_ESTIMATE" : null,
+        scheduledAt: getCalloutScheduledTime(job)?.toISOString() || null,
+        runningLate: isRunningLate(job),
+      };
+    });
 
     const counts = {
       totalToday: decoratedJobs.filter((job: any) =>
