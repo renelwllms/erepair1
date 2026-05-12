@@ -656,11 +656,37 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                     <Label htmlFor="preferredCalloutDate">
                       Preferred Date/Time <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="preferredCalloutDate"
-                      type="datetime-local"
-                      {...register("preferredCalloutDate")}
-                    />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="preferredCalloutDate"
+                        type="datetime-local"
+                        {...preferredCalloutDateField}
+                        onChange={(event) => {
+                          preferredCalloutDateField.onChange(event);
+                          setConfirmedPreferredCalloutDate("");
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="shrink-0"
+                        disabled={!preferredCalloutDate}
+                        onClick={async () => {
+                          const isValid = await trigger("preferredCalloutDate");
+                          if (!isValid || !preferredCalloutDate) {
+                            return;
+                          }
+                          setConfirmedPreferredCalloutDate(preferredCalloutDate);
+                          document.getElementById("preferredCalloutDate")?.blur();
+                        }}
+                      >
+                        <Check className="mr-2 h-4 w-4" />
+                        Confirm
+                      </Button>
+                    </div>
+                    {confirmedPreferredCalloutDate === preferredCalloutDate && (
+                      <p className="text-xs text-emerald-700">Date/time confirmed</p>
+                    )}
                     {errors.preferredCalloutDate && (
                       <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
                     )}
@@ -738,22 +764,13 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
             )}
 
             {/* Additional Information */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
               <div className="space-y-2">
                 <Label htmlFor="warrantyStatus">Warranty Status</Label>
                 <Input
                   id="warrantyStatus"
                   {...register("warrantyStatus")}
                   placeholder="e.g., In Warranty, Out of Warranty"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="serviceLocation">Service Location</Label>
-                <Input
-                  id="serviceLocation"
-                  {...register("serviceLocation")}
-                  placeholder="e.g., Customer Location, Shop"
                 />
               </div>
             </div>

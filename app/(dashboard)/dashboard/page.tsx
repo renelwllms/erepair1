@@ -155,12 +155,6 @@ export default function DashboardPage() {
                   <div className={`text-3xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
                     {stat.value.toLocaleString()}
                   </div>
-                  {stat.change !== undefined && (
-                    <p className={`text-xs mt-1 flex items-center gap-1 ${stat.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                      <Icon className="h-3 w-3" />
-                      {stat.change >= 0 ? "+" : ""}{stat.change.toFixed(1)}% from last month
-                    </p>
-                  )}
                 </CardContent>
               </Card>
             </div>
