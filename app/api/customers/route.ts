@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { withCustomerAccessScope } from "@/lib/access-control";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause for filtering
-    const where: any = {};
+    let where: any = {};
 
     // Search across multiple fields
     if (search) {
@@ -54,6 +55,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count for pagination
+    where = withCustomerAccessScope(where, session.user);
+
     const total = await db.customer.count({ where });
 
     // Get customers with relations

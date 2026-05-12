@@ -51,6 +51,14 @@ interface Job {
     status: string;
     totalAmount: number;
   } | null;
+  quotes?: Array<{
+    id: string;
+    status: string;
+    issueDate: string;
+    validUntil: string;
+    reminderCount: number;
+    lastReminderSent?: string | null;
+  }>;
   customer: {
     id: string;
     firstName: string;
@@ -265,16 +273,18 @@ export default function JobsPage() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" => {
-    const statusMap: Record<string, "default" | "secondary" | "destructive"> = {
-      OPEN: "default",
-      IN_PROGRESS: "default",
-      AWAITING_PARTS: "secondary",
-      READY_FOR_PICKUP: "secondary",
-      CLOSED: "secondary",
-      CANCELLED: "destructive",
+  const getStatusFieldClass = (status: string) => {
+    const statusMap: Record<string, string> = {
+      OPEN: "border-slate-300 bg-slate-50 text-slate-700",
+      IN_PROGRESS: "border-blue-300 bg-blue-50 text-blue-700",
+      AWAITING_CUSTOMER_APPROVAL: "border-amber-300 bg-amber-50 text-amber-700",
+      AWAITING_PARTS: "border-violet-300 bg-violet-50 text-violet-700",
+      READY_FOR_PICKUP: "border-emerald-300 bg-emerald-50 text-emerald-700",
+      CLOSED: "border-slate-300 bg-slate-100 text-slate-700",
+      CANCELLED: "border-rose-300 bg-rose-50 text-rose-700",
     };
-    return statusMap[status] || "default";
+
+    return statusMap[status] || "border-slate-300 bg-white text-slate-700";
   };
 
   const getPriorityBadgeVariant = (priority: string): "default" | "secondary" | "destructive" => {
@@ -288,9 +298,8 @@ export default function JobsPage() {
   };
 
   const formatStatus = (status: string) => {
-    // Special case for long status names
     if (status === "AWAITING_CUSTOMER_APPROVAL") {
-      return "ACA";
+      return "Awaiting Customer Approval";
     }
     return status.replace(/_/g, " ");
   };
@@ -349,6 +358,7 @@ export default function JobsPage() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="OPEN">Open</SelectItem>
                 <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                <SelectItem value="AWAITING_CUSTOMER_APPROVAL">Awaiting Customer Approval</SelectItem>
                 <SelectItem value="AWAITING_PARTS">Awaiting Parts</SelectItem>
                 <SelectItem value="READY_FOR_PICKUP">Ready for Pickup</SelectItem>
                 <SelectItem value="CLOSED">Closed</SelectItem>
@@ -472,22 +482,33 @@ export default function JobsPage() {
                           value={job.status}
                           onValueChange={(value) => handleStatusChange(job.id, value, job)}
                         >
-                          <SelectTrigger className="w-[180px]">
+                          <SelectTrigger
+                            className={`h-10 w-[240px] max-w-full rounded-md border px-3 text-left text-sm font-medium shadow-none [&>span]:truncate ${getStatusFieldClass(job.status)}`}
+                          >
                             <SelectValue>
-                              <Badge variant={getStatusBadgeVariant(job.status)}>
+                              <span className="block w-full truncate">
                                 {formatStatus(job.status)}
-                              </Badge>
+                              </span>
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="OPEN">Open</SelectItem>
                             <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                            <SelectItem value="AWAITING_CUSTOMER_APPROVAL">Awaiting Customer Approval</SelectItem>
                             <SelectItem value="AWAITING_PARTS">Awaiting Parts</SelectItem>
                             <SelectItem value="READY_FOR_PICKUP">Ready for Pickup</SelectItem>
                             <SelectItem value="CLOSED">Closed</SelectItem>
                             <SelectItem value="CANCELLED">Cancelled</SelectItem>
                           </SelectContent>
                         </Select>
+                        {job.status === "AWAITING_CUSTOMER_APPROVAL" && job.quotes?.[0] && (
+                          <div className="mt-1 text-xs text-orange-600">
+                            {job.quotes[0].reminderCount} reminder{job.quotes[0].reminderCount === 1 ? "" : "s"} sent
+                            {job.quotes[0].lastReminderSent
+                              ? ` • last ${new Date(job.quotes[0].lastReminderSent).toLocaleDateString()}`
+                              : ""}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getPriorityBadgeVariant(job.priority)}>

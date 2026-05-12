@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessInvoice } from "@/lib/access-control";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +25,10 @@ export async function GET(
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!(await canAccessInvoice(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const payments = await db.payment.findMany({
@@ -55,6 +60,10 @@ export async function POST(
 
     // Only ADMIN and TECHNICIAN can add payments
     if (session.user.role === "CUSTOMER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!(await canAccessInvoice(session.user, params.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

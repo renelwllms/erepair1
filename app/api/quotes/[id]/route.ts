@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessQuote } from "@/lib/access-control";
 import { z } from "zod";
 import { addDays } from "date-fns";
 
@@ -81,8 +82,7 @@ export async function GET(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
 
-    // Check permissions - customers can only view their own quotes
-    if (session.user.role === "CUSTOMER" && quote.customerId !== session.user.id) {
+    if (!(await canAccessQuote(session.user, params.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -119,6 +119,10 @@ export async function PUT(
 
     if (!existingQuote) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
+    }
+
+    if (!(await canAccessQuote(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Only allow editing DRAFT or SENT quotes

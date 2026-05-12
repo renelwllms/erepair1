@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessInvoice } from "@/lib/access-control";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -77,6 +78,10 @@ export async function GET(
       );
     }
 
+    if (!(await canAccessInvoice(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     return NextResponse.json(invoice);
   } catch (error) {
     console.error("Error fetching invoice:", error);
@@ -119,6 +124,10 @@ export async function PUT(
         { error: "Invoice not found" },
         { status: 404 }
       );
+    }
+
+    if (!(await canAccessInvoice(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Only allow editing DRAFT invoices for item/amount changes

@@ -1,0 +1,1316 @@
+
+> erepair-shop@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.1s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1392ms (231 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 5.5s (588 modules)
+ GET / 200 in 6073ms
+ ✓ Compiled in 615ms (295 modules)
+ ○ Compiling /_not-found ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /auth/login in 9.3s (598 modules)
+ GET /_next/webpack-hmr 404 in 8573ms
+ GET / 200 in 2020ms
+ GET /robots.txt?489755 404 in 9552ms
+ GET /robots.txt?489755 404 in 35ms
+ GET /_next/webpack-hmr 404 in 36ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 904ms (475 modules)
+ GET /api/auth/providers 200 in 1469ms
+ GET /api/auth/csrf 200 in 37ms
+ POST /api/auth/callback/credentials? 200 in 365ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 3.9s (1880 modules)
+ GET /dashboard?_rsc=1s1of 200 in 125ms
+ ✓ Compiled /api/analytics/dashboard in 271ms (1035 modules)
+ GET /api/analytics/dashboard?period=30 200 in 554ms
+ GET /api/analytics/dashboard?period=30 200 in 34ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 1872ms (1488 modules)
+ ✓ Compiled /api/settings in 177ms (568 modules)
+ ✓ Compiled (570 modules)
+ GET /api/settings 200 in 484ms
+ GET /api/email-templates 200 in 513ms
+ GET /api/email-templates 200 in 33ms
+ GET /api/settings 200 in 38ms
+ ⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 635ms (231 modules)
+ ○ Compiling /dashboard ...
+ ✓ Compiled /settings in 18.9s (2053 modules)
+ GET /settings 200 in 17486ms
+ ✓ Compiled /api/analytics/dashboard in 266ms (1115 modules)
+ GET /api/analytics/dashboard?period=30 200 in 692ms
+ ✓ Compiled /_not-found in 468ms (2047 modules)
+ GET /robots.txt?489756 404 in 693ms
+ ✓ Compiled /api/email-templates in 246ms (1119 modules)
+ ✓ Compiled (1125 modules)
+ GET /api/public/settings 200 in 679ms
+ GET /api/settings/database 200 in 735ms
+ GET /api/settings 200 in 744ms
+ GET /_next/webpack-hmr 404 in 659ms
+ GET /api/email-templates 200 in 739ms
+ GET /api/public/settings 200 in 43ms
+ GET /api/settings/database 200 in 98ms
+ GET /api/settings 200 in 93ms
+ GET /api/public/settings 200 in 40ms
+ GET /api/email-templates 200 in 63ms
+ GET /api/public/settings 200 in 25ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ GET /.git/config 404 in 57ms
+ ✓ Compiled / in 482ms (1228 modules)
+ GET / 307 in 644ms
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 880ms (1246 modules)
+ GET /auth/login 200 in 1039ms
+ GET /js 404 in 46ms
+ GET /_next/static/chunks/polyfills.js 404 in 44ms
+ GET / 307 in 82ms
+ GET / 307 in 47ms
+ GET /auth/login 200 in 50ms
+ GET / 307 in 63ms
+ GET /auth/login 200 in 63ms
+ GET / 307 in 61ms
+ GET /auth/login 200 in 57ms
+ GET /_profiler/phpinfo 404 in 49ms
+ GET /.env 404 in 52ms
+ GET /.env.local 404 in 38ms
+ GET /.env.production 404 in 47ms
+ GET /blog.env 404 in 25ms
+ GET /wp-content/.env 404 in 46ms
+ GET /.git/config 404 in 36ms
+ GET /application/.env 404 in 36ms
+ GET /app/.env 404 in 33ms
+ GET /config/.env 404 in 41ms
+ GET /api/.env 404 in 44ms
+ GET /config.json 404 in 37ms
+ GET /laravel/.env 404 in 42ms
+ GET /library/.env 404 in 32ms
+ GET /nextjs-app/.env 404 in 32ms
+ GET /node-api/.env 404 in 35ms
+ GET /vendor/.env 404 in 31ms
+ GET /.aws/credentials 404 in 30ms
+ GET /myproject/.env 404 in 40ms
+ GET /.envs/.production/.django 404 in 46ms
+ GET /react-app/.env 404 in 40ms
+ GET /react-app/.env.production 404 in 37ms
+ GET /backend/.env 404 in 39ms
+ GET /docker-compose.yml 404 in 34ms
+ GET /credentials 404 in 39ms
+ GET /.aws/config 404 in 32ms
+ GET /config.php 404 in 29ms
+ GET /actuator/env 404 in 41ms
+ GET /.kube/config 404 in 42ms
+ GET /config.yml 404 in 41ms
+ GET / 307 in 85ms
+ GET / 307 in 62ms
+[31m[auth][error][0m JWTSessionError: Read more at https://errors.authjs.dev#jwtsessionerror
+[31m[auth][cause][0m: Error: no matching decryption secret
+    at clockTolerance (webpack-internal:///(middleware)/./node_modules/@auth/core/jwt.js:91:15)
+    at async flattenedDecrypt (webpack-internal:///(middleware)/./node_modules/jose/dist/webapi/jwe/flattened/decrypt.js:110:15)
+    at async compactDecrypt (webpack-internal:///(middleware)/./node_modules/jose/dist/webapi/jwe/compact/decrypt.js:22:23)
+    at async jwtDecrypt (webpack-internal:///(middleware)/./node_modules/jose/dist/webapi/jwt/decrypt.js:12:23)
+    at async Object.decode (webpack-internal:///(middleware)/./node_modules/@auth/core/jwt.js:82:25)
+    at async Module.session (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/actions/session.js:30:29)
+    at async AuthInternal (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/index.js:51:24)
+    at async Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:130:34)
+    at async handleAuth (webpack-internal:///(middleware)/./node_modules/next-auth/lib/index.js:137:29)
+    at async adapter (webpack-internal:///(middleware)/./node_modules/next/dist/esm/server/web/adapter.js:178:16)
+[31m[auth][details][0m: {}
+ ○ Compiling /jobs/new ...
+ ✓ Compiled /jobs/new in 3.2s (1528 modules)
+[31m[auth][error][0m JWTSessionError: Read more at https://errors.authjs.dev#jwtsessionerror
+[31m[auth][cause][0m: Error: no matching decryption secret
+    at clockTolerance (webpack-internal:///(rsc)/./node_modules/@auth/core/jwt.js:91:15)
+    at async flattenedDecrypt (webpack-internal:///(rsc)/./node_modules/jose/dist/webapi/jwe/flattened/decrypt.js:110:15)
+    at async compactDecrypt (webpack-internal:///(rsc)/./node_modules/jose/dist/webapi/jwe/compact/decrypt.js:22:23)
+    at async jwtDecrypt (webpack-internal:///(rsc)/./node_modules/jose/dist/webapi/jwt/decrypt.js:12:23)
+    at async Object.decode (webpack-internal:///(rsc)/./node_modules/@auth/core/jwt.js:82:25)
+    at async Module.session (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/actions/session.js:30:29)
+    at async AuthInternal (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/index.js:51:24)
+    at async Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:130:34)
+    at async DashboardLayout (webpack-internal:///(rsc)/./app/(dashboard)/layout.tsx:17:21)
+[31m[auth][details][0m: {}
+ GET /jobs/new 307 in 3871ms
+ ✓ Compiled /auth/login in 161ms (580 modules)
+ GET /auth/login 200 in 296ms
+ GET /jobs/new 307 in 189ms
+ GET /auth/login 200 in 67ms
+ ✓ Compiled / in 283ms (297 modules)
+ GET / 200 in 374ms
+ ✓ Compiled /_not-found in 193ms (291 modules)
+ GET /.env 404 in 423ms
+ GET /.env 404 in 37ms
+ ✓ Compiled /jobs/new in 332ms (575 modules)
+ GET /jobs/new 307 in 652ms
+ ✓ Compiled /auth/login in 185ms (580 modules)
+ GET /auth/login 200 in 308ms
+ ✓ Compiled /_not-found in 199ms (291 modules)
+ GET /robots.txt 404 in 347ms
+ ○ Compiling / ...
+ ✓ Compiled / in 685ms (297 modules)
+ GET / 307 in 836ms
+ ✓ Compiled /auth/login in 158ms (312 modules)
+ GET /auth/login 200 in 293ms
+ ✓ Compiled /_not-found in 145ms (313 modules)
+ GET /robots.txt?489887 404 in 245ms
+ GET /robots.txt?489887 404 in 30ms
+ ✓ Compiled /api/public/settings in 329ms (345 modules)
+ GET /_next/webpack-hmr 404 in 561ms
+ GET /api/public/settings 200 in 737ms
+ GET /api/public/settings 200 in 48ms
+ GET /api/public/settings 200 in 55ms
+ GET /api/public/settings 200 in 31ms
+ ✓ Compiled /api/auth/[...nextauth] in 328ms (485 modules)
+ GET /api/auth/providers 200 in 1432ms
+ GET /api/auth/csrf 200 in 99ms
+ POST /api/auth/callback/credentials? 200 in 310ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 818ms (1046 modules)
+ GET /dashboard?_rsc=1s1of 200 in 95ms
+ GET /api/public/settings 200 in 69ms
+ ✓ Compiled /api/analytics/dashboard in 257ms (1048 modules)
+ GET /api/public/settings 200 in 458ms
+ GET /api/analytics/dashboard?period=30 200 in 612ms
+ GET /api/analytics/dashboard?period=30 200 in 59ms
+ ✓ Compiled /settings in 459ms (1128 modules)
+ ✓ Compiled /api/settings/database in 390ms (1130 modules)
+ ✓ Compiled (1134 modules)
+ GET /api/settings/database 200 in 781ms
+ GET /api/settings 200 in 820ms
+ GET /api/email-templates 200 in 823ms
+ GET /api/settings/database 200 in 63ms
+ GET /api/settings 200 in 59ms
+ GET /api/email-templates 200 in 51ms
+ GET /api/analytics/dashboard?period=30 200 in 69ms
+ GET /api/analytics/dashboard?period=30 200 in 73ms
+ ⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+  - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 2.8s (231 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 4s (597 modules)
+ ✓ Compiled in 449ms (300 modules)
+ GET / 307 in 4506ms
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 2.3s (613 modules)
+ GET /auth/login 200 in 2525ms
+ GET / 307 in 988ms
+ GET /auth/login 200 in 43ms
+ ✓ Compiled /_not-found in 188ms (614 modules)
+ GET /robots.txt?489888 404 in 303ms
+ GET /robots.txt?489888 404 in 39ms
+ ✓ Compiled /api/public/settings in 123ms (345 modules)
+ GET /_next/webpack-hmr 404 in 367ms
+ GET /api/public/settings 200 in 563ms
+ GET /api/public/settings 200 in 21ms
+ GET /api/public/settings 200 in 22ms
+ GET /api/public/settings 200 in 16ms
+ ✓ Compiled /api/auth/[...nextauth] in 397ms (485 modules)
+ GET /api/auth/providers 200 in 983ms
+ GET /api/auth/csrf 200 in 42ms
+ POST /api/auth/callback/credentials? 200 in 301ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1176ms (1901 modules)
+ GET /dashboard?_rsc=1s1of 200 in 112ms
+ ✓ Compiled /api/analytics/dashboard in 179ms (1048 modules)
+ GET /api/public/settings 200 in 424ms
+ GET /api/public/settings 200 in 106ms
+ GET /api/analytics/dashboard?period=30 200 in 577ms
+ GET /api/analytics/dashboard?period=30 200 in 56ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 1020ms (2061 modules)
+ ✓ Compiled /api/settings/database in 229ms (1130 modules)
+ ✓ Compiled (1134 modules)
+ GET /api/settings/database 200 in 528ms
+ GET /api/settings 200 in 581ms
+ GET /api/email-templates 200 in 585ms
+ GET /api/settings/database 200 in 39ms
+ GET /api/settings 200 in 49ms
+ GET /api/email-templates 200 in 42ms
+ ○ Compiling /customers ...
+ ✓ Compiled /customers in 1110ms (2129 modules)
+ ✓ Compiled /api/customers in 356ms (1168 modules)
+ GET /api/customers?page=1&limit=10 200 in 434ms
+ GET /api/customers?page=1&limit=10 200 in 32ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 1090ms (2159 modules)
+ ✓ Compiled /api/jobs in 370ms (1185 modules)
+ GET /api/settings 200 in 791ms
+ GET /api/jobs?page=1&limit=10 200 in 813ms
+ GET /api/settings 200 in 43ms
+ GET /api/jobs?page=1&limit=10 200 in 43ms
+ GET /api/settings/database 200 in 56ms
+ GET /api/settings 200 in 68ms
+ GET /api/email-templates 200 in 72ms
+ GET /api/settings/database 200 in 38ms
+ GET /api/settings 200 in 57ms
+ GET /api/email-templates 200 in 58ms
+ ○ Compiling /submit-job ...
+ ✓ Compiled /submit-job in 747ms (2173 modules)
+ GET /submit-job 200 in 922ms
+ GET /api/public/settings 200 in 85ms
+ GET /_next/webpack-hmr 404 in 45ms
+ GET /api/public/settings 200 in 43ms
+ GET /api/public/settings 200 in 19ms
+ GET /api/public/settings 200 in 31ms
+ ✓ Compiled /api/public/search-customer in 329ms (1194 modules)
+ GET /api/public/search-customer?phone=021 200 in 385ms
+ GET /api/public/search-customer?phone=021%20841%20446 200 in 51ms
+ GET /api/public/search-customer?phone=021%20841%20446%20 200 in 29ms
+ GET /api/public/search-customer?phone=021%20841%20446 200 in 29ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ GET /api/public/search-customer?phone=021%20841446 200 in 48ms
+ GET /api/public/search-customer?phone=021841446 200 in 18ms
+ GET /api/public/search-customer?phone=21841446 200 in 28ms
+ GET /api/customers?page=1&limit=10 200 in 47ms
+ GET /api/customers?page=1&limit=10 200 in 49ms
+ GET /api/public/search-customer?phone=021841446 200 in 35ms
+ ○ Compiling /api/public/submit-job ...
+ ✓ Compiled /api/public/submit-job in 1995ms (751 modules)
+Error sending email: Error: Email configuration not found in settings or environment variables
+    at getEmailConfig (webpack-internal:///(rsc)/./lib/email.ts:62:11)
+    at async sendEmail (webpack-internal:///(rsc)/./lib/email.ts:84:24)
+    at async POST (webpack-internal:///(rsc)/./app/api/public/submit-job/route.ts:169:13)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1575:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+Failed to send confirmation email: Error: Email configuration not found in settings or environment variables
+    at getEmailConfig (webpack-internal:///(rsc)/./lib/email.ts:62:11)
+    at async sendEmail (webpack-internal:///(rsc)/./lib/email.ts:84:24)
+    at async POST (webpack-internal:///(rsc)/./app/api/public/submit-job/route.ts:169:13)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1575:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+ POST /api/public/submit-job 201 in 2363ms
+ ✓ Compiled /submit-job in 269ms (760 modules)
+ GET /submit-job 200 in 481ms
+ ✓ Compiled /_not-found in 192ms (762 modules)
+ ✓ Compiled (764 modules)
+ GET /api/public/settings 200 in 485ms
+ GET /_next/webpack-hmr 404 in 428ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 708ms (779 modules)
+ GET /api/public/settings 200 in 936ms
+ GET /api/public/settings 200 in 39ms
+ ✓ Compiled /api/settings in 268ms (781 modules)
+ ✓ Compiled (783 modules)
+ GET /api/public/settings 200 in 615ms
+ GET /api/settings 200 in 652ms
+ GET /api/jobs?page=1&limit=10 200 in 658ms
+ GET /api/settings 200 in 46ms
+ GET /api/jobs?page=1&limit=10 200 in 42ms
+ ○ Compiling /jobs/[id] ...
+ ✓ Compiled /jobs/[id] in 1023ms (1780 modules)
+ ✓ Compiled /api/jobs/[id] in 255ms (794 modules)
+ GET /api/jobs/cmi6p45jg0003es3zilypu5sv 200 in 696ms
+ GET /api/jobs/cmi6p45jg0003es3zilypu5sv 200 in 85ms
+ ○ Compiling /api/jobs/[id]/send-quote ...
+ ✓ Compiled /api/jobs/[id]/send-quote in 1530ms (1005 modules)
+ POST /api/jobs/cmi6p45jg0003es3zilypu5sv/send-quote 200 in 2226ms
+ GET /api/jobs/cmi6p45jg0003es3zilypu5sv 200 in 79ms
+ ○ Compiling /parts ...
+ ✓ Compiled /parts in 796ms (1486 modules)
+ ✓ Compiled / in 274ms (297 modules)
+ GET / 307 in 479ms
+ ✓ Compiled /auth/login in 149ms (312 modules)
+ GET /auth/login 200 in 339ms
+ ✓ Compiled /_not-found in 106ms (344 modules)
+ ✓ Compiled (345 modules)
+ GET /_next/webpack-hmr 404 in 375ms
+ GET /api/public/settings 200 in 522ms
+ GET /api/public/settings 200 in 24ms
+ GET /api/public/settings 200 in 43ms
+ GET /api/public/settings 200 in 58ms
+ GET /auth/login 200 in 112ms
+ GET /api/public/settings 200 in 27ms
+ GET /_next/webpack-hmr 404 in 60ms
+ GET /api/public/settings 200 in 28ms
+ GET /api/public/settings 200 in 23ms
+ GET /api/public/settings 200 in 26ms
+ GET /auth/login 200 in 46ms
+ GET /auth/login 200 in 64ms
+ GET /api/public/settings 200 in 95ms
+ GET /api/public/settings 200 in 140ms
+ GET /api/public/settings 200 in 86ms
+ GET /api/public/settings 200 in 85ms
+ GET /_next/webpack-hmr 404 in 51ms
+ GET /auth/login 200 in 59ms
+ GET /api/public/settings 200 in 55ms
+ GET /api/public/settings 200 in 56ms
+ GET /api/public/settings 200 in 76ms
+ GET /api/public/settings 200 in 83ms
+ GET /_next/webpack-hmr 404 in 32ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 880ms (483 modules)
+ GET /api/auth/providers 200 in 1110ms
+ GET /api/auth/csrf 200 in 31ms
+[31m[auth][error][0m CredentialsSignin: Read more at https://errors.authjs.dev#credentialssignin
+    at Module.callback (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/actions/callback/index.js:246:23)
+    at async AuthInternal (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/index.js:70:24)
+    at async Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:130:34)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1563:40)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+ POST /api/auth/callback/credentials? 200 in 47ms
+ GET /api/auth/providers 200 in 61ms
+ GET /api/auth/csrf 200 in 26ms
+ POST /api/auth/callback/credentials? 200 in 295ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 747ms (1044 modules)
+ GET /dashboard?_rsc=1s1of 200 in 102ms
+ ✓ Compiled /api/analytics/dashboard in 196ms (1046 modules)
+ GET /api/public/settings 200 in 456ms
+ GET /api/public/settings 200 in 459ms
+ GET /api/analytics/dashboard?period=30 200 in 510ms
+ GET /api/analytics/dashboard?period=30 200 in 513ms
+ ✓ Compiled /jobs in 455ms (1131 modules)
+ ✓ Compiled /api/jobs in 224ms (1133 modules)
+ ✓ Compiled (1135 modules)
+ GET /api/settings 200 in 557ms
+ GET /api/settings 200 in 569ms
+ GET /api/jobs?page=1&limit=10 200 in 571ms
+ GET /api/jobs?page=1&limit=10 200 in 583ms
+ GET /auth/login 200 in 149ms
+ GET /api/public/settings 200 in 29ms
+ GET /_next/webpack-hmr 404 in 71ms
+ GET /api/public/settings 200 in 26ms
+ GET /api/public/settings 200 in 27ms
+ GET /api/public/settings 200 in 29ms
+ GET /auth/login 200 in 77ms
+ GET /api/public/settings 200 in 78ms
+ GET /_next/webpack-hmr 404 in 56ms
+ GET /api/public/settings 200 in 31ms
+ GET /api/public/settings 200 in 26ms
+ GET /api/public/settings 200 in 25ms
+ GET /auth/login 200 in 78ms
+ GET /api/public/settings 200 in 66ms
+ GET /_next/webpack-hmr 404 in 52ms
+ GET /api/public/settings 200 in 26ms
+ GET /api/public/settings 200 in 42ms
+ GET /api/public/settings 200 in 46ms
+ GET /api/analytics/dashboard?period=30 200 in 63ms
+ GET /api/analytics/dashboard?period=30 200 in 33ms
+ ○ Compiling /customers ...
+ ✓ Compiled /customers in 627ms (1130 modules)
+ ✓ Compiled /api/customers in 192ms (1132 modules)
+ GET /api/customers?page=1&limit=10 200 in 290ms
+ GET /api/customers?page=1&limit=10 200 in 43ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 725ms (1149 modules)
+ ✓ Compiled /api/settings/database in 250ms (1151 modules)
+ ✓ Compiled (1155 modules)
+ GET /api/settings/database 200 in 576ms
+ GET /api/email-templates 200 in 582ms
+ GET /api/settings 200 in 640ms
+ GET /api/settings/database 200 in 104ms
+ GET /api/email-templates 200 in 109ms
+ GET /api/settings 200 in 104ms
+ POST /api/settings/database 200 in 39ms
+ ✓ Compiled /jobs in 433ms (1170 modules)
+ ✓ Compiled /api/jobs in 314ms (1172 modules)
+ GET /api/settings 200 in 669ms
+ GET /api/jobs?page=1&limit=10 200 in 695ms
+ GET /api/settings 200 in 44ms
+ GET /api/jobs?page=1&limit=10 200 in 50ms
+ ○ Compiling /jobs/new ...
+ ✓ Compiled /jobs/new in 743ms (1632 modules)
+ ✓ Compiled /api/users/technicians in 265ms (643 modules)
+ GET /api/customers?limit=1000 200 in 534ms
+ GET /api/users/technicians 200 in 583ms
+ GET /api/customers?limit=1000 200 in 43ms
+ GET /api/users/technicians 200 in 29ms
+ POST /api/jobs 201 in 61ms
+ ○ Compiling /jobs/[id] ...
+ ✓ Compiled /jobs/[id] in 995ms (577 modules)
+ ✓ Compiled /api/jobs/[id] in 132ms (579 modules)
+ GET /api/jobs/cmi6xdomf000ges3z848pklc3 200 in 292ms
+ GET /api/jobs/cmi6xdomf000ges3z848pklc3 200 in 49ms
+ ✓ Compiled / in 416ms (297 modules)
+ GET / 307 in 662ms
+ ✓ Compiled /auth/login in 152ms (312 modules)
+ GET /auth/login 200 in 310ms
+ ✓ Compiled /_not-found in 131ms (344 modules)
+ ✓ Compiled (345 modules)
+ GET /_next/webpack-hmr 404 in 432ms
+ GET /api/public/settings 200 in 519ms
+ GET /api/public/settings 200 in 27ms
+ GET /api/public/settings 200 in 37ms
+ GET /api/public/settings 200 in 24ms
+ GET /auth/login 200 in 82ms
+ GET /api/public/settings 200 in 106ms
+ GET /_next/webpack-hmr 404 in 171ms
+ GET /api/public/settings 200 in 84ms
+ GET /api/public/settings 200 in 25ms
+ GET /api/public/settings 200 in 23ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 1029ms (589 modules)
+ ✓ Compiled /api/settings/database in 240ms (591 modules)
+ ✓ Compiled (595 modules)
+ GET /api/settings/database 200 in 559ms
+ GET /api/email-templates 200 in 564ms
+ GET /api/settings 200 in 633ms
+ GET /api/settings/database 200 in 74ms
+ GET /api/email-templates 200 in 92ms
+ GET /api/settings 200 in 72ms
+ ✓ Compiled /api/settings/upload-logo in 476ms (205 modules)
+ POST /api/settings/upload-logo 200 in 629ms
+ ✓ Compiled /settings in 393ms (575 modules)
+ ✓ Compiled /api/email-templates in 150ms (580 modules)
+ ✓ Compiled (584 modules)
+ GET /api/settings/database 200 in 434ms
+ GET /api/settings 200 in 507ms
+ GET /api/email-templates 200 in 474ms
+ GET /api/settings/database 200 in 37ms
+ GET /api/email-templates 200 in 48ms
+ GET /api/settings 200 in 56ms
+ ✓ Compiled /api/settings/upload-logo in 148ms (589 modules)
+ POST /api/settings/upload-logo 200 in 216ms
+ ✓ Compiled /api/settings/upload-favicon in 357ms (204 modules)
+ POST /api/settings/upload-favicon 200 in 481ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1288ms (1034 modules)
+ ✓ Compiled /api/analytics/dashboard in 202ms (1037 modules)
+ GET /api/analytics/dashboard?period=30 200 in 359ms
+ GET /api/analytics/dashboard?period=30 200 in 48ms
+ GET /dashboard 200 in 304ms
+ ✓ Compiled /_not-found in 240ms (1039 modules)
+ GET /robots.txt?489892 404 in 422ms
+ ✓ Compiled /api/public/settings in 212ms (1041 modules)
+ GET /api/public/settings 200 in 521ms
+ GET /_next/webpack-hmr 404 in 479ms
+ GET /api/analytics/dashboard?period=30 200 in 552ms
+ GET /api/public/settings 200 in 33ms
+ GET /api/analytics/dashboard?period=30 200 in 68ms
+ GET /api/public/settings 200 in 34ms
+ GET /api/public/settings 200 in 43ms
+ ✓ Compiled /settings in 411ms (1123 modules)
+ ✓ Compiled /api/settings/database in 340ms (1125 modules)
+ ✓ Compiled (1129 modules)
+ GET /api/settings/database 200 in 701ms
+ GET /api/email-templates 200 in 708ms
+ GET /api/settings 200 in 732ms
+ GET /api/settings 200 in 65ms
+ GET /api/settings/database 200 in 66ms
+ GET /api/email-templates 200 in 69ms
+ ✓ Compiled /api/auth/[...nextauth] in 220ms (1131 modules)
+ GET /api/auth/csrf 200 in 325ms
+ POST /api/auth/signout 200 in 32ms
+ ✓ Compiled /auth/login in 364ms (1136 modules)
+ GET /auth/login 200 in 478ms
+ GET /robots.txt?489892 404 in 51ms
+ GET /api/public/settings 200 in 48ms
+ GET /_next/webpack-hmr 404 in 58ms
+ GET /api/public/settings 200 in 44ms
+ GET /api/public/settings 200 in 31ms
+ GET /api/public/settings 200 in 26ms
+ ✓ Compiled in 1452ms (1005 modules)
+ ✓ Compiled in 339ms (1005 modules)
+ ✓ Compiled in 453ms (1005 modules)
+ ✓ Compiled in 494ms (1005 modules)
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 579ms (304 modules)
+ GET /auth/login 200 in 896ms
+ ✓ Compiled /_not-found in 88ms (306 modules)
+ GET /robots.txt?489893 404 in 203ms
+ ✓ Compiled /api/public/settings in 270ms (338 modules)
+ GET /_next/webpack-hmr 404 in 511ms
+ GET /api/public/settings 200 in 600ms
+ GET /api/public/settings 200 in 33ms
+ GET /api/public/settings 200 in 40ms
+ GET /api/public/settings 200 in 41ms
+ ✓ Compiled in 647ms (1005 modules)
+ ✓ Compiled in 530ms (1005 modules)
+ ✓ Compiled in 388ms (1005 modules)
+ ✓ Compiled in 404ms (1005 modules)
+ ✓ Compiled in 674ms (1005 modules)
+ ✓ Compiled in 312ms (1005 modules)
+ ✓ Compiled in 566ms (1005 modules)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1004ms (202 modules)
+ GET /api/auth/providers 200 in 1224ms
+ GET /api/auth/csrf 200 in 30ms
+ POST /api/auth/callback/credentials? 200 in 298ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1000ms (1032 modules)
+ GET /dashboard?_rsc=1s1of 200 in 106ms
+ ✓ Compiled /api/analytics/dashboard in 218ms (1035 modules)
+ ✓ Compiled (1037 modules)
+ GET /api/public/settings 200 in 602ms
+ GET /api/analytics/dashboard?period=30 200 in 620ms
+ GET /api/public/settings 200 in 34ms
+ GET /api/analytics/dashboard?period=30 200 in 47ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 630ms (1119 modules)
+ ✓ Compiled /api/email-templates in 275ms (1121 modules)
+ ✓ Compiled (1125 modules)
+ GET /api/settings/database 200 in 696ms
+ GET /api/email-templates 200 in 674ms
+ GET /api/settings 200 in 731ms
+ GET /api/email-templates 200 in 95ms
+ GET /api/settings/database 200 in 99ms
+ GET /api/settings 200 in 81ms
+ ✓ Compiled /api/settings/upload-logo in 344ms (1130 modules)
+ POST /api/settings/upload-logo 200 in 440ms
+ ✓ Compiled /api/settings/upload-favicon in 327ms (1132 modules)
+ POST /api/settings/upload-favicon 200 in 398ms
+ PUT /api/settings 200 in 68ms
+ GET /api/settings 200 in 33ms
+ GET /settings 200 in 208ms
+ ✓ Compiled /_not-found in 365ms (1134 modules)
+ GET /robots.txt?489893 404 in 574ms
+ GET /api/public/settings 200 in 137ms
+ GET /api/settings 200 in 158ms
+ GET /api/settings/database 200 in 163ms
+ GET /api/email-templates 200 in 172ms
+ GET /_next/webpack-hmr 404 in 167ms
+ GET /api/public/settings 200 in 142ms
+ GET /api/settings 200 in 172ms
+ GET /api/settings/database 200 in 179ms
+ GET /api/email-templates 200 in 172ms
+ GET /api/public/settings 200 in 50ms
+ GET /api/public/settings 200 in 29ms
+ GET /api/analytics/dashboard?period=30 200 in 62ms
+ GET /api/analytics/dashboard?period=30 200 in 43ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 635ms (1171 modules)
+ GET /api/settings 200 in 123ms
+ ✓ Compiled /api/jobs in 374ms (1173 modules)
+ GET /api/settings 200 in 555ms
+ GET /api/jobs?page=1&limit=10 200 in 842ms
+ GET /api/jobs?page=1&limit=10 200 in 40ms
+ GET /api/analytics/dashboard?period=30 200 in 58ms
+ GET /api/analytics/dashboard?period=30 200 in 51ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 529ms (1172 modules)
+ GET /api/auth/csrf 200 in 656ms
+ POST /api/auth/signout 200 in 32ms
+ ○ Compiling /auth/login ...
+ ✓ Compiled /auth/login in 638ms (1177 modules)
+ GET /auth/login 200 in 803ms
+ GET /robots.txt?489893 404 in 61ms
+ GET /api/public/settings 200 in 57ms
+ GET /_next/webpack-hmr 404 in 59ms
+ GET /api/public/settings 200 in 28ms
+ GET /api/public/settings 200 in 37ms
+ GET /api/public/settings 200 in 26ms
+ ✓ Compiled in 196ms (231 modules)
+ ✓ Compiled in 537ms (1005 modules)
+ ✓ Compiled in 350ms (1005 modules)
+ ✓ Compiled in 345ms (1005 modules)
+ ✓ Compiled in 485ms (1005 modules)
+ ✓ Compiled in 388ms (1005 modules)
+ ✓ Compiled in 358ms (1005 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled in 396ms (1005 modules)
+ ✓ Compiled in 416ms (1005 modules)
+ ✓ Compiled in 349ms (1005 modules)
+ ✓ Compiled in 386ms (1005 modules)
+ ✓ Compiled in 371ms (1005 modules)
+ ⨯ ./components/image-cropper.tsx:8:1
+Module not found: Can't resolve '@/components/ui/slider'
+[0m [90m  6 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"@/components/ui/button"[39m[33m;[39m[0m
+[0m [90m  7 |[39m [36mimport[39m { [33mLabel[39m } [36mfrom[39m [32m"@/components/ui/label"[39m[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { [33mSlider[39m } [36mfrom[39m [32m"@/components/ui/slider"[39m[33m;[39m[0m
+[0m [90m    |[39m [31m[1m^[22m[39m[0m
+[0m [90m  9 |[39m [36mimport[39m { [33mLoader2[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m[0m
+[0m [90m 10 |[39m[0m
+[0m [90m 11 |[39m [36minterface[39m [33mImageCropperProps[39m {[0m
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/(dashboard)/settings/page.tsx
+ ⨯ Module not found: Error: /home/epladmin/erepair/package.json (directory description file): Error: /home/epladmin/erepair/package.json (directory description file): Error: /home/epladmin/erepair/package.json (directory description file): Error: /home/epladmin/erepair/package.json (directory description file): Error: No file content
+ ⨯ ./components/image-cropper.tsx:8:1
+Module not found: Can't resolve '@/components/ui/slider'
+[0m [90m  6 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"@/components/ui/button"[39m[33m;[39m[0m
+[0m [90m  7 |[39m [36mimport[39m { [33mLabel[39m } [36mfrom[39m [32m"@/components/ui/label"[39m[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { [33mSlider[39m } [36mfrom[39m [32m"@/components/ui/slider"[39m[33m;[39m[0m
+[0m [90m    |[39m [31m[1m^[22m[39m[0m
+[0m [90m  9 |[39m [36mimport[39m { [33mLoader2[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m[0m
+[0m [90m 10 |[39m[0m
+[0m [90m 11 |[39m [36minterface[39m [33mImageCropperProps[39m {[0m
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/(dashboard)/settings/page.tsx
+ ⨯ ./components/image-cropper.tsx:8:1
+Module not found: Can't resolve '@/components/ui/slider'
+[0m [90m  6 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"@/components/ui/button"[39m[33m;[39m[0m
+[0m [90m  7 |[39m [36mimport[39m { [33mLabel[39m } [36mfrom[39m [32m"@/components/ui/label"[39m[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m { [33mSlider[39m } [36mfrom[39m [32m"@/components/ui/slider"[39m[33m;[39m[0m
+[0m [90m    |[39m [31m[1m^[22m[39m[0m
+[0m [90m  9 |[39m [36mimport[39m { [33mLoader2[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m[0m
+[0m [90m 10 |[39m[0m
+[0m [90m 11 |[39m [36minterface[39m [33mImageCropperProps[39m {[0m
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/(dashboard)/settings/page.tsx
+ ✓ Compiled in 731ms (1015 modules)
+ ✓ Compiled / in 280ms (297 modules)
+ GET / 307 in 480ms
+ ✓ Compiled in 358ms (1015 modules)
+ ✓ Compiled in 632ms (1015 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (128kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /api/auth/[...nextauth] in 128ms (466 modules)
+ GET /api/auth/providers 200 in 380ms
+ GET /api/auth/csrf 200 in 37ms
+ POST /api/auth/callback/credentials? 200 in 307ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 691ms (1035 modules)
+ GET /dashboard?_rsc=1s1of 200 in 133ms
+ ✓ Compiled /api/analytics/dashboard in 362ms (1038 modules)
+ ✓ Compiled (1040 modules)
+ GET /api/public/settings 200 in 864ms
+ GET /api/analytics/dashboard?period=30 200 in 936ms
+ GET /api/public/settings 200 in 107ms
+ GET /api/analytics/dashboard?period=30 200 in 201ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 1345ms (1135 modules)
+ ✓ Compiled /api/settings/database in 339ms (1137 modules)
+ ✓ Compiled (1141 modules)
+ GET /api/settings/database 200 in 782ms
+ GET /api/email-templates 200 in 805ms
+ GET /api/settings 200 in 812ms
+ GET /api/settings/database 200 in 117ms
+ GET /api/email-templates 200 in 124ms
+ GET /api/settings 200 in 91ms
+ ✓ Compiled /api/settings/upload-logo in 437ms (1143 modules)
+ POST /api/settings/upload-logo 200 in 570ms
+ PUT /api/settings 200 in 65ms
+ GET /api/settings 200 in 41ms
+ GET /settings 200 in 247ms
+ ✓ Compiled /_not-found in 213ms (608 modules)
+ GET /robots.txt?489893 404 in 514ms
+ GET /api/public/settings 200 in 137ms
+ GET /api/settings/database 200 in 214ms
+ GET /api/settings 200 in 222ms
+ GET /api/email-templates 200 in 224ms
+ GET /_next/webpack-hmr 404 in 172ms
+ GET /api/public/settings 200 in 99ms
+ GET /api/settings/database 200 in 190ms
+ GET /api/email-templates 200 in 183ms
+ GET /api/settings 200 in 170ms
+ GET /api/public/settings 200 in 49ms
+ GET /api/public/settings 200 in 59ms
+ PUT /api/settings 200 in 91ms
+ GET /api/settings 200 in 52ms
+ GET /settings 200 in 138ms
+ GET /robots.txt?489893 404 in 53ms
+ GET /api/public/settings 200 in 145ms
+ GET /api/settings 200 in 183ms
+ GET /api/settings/database 200 in 205ms
+ GET /api/email-templates 200 in 211ms
+ GET /_next/webpack-hmr 404 in 185ms
+ GET /api/public/settings 200 in 128ms
+ GET /api/settings 200 in 194ms
+ GET /api/settings/database 200 in 138ms
+ GET /api/email-templates 200 in 142ms
+ GET /api/public/settings 200 in 47ms
+ GET /api/public/settings 200 in 57ms
+ ✓ Compiled /dashboard in 317ms (1141 modules)
+ ✓ Compiled /api/analytics/dashboard in 291ms (1143 modules)
+ GET /api/analytics/dashboard?period=30 200 in 419ms
+ GET /api/analytics/dashboard?period=30 200 in 45ms
+ GET /api/settings/database 200 in 98ms
+ GET /api/email-templates 200 in 112ms
+ GET /api/settings 200 in 119ms
+ GET /api/settings/database 200 in 112ms
+ GET /api/email-templates 200 in 125ms
+ GET /api/settings 200 in 113ms
+ PUT /api/settings 200 in 74ms
+ GET /api/settings 200 in 46ms
+ GET /settings 200 in 229ms
+ GET /robots.txt?489893 404 in 57ms
+ GET /api/public/settings 200 in 111ms
+ GET /api/email-templates 200 in 124ms
+ GET /api/settings/database 200 in 129ms
+ GET /api/settings 200 in 140ms
+ GET /_next/webpack-hmr 404 in 155ms
+ GET /api/public/settings 200 in 142ms
+ GET /api/settings/database 200 in 162ms
+ GET /api/email-templates 200 in 165ms
+ GET /api/settings 200 in 145ms
+ GET /api/public/settings 200 in 79ms
+ GET /api/public/settings 200 in 39ms
+ GET /settings 200 in 97ms
+ GET /robots.txt?489893 404 in 49ms
+ GET /api/public/settings 200 in 163ms
+ GET /api/settings/database 200 in 184ms
+ GET /api/settings 200 in 215ms
+ GET /api/email-templates 200 in 216ms
+ GET /_next/webpack-hmr 404 in 200ms
+ GET /api/public/settings 200 in 106ms
+ GET /api/settings/database 200 in 145ms
+ GET /api/email-templates 200 in 111ms
+ GET /api/settings 200 in 113ms
+ GET /api/public/settings 200 in 62ms
+ GET /api/public/settings 200 in 30ms
+ POST /api/settings/upload-logo 200 in 57ms
+ PUT /api/settings 200 in 51ms
+ GET /api/settings 200 in 43ms
+ GET /settings 200 in 85ms
+ GET /robots.txt?489893 404 in 68ms
+ GET /api/public/settings 200 in 114ms
+ GET /api/settings/database 200 in 170ms
+ GET /api/settings 200 in 179ms
+ GET /api/email-templates 200 in 188ms
+ GET /_next/webpack-hmr 404 in 192ms
+ GET /api/public/settings 200 in 151ms
+ GET /api/settings/database 200 in 146ms
+ GET /api/settings 200 in 158ms
+ GET /api/email-templates 200 in 159ms
+ GET /api/public/settings 200 in 43ms
+ GET /api/public/settings 200 in 34ms
+ ✓ Compiled /api/settings/upload-favicon in 396ms (608 modules)
+ POST /api/settings/upload-favicon 200 in 551ms
+ PUT /api/settings 200 in 106ms
+ GET /api/settings 200 in 58ms
+ GET /settings 200 in 222ms
+ GET /robots.txt?489893 404 in 88ms
+ GET /api/public/settings 200 in 142ms
+ GET /api/settings/database 200 in 183ms
+ GET /api/settings 200 in 192ms
+ GET /api/email-templates 200 in 194ms
+ GET /_next/webpack-hmr 404 in 161ms
+ GET /api/public/settings 200 in 140ms
+ GET /api/settings/database 200 in 176ms
+ GET /api/email-templates 200 in 194ms
+ GET /api/settings 200 in 154ms
+ GET /api/public/settings 200 in 52ms
+ GET /api/public/settings 200 in 38ms
+ ✓ Compiled /dashboard in 298ms (1143 modules)
+ ✓ Compiled /api/analytics/dashboard in 268ms (1145 modules)
+ GET /api/analytics/dashboard?period=30 200 in 381ms
+ GET /api/analytics/dashboard?period=30 200 in 113ms
+ ○ Compiling /invoices ...
+ ✓ Compiled /invoices in 2.3s (2246 modules)
+ ✓ Compiled /parts in 432ms (1213 modules)
+ ✓ Compiled (1218 modules)
+ GET /api/invoices?page=1&limit=10 200 in 1077ms
+ GET /api/invoices?page=1&limit=10 200 in 76ms
+ ○ Compiling /calendar ...
+ ✓ Compiled /calendar in 784ms (2255 modules)
+ ○ Compiling /reports ...
+ ✓ Compiled /reports in 880ms (2257 modules)
+ GET /api/settings/database 200 in 108ms
+ GET /api/settings 200 in 116ms
+ GET /api/email-templates 200 in 117ms
+ GET /api/settings/database 200 in 149ms
+ GET /api/settings 200 in 132ms
+ GET /api/email-templates 200 in 133ms
+ GET /api/analytics/dashboard?period=30 200 in 135ms
+ GET /api/analytics/dashboard?period=30 200 in 69ms
+ ○ Compiling /customers ...
+ ✓ Compiled /customers in 986ms (1130 modules)
+ ✓ Compiled /api/customers in 368ms (1132 modules)
+ GET /api/customers?page=1&limit=10 200 in 501ms
+ GET /api/customers?page=1&limit=10 200 in 41ms
+ ○ Compiling /reports ...
+ ✓ Compiled /reports in 534ms (1136 modules)
+ ✓ Compiled / in 441ms (297 modules)
+ GET / 307 in 697ms
+ ✓ Compiled /auth/login in 369ms (312 modules)
+ GET /auth/login 200 in 631ms
+ ✓ Compiled /_not-found in 208ms (313 modules)
+ GET /robots.txt?489896 404 in 370ms
+ GET /robots.txt?489896 404 in 34ms
+ ✓ Compiled /api/public/settings in 284ms (345 modules)
+ GET /api/public/settings 200 in 397ms
+ GET /_next/webpack-hmr 404 in 139ms
+ GET /api/public/settings 200 in 33ms
+ GET /api/public/settings 200 in 43ms
+ GET /api/public/settings 200 in 37ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 908ms (485 modules)
+ GET /api/auth/providers 200 in 1126ms
+ GET /api/auth/csrf 200 in 55ms
+ POST /api/auth/callback/credentials? 200 in 297ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1537ms (1046 modules)
+ GET /dashboard?_rsc=1s1of 200 in 99ms
+ GET /api/public/settings 200 in 59ms
+ ✓ Compiled /api/analytics/dashboard in 298ms (1048 modules)
+ GET /api/public/settings 200 in 404ms
+ GET /api/analytics/dashboard?period=30 200 in 664ms
+ GET /api/analytics/dashboard?period=30 200 in 89ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 679ms (1133 modules)
+ ✓ Compiled /api/jobs in 283ms (1135 modules)
+ ✓ Compiled (1137 modules)
+ GET /api/jobs?page=1&limit=10 200 in 720ms
+ GET /api/settings 200 in 743ms
+ GET /api/settings 200 in 75ms
+ GET /api/jobs?page=1&limit=10 200 in 92ms
+ ✓ Compiled /settings in 351ms (635 modules)
+ ✓ Compiled /api/settings/database in 280ms (637 modules)
+ ✓ Compiled (639 modules)
+ GET /api/settings 200 in 666ms
+ GET /api/settings/database 200 in 549ms
+ GET /api/email-templates 200 in 681ms
+ GET /api/settings 200 in 108ms
+ GET /api/settings/database 200 in 113ms
+ GET /api/email-templates 200 in 118ms
+ ✓ Compiled /parts in 296ms (603 modules)
+ ✓ Compiled / in 415ms (297 modules)
+ GET / 307 in 702ms
+ ✓ Compiled /auth/login in 314ms (312 modules)
+ GET /auth/login 200 in 503ms
+ ✓ Compiled /jobs in 425ms (578 modules)
+ GET /jobs 200 in 848ms
+ ✓ Compiled /_not-found in 362ms (291 modules)
+ GET /_next/static/chunks/polyfills.js 404 in 566ms
+ ✓ Compiled / in 283ms (297 modules)
+ HEAD / 307 in 457ms
+ ✓ Compiled /auth/login in 133ms (312 modules)
+ HEAD /auth/login 200 in 288ms
+ GET / 307 in 117ms
+ ○ Compiling /submit-job ...
+ ✓ Compiled /submit-job in 935ms (375 modules)
+ GET /submit-job 200 in 1192ms
+ ✓ Compiled /_not-found in 265ms (407 modules)
+ ✓ Compiled (409 modules)
+ GET /_next/webpack-hmr 404 in 588ms
+ GET /api/public/settings 200 in 698ms
+ GET /api/public/settings 200 in 55ms
+ GET /api/public/settings 200 in 66ms
+ GET /api/public/settings 200 in 57ms
+ ✓ Compiled / in 267ms (297 modules)
+ GET / 307 in 474ms
+ ✓ Compiled /auth/login in 385ms (312 modules)
+ GET /auth/login 200 in 669ms
+ GET / 307 in 109ms
+ GET /auth/login 200 in 118ms
+ ○ Compiling /jobs/new ...
+ ✓ Compiled /jobs/new in 1593ms (575 modules)
+ GET /jobs/new 307 in 2241ms
+ ✓ Compiled /auth/login in 244ms (580 modules)
+ GET /auth/login 200 in 395ms
+ ✓ Compiled / in 315ms (297 modules)
+ GET / 307 in 493ms
+ ✓ Compiled /auth/login in 165ms (312 modules)
+ GET /auth/login 200 in 388ms
+ GET / 307 in 83ms
+ GET /auth/login 200 in 88ms
+ ✓ Compiled /_not-found in 324ms (291 modules)
+ GET /robots.txt 404 in 472ms
+ ✓ Compiled /jobs/new in 491ms (575 modules)
+ GET /jobs/new 307 in 832ms
+ ✓ Compiled /auth/login in 261ms (580 modules)
+ GET /auth/login 200 in 420ms
+ GET /jobs/new 307 in 175ms
+ GET /auth/login 200 in 74ms
+ ✓ Compiled /_not-found in 451ms (585 modules)
+ ✓ Compiled (587 modules)
+ GET /_next/webpack-hmr 404 in 1124ms
+ GET /api/public/settings 200 in 1233ms
+ GET /api/public/settings 200 in 53ms
+ GET /api/public/settings 200 in 52ms
+ GET /api/public/settings 200 in 52ms
+ ✓ Compiled /api/auth/[...nextauth] in 306ms (589 modules)
+ GET /api/auth/providers 200 in 517ms
+ GET /api/auth/csrf 200 in 49ms
+ POST /api/auth/callback/credentials? 200 in 424ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1535ms (1124 modules)
+ GET /dashboard?_rsc=1s1of 200 in 273ms
+ GET /api/public/settings 200 in 101ms
+ ✓ Compiled /api/analytics/dashboard in 383ms (1126 modules)
+ GET /api/public/settings 200 in 588ms
+ GET /api/analytics/dashboard?period=30 200 in 924ms
+ GET /api/analytics/dashboard?period=30 200 in 71ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 628ms (1158 modules)
+ ✓ Compiled /api/settings/database in 427ms (1160 modules)
+ ✓ Compiled (1164 modules)
+ GET /api/settings/database 200 in 971ms
+ GET /api/email-templates 200 in 1002ms
+ GET /api/settings 200 in 1045ms
+ GET /api/settings/database 200 in 131ms
+ GET /api/email-templates 200 in 147ms
+ GET /api/settings 200 in 95ms
+ ○ Compiling /submit-job ...
+ ✓ Compiled /submit-job in 838ms (1171 modules)
+ GET /submit-job 200 in 1083ms
+ GET /api/public/settings 200 in 85ms
+ GET /_next/webpack-hmr 404 in 71ms
+ GET /api/public/settings 200 in 52ms
+ GET /api/public/settings 200 in 51ms
+ GET /api/public/settings 200 in 41ms
+ ✓ Compiled /api/public/search-customer in 437ms (1173 modules)
+ GET /api/public/search-customer?phone=021 200 in 533ms
+ GET /api/public/search-customer?phone=021%20841%20446 200 in 100ms
+ GET /api/public/search-customer?phone=021%20841%20446%20 200 in 67ms
+ GET /api/public/search-customer?phone=021%20841%20446 200 in 64ms
+ GET /api/public/search-customer?phone=021%20841%2044 200 in 53ms
+ GET /api/public/search-customer?phone=021%20841%204 200 in 61ms
+ GET /api/public/search-customer?phone=021%20841%20 200 in 61ms
+ GET /api/public/search-customer?phone=021%20841 200 in 53ms
+ GET /api/public/search-customer?phone=021%2084 200 in 74ms
+ GET /api/public/search-customer?phone=021%208 200 in 74ms
+ GET /api/public/search-customer?phone=021%20 200 in 47ms
+ GET /api/public/search-customer?phone=021 200 in 52ms
+ ○ Compiling /customers ...
+ ✓ Compiled /customers in 913ms (1189 modules)
+ ○ Compiling /api/customers ...
+ ✓ Compiled /api/customers in 509ms (1191 modules)
+ GET /api/customers?page=1&limit=10 200 in 634ms
+ GET /api/customers?page=1&limit=10 200 in 55ms
+ GET /api/public/search-customer?phone=021 200 in 64ms
+ GET /api/public/search-customer?phone=0218 200 in 99ms
+ GET /api/public/search-customer?phone=02184 200 in 57ms
+ GET /api/public/search-customer?phone=021841 200 in 53ms
+ GET /api/public/search-customer?phone=0218414 200 in 58ms
+ GET /api/public/search-customer?phone=02184144 200 in 44ms
+ GET /api/public/search-customer?phone=021841446 200 in 51ms
+ ○ Compiling /api/public/submit-job ...
+ ✓ Compiled /api/public/submit-job in 1359ms (222 modules)
+Error sending email: Error: Email configuration not found in settings or environment variables
+    at getEmailConfig (webpack-internal:///(rsc)/./lib/email.ts:62:11)
+    at async sendEmail (webpack-internal:///(rsc)/./lib/email.ts:84:24)
+    at async POST (webpack-internal:///(rsc)/./app/api/public/submit-job/route.ts:169:13)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1575:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+Failed to send confirmation email: Error: Email configuration not found in settings or environment variables
+    at getEmailConfig (webpack-internal:///(rsc)/./lib/email.ts:62:11)
+    at async sendEmail (webpack-internal:///(rsc)/./lib/email.ts:84:24)
+    at async POST (webpack-internal:///(rsc)/./app/api/public/submit-job/route.ts:169:13)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1575:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+ POST /api/public/submit-job 201 in 1902ms
+ ✓ Compiled /customers in 308ms (747 modules)
+ GET /customers 200 in 731ms
+ ✓ Compiled /_not-found in 295ms (749 modules)
+ ✓ Compiled (753 modules)
+ GET /api/public/settings 200 in 781ms
+ GET /_next/webpack-hmr 404 in 707ms
+ GET /api/customers?page=1&limit=10 200 in 770ms
+ GET /api/public/settings 200 in 55ms
+ GET /api/customers?page=1&limit=10 200 in 115ms
+ GET /api/public/settings 200 in 59ms
+ GET /api/public/settings 200 in 41ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 531ms (768 modules)
+ ✓ Compiled /api/jobs in 413ms (770 modules)
+ ✓ Compiled (772 modules)
+ GET /api/settings 200 in 874ms
+ GET /api/jobs?page=1&limit=10 200 in 884ms
+ GET /api/settings 200 in 84ms
+ GET /api/jobs?page=1&limit=10 200 in 58ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1637ms (1307 modules)
+ ○ Compiling /api/analytics/dashboard ...
+ ✓ Compiled /settings in 1904ms (1309 modules)
+ ✓ Compiled (1336 modules)
+ GET /api/analytics/dashboard?period=30 200 in 2927ms
+ GET /api/analytics/dashboard?period=30 200 in 117ms
+ ○ Compiling /api/settings/database ...
+ ✓ Compiled /api/settings/database in 509ms (1338 modules)
+ ✓ Compiled (1340 modules)
+ GET /api/settings 200 in 1312ms
+ GET /api/settings/database 200 in 1335ms
+ GET /api/email-templates 200 in 1346ms
+ GET /api/settings 200 in 149ms
+ GET /api/settings/database 200 in 146ms
+ GET /api/email-templates 200 in 158ms
+ ○ Compiling /submit-job ...
+ ✓ Compiled /submit-job in 539ms (375 modules)
+ GET /submit-job 200 in 885ms
+ ✓ Compiled /_not-found in 169ms (407 modules)
+ ✓ Compiled (409 modules)
+ GET /api/public/settings 200 in 522ms
+ GET /_next/webpack-hmr 404 in 520ms
+ GET /api/public/settings 200 in 40ms
+ GET /api/public/settings 200 in 82ms
+ GET /api/public/settings 200 in 64ms
+ ✓ Compiled /api/public/search-customer in 238ms (411 modules)
+ GET /api/public/search-customer?phone=021 200 in 352ms
+ GET /api/public/search-customer?phone=0218 200 in 90ms
+ GET /api/public/search-customer?phone=02184 200 in 63ms
+ GET /api/public/search-customer?phone=021841 200 in 93ms
+ GET /api/public/search-customer?phone=0218414 200 in 90ms
+ GET /api/public/search-customer?phone=02184144 200 in 76ms
+ GET /api/public/search-customer?phone=021841446 200 in 60ms
+ ○ Compiling /api/public/submit-job ...
+ ✓ Compiled /api/public/submit-job in 872ms (578 modules)
+Error sending email: Error: Email configuration not found in settings or environment variables
+    at getEmailConfig (webpack-internal:///(rsc)/./lib/email.ts:62:11)
+    at async sendEmail (webpack-internal:///(rsc)/./lib/email.ts:84:24)
+    at async POST (webpack-internal:///(rsc)/./app/api/public/submit-job/route.ts:169:13)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1575:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+Failed to send confirmation email: Error: Email configuration not found in settings or environment variables
+    at getEmailConfig (webpack-internal:///(rsc)/./lib/email.ts:62:11)
+    at async sendEmail (webpack-internal:///(rsc)/./lib/email.ts:84:24)
+    at async POST (webpack-internal:///(rsc)/./app/api/public/submit-job/route.ts:169:13)
+    at async /home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:55831
+    at async eO.execute (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46527)
+    at async eO.handle (/home/epladmin/erepair/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57165)
+    at async doRender (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1575:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1483:28)
+    at async DevServer.renderPageComponent (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1911:24)
+    at async DevServer.renderToResponseImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:1949:32)
+    at async DevServer.pipeImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:921:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/home/epladmin/erepair/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/home/epladmin/erepair/node_modules/next/dist/server/base-server.js:817:17)
+    at async /home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/home/epladmin/erepair/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:173:21)
+    at async handleRequest (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:350:24)
+    at async requestHandlerImpl (/home/epladmin/erepair/node_modules/next/dist/server/lib/router-server.js:374:13)
+    at async Server.requestListener (/home/epladmin/erepair/node_modules/next/dist/server/lib/start-server.js:141:13)
+ POST /api/public/submit-job 201 in 1083ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 1154ms (765 modules)
+ ✓ Compiled /api/jobs in 340ms (767 modules)
+ ✓ Compiled (769 modules)
+ GET /api/jobs?page=1&limit=10 200 in 781ms
+ GET /api/settings 200 in 805ms
+ GET /api/settings 200 in 97ms
+ GET /api/jobs?page=1&limit=10 200 in 107ms
+ ○ Compiling /jobs/[id] ...
+ ✓ Compiled /jobs/[id] in 630ms (757 modules)
+ ✓ Compiled /api/jobs/[id] in 305ms (759 modules)
+ GET /api/jobs/cmif7cz12000ses3zmhx0z0vr 200 in 467ms
+ GET /api/jobs/cmif7cz12000ses3zmhx0z0vr 200 in 81ms
+ ✓ Compiled /settings in 460ms (618 modules)
+ ✓ Compiled /api/settings/database in 215ms (620 modules)
+ ✓ Compiled (624 modules)
+ GET /api/settings/database 200 in 557ms
+ GET /api/email-templates 200 in 568ms
+ GET /api/settings 200 in 602ms
+ GET /api/settings/database 200 in 200ms
+ GET /api/email-templates 200 in 195ms
+ GET /api/settings 200 in 151ms
+ ✓ Compiled / in 389ms (297 modules)
+ GET / 307 in 603ms
+ ✓ Compiled /auth/login in 232ms (312 modules)
+ GET /auth/login 200 in 464ms
+ ✓ Compiled /api/public/settings in 213ms (344 modules)
+ GET /api/public/settings 200 in 383ms
+ ✓ Compiled /_not-found in 316ms (345 modules)
+ GET /api/public/settings 200 in 293ms
+ GET /_next/webpack-hmr 404 in 510ms
+ GET /api/public/settings 200 in 53ms
+ GET /api/public/settings 200 in 63ms
+ ○ Compiling /api/settings ...
+ ✓ Compiled /api/settings in 772ms (485 modules)
+ PUT /api/settings 200 in 997ms
+ GET /api/settings 200 in 55ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 806ms (604 modules)
+ GET /settings 200 in 1195ms
+ GET /api/public/settings 200 in 178ms
+ ✓ Compiled /api/email-templates in 364ms (606 modules)
+ ✓ Compiled (608 modules)
+ GET /api/settings 200 in 952ms
+ GET /api/public/settings 200 in 792ms
+ GET /_next/webpack-hmr 404 in 943ms
+ GET /api/settings/database 200 in 985ms
+ GET /api/email-templates 200 in 995ms
+ GET /api/public/settings 200 in 237ms
+ GET /api/settings 200 in 315ms
+ GET /api/settings/database 200 in 272ms
+ GET /api/email-templates 200 in 240ms
+ GET /api/public/settings 200 in 54ms
+ ○ Compiling /api/settings/test-email ...
+ ✓ Compiled /api/settings/test-email in 1059ms (761 modules)
+ POST /api/settings/test-email 400 in 1223ms
+ GET /settings 200 in 265ms
+ GET / 307 in 135ms
+ GET /auth/login 200 in 112ms
+ GET / 307 in 121ms
+ GET /auth/login 200 in 108ms
+ GET / 307 in 117ms
+ GET /auth/login 200 in 83ms
+ GET /_next/webpack-hmr 404 in 79ms
+ GET /api/public/settings 200 in 135ms
+ GET /api/public/settings 200 in 53ms
+ GET /api/public/settings 200 in 83ms
+ GET /api/public/settings 200 in 55ms
+ ✓ Compiled /api/auth/[...nextauth] in 468ms (485 modules)
+ GET /api/auth/providers 200 in 702ms
+ GET /api/auth/csrf 200 in 67ms
+ POST /api/auth/callback/credentials? 200 in 324ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 2000ms (1046 modules)
+ GET /dashboard?_rsc=1s1of 200 in 125ms
+ GET /api/public/settings 200 in 105ms
+ ○ Compiling /api/analytics/dashboard ...
+ ✓ Compiled /api/analytics/dashboard in 945ms (1048 modules)
+ GET /api/public/settings 200 in 1402ms
+ GET /api/analytics/dashboard?period=30 200 in 1791ms
+ GET /api/analytics/dashboard?period=30 200 in 87ms
+ ○ Compiling /jobs ...
+ ✓ Compiled /jobs in 1075ms (1133 modules)
+ ✓ Compiled /api/jobs in 486ms (1135 modules)
+ ✓ Compiled (1137 modules)
+ GET /api/jobs?page=1&limit=10 200 in 1177ms
+ GET /api/settings 200 in 1201ms
+ GET /api/settings 200 in 148ms
+ GET /api/jobs?page=1&limit=10 200 in 186ms
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 1501ms (1181 modules)
+ ○ Compiling /api/email-templates ...
+ ✓ Compiled /api/email-templates in 656ms (1183 modules)
+ ✓ Compiled (1185 modules)
+ GET /api/settings 200 in 1988ms
+ GET /api/settings/database 200 in 2069ms
+ GET /api/email-templates 200 in 2106ms
+ GET /api/settings 200 in 701ms
+ GET /api/settings/database 200 in 566ms
+ GET /api/email-templates 200 in 419ms
+ GET /api/analytics/dashboard?period=30 200 in 133ms
+ GET /api/analytics/dashboard?period=30 200 in 89ms
+ ○ Compiling /jobs/new ...
+ ✓ Compiled /jobs/new in 688ms (575 modules)
+ GET /jobs/new 200 in 1336ms
+ ✓ Compiled /_not-found in 223ms (580 modules)
+ ✓ Compiled (586 modules)
+ GET /_next/webpack-hmr 404 in 1000ms
+ GET /api/public/settings 200 in 1175ms
+ GET /api/users/technicians 200 in 1157ms
+ GET /api/customers?limit=1000 200 in 1167ms
+ GET /api/public/settings 200 in 109ms
+ GET /api/users/technicians 200 in 389ms
+ GET /api/customers?limit=1000 200 in 439ms
+ GET /api/public/settings 200 in 259ms
+ GET /api/public/settings 200 in 53ms
+ ✓ Compiled /settings in 313ms (618 modules)
+ ○ Compiling /api/settings/database ...
+ ✓ Compiled /api/settings/database in 507ms (620 modules)
+ ✓ Compiled (624 modules)
+ GET /api/settings/database 200 in 1183ms
+ GET /api/email-templates 200 in 1188ms
+ GET /api/settings 200 in 1199ms
+ GET /api/settings/database 200 in 193ms
+ GET /api/email-templates 200 in 210ms
+ GET /api/settings 200 in 211ms
+ ○ Compiling /api/settings/test-email ...
+ ✓ Compiled /api/settings/test-email in 811ms (777 modules)
+ POST /api/settings/test-email 400 in 997ms

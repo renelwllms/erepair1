@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessCustomer } from "@/lib/access-control";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,10 @@ export async function GET(
       );
     }
 
+    if (!(await canAccessCustomer(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Calculate customer statistics
     const stats = {
       totalJobs: customer.jobs.length,
@@ -127,6 +132,10 @@ export async function PUT(
         { error: "Customer not found" },
         { status: 404 }
       );
+    }
+
+    if (!(await canAccessCustomer(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // If email is being updated, check if it's already in use

@@ -95,7 +95,7 @@ export default function SettingsPage() {
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
-  const [emailProvider, setEmailProvider] = useState("SMTP");
+  const [emailProvider, setEmailProvider] = useState("GOOGLE_WORKSPACE");
   const [submitJobUrl, setSubmitJobUrl] = useState("");
   const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -365,7 +365,7 @@ export default function SettingsPage() {
           accentColor: data.accentColor || "#0ea5e9",
 
           // Email settings
-          emailProvider: data.emailProvider || "SMTP",
+          emailProvider: data.emailProvider || "GOOGLE_WORKSPACE",
           smtpHost: data.smtpHost || "",
           smtpPort: data.smtpPort || 587,
           smtpUser: data.smtpUser || "",
@@ -1312,20 +1312,20 @@ export default function SettingsPage() {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    Automatic reminders will be sent to customers who haven&apos;t responded to quotes within the specified time frame.
-                    Reminders will stop once the customer accepts, rejects, or the maximum number of reminders is reached.
+                    These settings control the automatic quote approval reminder emails. Reminders stop when the customer accepts, rejects, the quote expires, or the maximum number is reached. After the final reminder, the system emails Support@erepair.co.nz for manual follow-up.
                   </AlertDescription>
                 </Alert>
 
                 <Alert className="bg-blue-50 border-blue-200">
                   <Bell className="h-4 w-4 text-blue-600" />
                   <AlertDescription className="text-blue-900">
-                    <strong>Example:</strong> With settings of 3 days first reminder, 3 days frequency, and 3 max reminders:
+                    <strong>Example:</strong> With settings of 1 day first reminder, 5 days frequency, and 5 max reminders:
                     <br />• Day 0: Quote sent
-                    <br />• Day 3: First reminder
+                    <br />• Day 1: First reminder
                     <br />• Day 6: Second reminder
-                    <br />• Day 9: Third reminder
-                    <br />• After Day 9: No more reminders
+                    <br />• Day 11: Third reminder
+                    <br />• Day 16: Fourth reminder
+                    <br />• Day 21: Fifth reminder, then Support@erepair.co.nz is notified
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -1606,16 +1606,17 @@ export default function SettingsPage() {
                   <Label htmlFor="emailProvider">Email Provider</Label>
                   <select
                     id="emailProvider"
-                    {...register("emailProvider")}
-                    onChange={(e) => setEmailProvider(e.target.value)}
+                    {...register("emailProvider", {
+                      onChange: (e) => setEmailProvider(e.target.value),
+                    })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="GOOGLE_WORKSPACE">Google Workspace</option>
                     <option value="SMTP">SMTP (Custom Email Server)</option>
                     <option value="OFFICE365">Office 365</option>
-                    <option value="GOOGLE_WORKSPACE">Google Workspace</option>
                   </select>
                   <p className="text-xs text-gray-500">
-                    Choose your email service provider
+                    Google Workspace is the default sender when configured
                   </p>
                 </div>
 

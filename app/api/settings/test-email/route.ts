@@ -54,7 +54,10 @@ export async function POST(request: NextRequest) {
 
     console.error("Error testing email:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to test email configuration" },
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to test email configuration",
+      },
       { status: 500 }
     );
   }

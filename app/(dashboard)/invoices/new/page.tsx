@@ -13,14 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -415,92 +407,88 @@ export default function NewInvoicePage() {
         <CardContent className="space-y-4">
           {/* Existing Items */}
           {items.length > 0 && (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="w-24">Qty</TableHead>
-                    <TableHead className="w-32">Unit Price</TableHead>
-                    <TableHead className="w-32">Total</TableHead>
-                    <TableHead className="w-16"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateItem(item.id, "description", e.target.value)}
-                          className="min-w-[200px]"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={item.itemType}
-                          onValueChange={(value) => updateItem(item.id, "itemType", value)}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PART">Part</SelectItem>
-                            <SelectItem value="LABOR">Labor</SelectItem>
-                            <SelectItem value="SERVICE_FEE">Service Fee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value))}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.unitPrice}
-                          onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value))}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(item.quantity * item.unitPrice)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.id} className="grid grid-cols-1 gap-3 rounded-md border p-4 md:grid-cols-12">
+                  <div className="md:col-span-4">
+                    <Label className="mb-1 block">Description</Label>
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateItem(item.id, "description", e.target.value)}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="mb-1 block">Item Type</Label>
+                    <Select
+                      value={item.itemType}
+                      onValueChange={(value) => updateItem(item.id, "itemType", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PART">Part</SelectItem>
+                        <SelectItem value="LABOR">Labor</SelectItem>
+                        <SelectItem value="SERVICE_FEE">Service Fee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="mb-1 block">Quantity</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value))}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="mb-1 block">Unit Price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value))}
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <Label className="mb-1 block">Total</Label>
+                    <Input
+                      value={(item.quantity * item.unitPrice).toFixed(2)}
+                      readOnly
+                      className="font-medium"
+                    />
+                  </div>
+                  <div className="md:col-span-1 flex items-end justify-end md:justify-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
           {/* Add New Item */}
           <div className="border-t pt-4">
             <h4 className="text-sm font-medium mb-3">Add New Item</h4>
-            <div className="grid grid-cols-12 gap-3">
-              <div className="col-span-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+              <div className="md:col-span-4">
+                <Label className="mb-1 block">Description</Label>
                 <Input
                   placeholder="Description"
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                 />
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
+                <Label className="mb-1 block">Item Type</Label>
                 <Select
                   value={newItem.itemType}
                   onValueChange={(value: any) => setNewItem({ ...newItem, itemType: value })}
@@ -515,7 +503,8 @@ export default function NewInvoicePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
+                <Label className="mb-1 block">Quantity</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -525,7 +514,8 @@ export default function NewInvoicePage() {
                   onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 1 })}
                 />
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
+                <Label className="mb-1 block">Unit Price</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -535,7 +525,7 @@ export default function NewInvoicePage() {
                   onChange={(e) => setNewItem({ ...newItem, unitPrice: parseFloat(e.target.value) || 0 })}
                 />
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2 flex items-end">
                 <Button onClick={addItem} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
                   Add
@@ -555,15 +545,18 @@ export default function NewInvoicePage() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">GST Rate (%):</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(e.target.value)}
-                  className="w-24 h-8 text-right"
-                />
+                <div>
+                  <Label className="mb-1 block text-xs">GST Rate %</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    className="w-24 h-8 text-right"
+                  />
+                </div>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">GST Amount:</span>
@@ -571,14 +564,17 @@ export default function NewInvoicePage() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">Discount:</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  className="w-24 h-8 text-right"
-                />
+                <div>
+                  <Label className="mb-1 block text-xs">Discount Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(e.target.value)}
+                    className="w-24 h-8 text-right"
+                  />
+                </div>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">

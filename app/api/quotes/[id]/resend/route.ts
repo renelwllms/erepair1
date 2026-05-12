@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessQuote } from "@/lib/access-control";
 import { sendEmail } from "@/lib/email";
 import { generateQuotePDF } from "@/lib/quote-generator";
 import { emailLayout, quoteSentEmail } from "@/lib/email-templates";
@@ -20,6 +21,10 @@ export async function POST(
 
     // Only ADMIN and TECHNICIAN can resend quotes
     if (session.user.role === "CUSTOMER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!(await canAccessQuote(session.user, params.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

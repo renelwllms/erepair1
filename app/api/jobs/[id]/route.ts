@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessJob } from "@/lib/access-control";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
 import { diagnosticFeePaidEmail } from "@/lib/email-templates";
@@ -100,6 +101,38 @@ export async function GET(
             status: true,
           },
         },
+        quotes: {
+          orderBy: {
+            issueDate: "desc",
+          },
+          select: {
+            id: true,
+            quoteNumber: true,
+            status: true,
+            issueDate: true,
+            validUntil: true,
+            reminderCount: true,
+            lastReminderSent: true,
+          },
+        },
+        warrantyParentJob: {
+          select: {
+            id: true,
+            jobNumber: true,
+            status: true,
+          },
+        },
+        warrantyFollowUpJobs: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            jobNumber: true,
+            status: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
@@ -110,8 +143,7 @@ export async function GET(
       );
     }
 
-    // Check permissions: Technicians can only view their own jobs
-    if (session.user.role === "TECHNICIAN" && job.assignedTechnicianId !== session.user.id) {
+    if (!(await canAccessJob(session.user, params.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

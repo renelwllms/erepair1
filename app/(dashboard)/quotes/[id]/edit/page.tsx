@@ -221,8 +221,11 @@ export default function EditQuotePage() {
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-3 items-start">
-                <div className="col-span-5">
+              <div key={index} className="grid grid-cols-1 gap-3 rounded-md border p-4 md:grid-cols-12">
+                <div className="md:col-span-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
                   <input
                     type="text"
                     value={item.description}
@@ -232,7 +235,10 @@ export default function EditQuotePage() {
                     required
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantity
+                  </label>
                   <input
                     type="number"
                     value={item.quantity}
@@ -244,7 +250,10 @@ export default function EditQuotePage() {
                     required
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit Price
+                  </label>
                   <input
                     type="number"
                     value={item.unitPrice}
@@ -256,7 +265,10 @@ export default function EditQuotePage() {
                     required
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Total Price
+                  </label>
                   <input
                     type="number"
                     value={item.totalPrice.toFixed(2)}
@@ -264,7 +276,7 @@ export default function EditQuotePage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-right"
                   />
                 </div>
-                <div className="col-span-1 flex items-center justify-center">
+                <div className="md:col-span-1 flex items-end justify-end md:justify-center">
                   <button
                     type="button"
                     onClick={() => removeItem(index)}
@@ -289,15 +301,20 @@ export default function EditQuotePage() {
                 <div className="flex justify-between text-sm items-center gap-2">
                   <span className="text-gray-600">Tax:</span>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={taxRate}
-                      onChange={(e) => setTaxRate(Number(e.target.value))}
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
-                    />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Tax Rate %
+                      </label>
+                      <input
+                        type="number"
+                        value={taxRate}
+                        onChange={(e) => setTaxRate(Number(e.target.value))}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
+                      />
+                    </div>
                     <span>%</span>
                     <span className="font-medium w-20 text-right">${taxAmount.toFixed(2)}</span>
                   </div>

@@ -43,6 +43,7 @@ interface Quote {
     applianceType: string;
     applianceBrand: string;
     status: string;
+    quoteSentAt?: string | null;
     diagnosticFeeAmount?: number;
     diagnosticFeePaid?: boolean;
     diagnosticFeeAppliedToInvoice?: boolean;
@@ -372,6 +373,11 @@ export default function QuotesPage() {
                         <div className="text-xs text-orange-600 mt-1 flex items-center gap-1">
                           <Bell className="h-3 w-3" />
                           Last reminder: {format(new Date(quote.lastReminderSent), "MMM dd")}
+                        </div>
+                      )}
+                      {quote.status === "SENT" && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {quote.reminderCount} of 5 reminders sent
                         </div>
                       )}
                     </td>

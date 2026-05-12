@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { withInvoiceAccessScope } from "@/lib/access-control";
 import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
 import { z } from "zod";
 
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {};
+    let where: any = {};
 
     if (status) {
       where.status = status;
@@ -66,6 +67,8 @@ export async function GET(request: NextRequest) {
         },
       ];
     }
+
+    where = withInvoiceAccessScope(where, session.user);
 
     // Fetch invoices with customer and job details
     const [invoices, totalCount] = await Promise.all([

@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
           companyAddress: "",
           taxRate: 0,
           laborHourlyRate: 0,
+          emailProvider: "GOOGLE_WORKSPACE",
           smtpHost: "",
           smtpPort: 587,
           smtpUser: "",
@@ -158,7 +159,7 @@ export async function PUT(request: NextRequest) {
       accentColor: validatedData.accentColor || "#0ea5e9",
 
       // Email settings
-      emailProvider: validatedData.emailProvider || "SMTP",
+      emailProvider: validatedData.emailProvider || "GOOGLE_WORKSPACE",
       smtpHost: validatedData.smtpHost || null,
       smtpPort: validatedData.smtpPort || 587,
       smtpUser: validatedData.smtpUser || null,

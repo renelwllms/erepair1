@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import {
+  withCustomerAccessScope,
+  withInvoiceAccessScope,
+  withJobAccessScope,
+} from "@/lib/access-control";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // Search jobs
     const jobs = await db.job.findMany({
-      where: {
+      where: withJobAccessScope({
         OR: [
           { jobNumber: { contains: searchTerm, mode: "insensitive" } },
           { applianceBrand: { contains: searchTerm, mode: "insensitive" } },
@@ -42,7 +47,7 @@ export async function GET(request: NextRequest) {
             },
           },
         ],
-      },
+      }, session.user),
       include: {
         customer: {
           select: {
@@ -59,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Search customers
     const customers = await db.customer.findMany({
-      where: {
+      where: withCustomerAccessScope({
         OR: [
           { firstName: { contains: searchTerm, mode: "insensitive" } },
           { lastName: { contains: searchTerm, mode: "insensitive" } },
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest) {
           { phone: { contains: searchTerm, mode: "insensitive" } },
           { address: { contains: searchTerm, mode: "insensitive" } },
         ],
-      },
+      }, session.user),
       take: 10,
       orderBy: {
         firstName: "asc",
@@ -76,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     // Search invoices
     const invoices = await db.invoice.findMany({
-      where: {
+      where: withInvoiceAccessScope({
         OR: [
           { invoiceNumber: { contains: searchTerm, mode: "insensitive" } },
           {
@@ -95,7 +100,7 @@ export async function GET(request: NextRequest) {
             },
           },
         ],
-      },
+      }, session.user),
       include: {
         job: {
           include: {

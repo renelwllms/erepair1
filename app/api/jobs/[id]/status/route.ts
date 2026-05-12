@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessJob } from "@/lib/access-control";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
 import { jobCompletedEmail, statusUpdateEmail } from "@/lib/email-templates";
@@ -58,6 +59,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const job = (await db.job.findUnique({ where: { id: params.id }, include: { customer: true } })) as any;
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    if (!(await canAccessJob(session.user, params.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const previousStatus = job.status;

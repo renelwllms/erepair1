@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
             applianceType: true,
             applianceBrand: true,
             status: true,
+            quoteSentAt: true,
             diagnosticFeeAmount: true,
             diagnosticFeePaid: true,
             diagnosticFeeAppliedToInvoice: true,

@@ -138,6 +138,7 @@ model Job {
   id                    String       @id @default(cuid())
   jobNumber             String       @unique
   customerId            String
+  warrantyParentJobId   String?
   applianceBrand        String
   applianceType         String
   modelNumber           String?
@@ -173,12 +174,15 @@ model Job {
   diagnosticFeePaymentMethod PaymentMethod?
   diagnosticFeeAppliedToInvoice Boolean  @default(false)
   repairApproved            Boolean      @default(false)
+  isWarrantyReturn          Boolean      @default(false)
 
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
   // Relations
   customer              Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  warrantyParentJob     Job?              @relation("WarrantyJobLink", fields: [warrantyParentJobId], references: [id], onDelete: SetNull)
+  warrantyFollowUpJobs  Job[]             @relation("WarrantyJobLink")
   assignedTechnician    User?             @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
   createdBy             User              @relation("CreatedByUser", fields: [createdById], references: [id])
   statusHistory         JobStatusHistory[]
@@ -189,6 +193,7 @@ model Job {
 
   @@index([jobNumber])
   @@index([customerId])
+  @@index([warrantyParentJobId])
   @@index([status])
   @@index([assignedTechnicianId])
   @@index([createdAt])
@@ -278,6 +283,7 @@ model Quote {
   // Reminder tracking
   lastReminderSent     DateTime?
   reminderCount        Int         @default(0)
+  adminFollowUpNotifiedAt DateTime?
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -433,7 +439,7 @@ model Settings {
   accentColor               String   @default("#0ea5e9")
 
   // Email Settings
-  emailProvider             String   @default("SMTP") // SMTP, OFFICE365, GOOGLE_WORKSPACE
+  emailProvider             String   @default("GOOGLE_WORKSPACE") // SMTP, OFFICE365, GOOGLE_WORKSPACE
   smtpHost                  String?
   smtpPort                  Int?
   smtpUser                  String?

@@ -26,6 +26,15 @@ interface EmailConfig {
 async function getEmailConfig(): Promise<EmailConfig> {
   // Try to get from database settings first
   const settings = await db.settings.findFirst();
+  const hasGoogleWorkspaceConfig = Boolean(
+    settings?.googleClientId &&
+      settings?.googleClientSecret &&
+      settings?.googleRefreshToken &&
+      settings?.smtpUser
+  );
+  const prefersGoogleWorkspace =
+    settings?.emailProvider === "GOOGLE_WORKSPACE" ||
+    (!settings?.emailProvider && hasGoogleWorkspaceConfig);
 
   // Check for Mailtrap configuration first (environment variable)
   if (process.env.MAILTRAP_TOKEN) {
@@ -34,21 +43,21 @@ async function getEmailConfig(): Promise<EmailConfig> {
       mailtrapToken: process.env.MAILTRAP_TOKEN,
       from: {
         name: settings?.smtpFromName || process.env.SMTP_FROM_NAME || "Mailtrap Test",
-        email: settings?.smtpFromEmail || process.env.SMTP_FROM_EMAIL || "hello@demomailtrap.co",
+        email:
+          settings?.smtpFromEmail ||
+          process.env.SMTP_FROM_EMAIL ||
+          process.env.SMTP_FROM ||
+          "hello@demomailtrap.co",
       },
     };
   }
 
   // Check for Google Workspace OAuth configuration
-  if (
-    settings?.emailProvider === "GOOGLE_WORKSPACE" &&
-    settings?.googleClientId &&
-    settings?.googleClientSecret &&
-    settings?.googleRefreshToken &&
-    settings?.smtpUser
-  ) {
+  if (prefersGoogleWorkspace && hasGoogleWorkspaceConfig) {
     try {
       const accessToken = await getGmailAccessToken();
+      const gmailSettings = settings!;
+      const gmailUser = gmailSettings.smtpUser!;
       return {
         provider: "gmail-oauth",
         host: "smtp.gmail.com",
@@ -56,16 +65,19 @@ async function getEmailConfig(): Promise<EmailConfig> {
         secure: true,
         auth: {
           type: "OAuth2",
-          user: settings.smtpUser,
+          user: gmailUser,
           accessToken: accessToken,
         },
         from: {
-          name: settings.smtpFromName || settings.companyName || "E-Repair Shop",
-          email: settings.smtpFromEmail || settings.smtpUser,
+          name: gmailSettings.smtpFromName || gmailSettings.companyName || "E-Repair Shop",
+          email: gmailSettings.smtpFromEmail || gmailUser,
         },
       };
     } catch (error) {
-      console.error("Gmail OAuth error, falling back to SMTP:", error);
+      console.error("Gmail OAuth error:", error);
+      if (settings?.emailProvider === "GOOGLE_WORKSPACE") {
+        throw error;
+      }
       // Fall through to SMTP if OAuth fails
     }
   }
@@ -111,7 +123,7 @@ async function getEmailConfig(): Promise<EmailConfig> {
       },
       from: {
         name: process.env.SMTP_FROM_NAME || "E-Repair Shop",
-        email: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER,
+        email: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER,
       },
     };
   }

@@ -93,32 +93,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          // Check if user exists
-          let dbUser = await db.user.findUnique({
+          // Only allow OAuth sign-in for pre-provisioned users.
+          const dbUser = await db.user.findUnique({
             where: { email: user.email },
           });
 
-          // If user doesn't exist, create them
           if (!dbUser) {
-            const nameParts = user.name?.split(" ") || [];
-            dbUser = await db.user.create({
-              data: {
-                email: user.email,
-                firstName: nameParts[0] || "User",
-                lastName: nameParts.slice(1).join(" ") || "",
-                password: "", // No password for OAuth users
-                role: "ADMIN", // Default role, you can change this
-                isActive: true,
-                lastLogin: new Date(),
-              },
-            });
-          } else {
-            // Update last login
-            await db.user.update({
-              where: { id: dbUser.id },
-              data: { lastLogin: new Date() },
-            });
+            return "/auth/unauthorized";
           }
+
+          // Update last login
+          await db.user.update({
+            where: { id: dbUser.id },
+            data: { lastLogin: new Date() },
+          });
 
           // Check if user is active
           if (!dbUser.isActive) {

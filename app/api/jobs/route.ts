@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { withJobAccessScope } from "@/lib/access-control";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
 import { jobConfirmationEmail } from "@/lib/email-templates";
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause for filtering
-    const where: any = {};
+    let where: any = {};
 
     // Search across multiple fields
     if (search) {
@@ -78,9 +79,7 @@ export async function GET(request: NextRequest) {
     }
 
     // If user is technician, only show their jobs
-    if (session.user.role === "TECHNICIAN") {
-      where.assignedTechnicianId = session.user.id;
-    }
+    where = withJobAccessScope(where, session.user);
 
     // Get total count for pagination
     const total = await db.job.count({ where });
@@ -118,6 +117,20 @@ export async function GET(request: NextRequest) {
             invoiceNumber: true,
             status: true,
             totalAmount: true,
+          },
+        },
+        quotes: {
+          orderBy: {
+            issueDate: "desc",
+          },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            issueDate: true,
+            validUntil: true,
+            reminderCount: true,
+            lastReminderSent: true,
           },
         },
       },

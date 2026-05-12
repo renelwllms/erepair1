@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { generateGmailAuthUrl } from "@/lib/gmail-oauth";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +24,19 @@ export async function GET(request: NextRequest) {
     console.log("Gmail Auth - Base URL:", baseUrl);
     console.log("Gmail Auth - Redirect URI:", redirectUri);
 
-    const authUrl = await generateGmailAuthUrl(redirectUri);
+    const state = crypto.randomUUID();
+    const authUrl = await generateGmailAuthUrl(redirectUri, state);
+    const response = NextResponse.json({ authUrl });
 
-    return NextResponse.json({ authUrl });
+    response.cookies.set("gmail_oauth_state", state, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 10,
+    });
+
+    return response;
   } catch (error: any) {
     console.error("Error generating Gmail auth URL:", error);
     return NextResponse.json(

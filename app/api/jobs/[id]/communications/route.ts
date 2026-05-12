@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { canAccessJob } from "@/lib/access-control";
 import { z } from "zod";
 
 // Validation schema for communication
@@ -25,6 +26,10 @@ export async function POST(
 
     // Only ADMIN and TECHNICIAN can add communications
     if (session.user.role === "CUSTOMER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!(await canAccessJob(session.user, params.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -45,6 +45,7 @@ import { Textarea } from "@/components/ui/textarea";
 interface JobDetails {
   id: string;
   jobNumber: string;
+  isWarrantyReturn?: boolean;
   applianceBrand: string;
   applianceType: string;
   modelNumber?: string;
@@ -109,8 +110,29 @@ interface JobDetails {
     invoiceNumber: string;
     totalAmount: number;
     paidAmount: number;
+    balanceAmount?: number;
     status: string;
   };
+  quotes?: Array<{
+    id: string;
+    quoteNumber: string;
+    status: string;
+    issueDate: string;
+    validUntil: string;
+    reminderCount: number;
+    lastReminderSent?: string | null;
+  }>;
+  warrantyParentJob?: {
+    id: string;
+    jobNumber: string;
+    status: string;
+  } | null;
+  warrantyFollowUpJobs?: Array<{
+    id: string;
+    jobNumber: string;
+    status: string;
+    createdAt: string;
+  }>;
 }
 
 export default function JobDetailPage({ params }: { params: { id: string } }) {
@@ -146,6 +168,11 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [taxRate, setTaxRate] = useState(15); // Default 15% GST
   const [sendingQuote, setSendingQuote] = useState(false);
+  const [warrantyDialogOpen, setWarrantyDialogOpen] = useState(false);
+  const [warrantyAction, setWarrantyAction] = useState<"REOPEN" | "CREATE_LINKED">("CREATE_LINKED");
+  const [warrantyIssueDescription, setWarrantyIssueDescription] = useState("");
+  const [warrantyNotes, setWarrantyNotes] = useState("");
+  const [processingWarranty, setProcessingWarranty] = useState(false);
 
   const fetchJob = async () => {
     setLoading(true);
@@ -426,10 +453,66 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleWarrantyReturn = async () => {
+    if (!warrantyIssueDescription.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please describe the warranty issue before continuing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingWarranty(true);
+    try {
+      const response = await fetch(`/api/jobs/${params.id}/warranty-return`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: warrantyAction,
+          issueDescription: warrantyIssueDescription.trim(),
+          notes: warrantyNotes.trim() || undefined,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to process warranty return");
+      }
+
+      toast({
+        title: "Success",
+        description: result.message,
+      });
+
+      setWarrantyDialogOpen(false);
+      setWarrantyNotes("");
+      setWarrantyIssueDescription("");
+
+      if (result.action === "CREATE_LINKED" && result.job?.id) {
+        router.push(`/jobs/${result.job.id}`);
+        return;
+      }
+
+      await fetchJob();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process warranty return",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingWarranty(false);
+    }
+  };
+
   const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" => {
     const statusMap: Record<string, "default" | "secondary" | "destructive"> = {
       OPEN: "default",
       IN_PROGRESS: "default",
+      AWAITING_CUSTOMER_APPROVAL: "secondary",
       AWAITING_PARTS: "secondary",
       READY_FOR_PICKUP: "secondary",
       CLOSED: "secondary",
@@ -449,6 +532,9 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   };
 
   const formatStatus = (status: string) => {
+    if (status === "AWAITING_CUSTOMER_APPROVAL") {
+      return "Awaiting Customer Approval";
+    }
     return status.replace(/_/g, " ");
   };
 
@@ -483,6 +569,16 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex gap-2">
+          {(job.status === "CLOSED" || job.invoice?.status === "PAID") && (
+            <Button variant="outline" onClick={() => {
+              setWarrantyIssueDescription(`Warranty return for ${job.jobNumber}: `);
+              setWarrantyAction("CREATE_LINKED");
+              setWarrantyDialogOpen(true);
+            }}>
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Warranty Return
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setStatusDialogOpen(true)}>
             Update Status
           </Button>
@@ -518,6 +614,11 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         <Badge variant={getPriorityBadgeVariant(job.priority)} className="text-base px-3 py-1">
           {job.priority}
         </Badge>
+        {job.status === "AWAITING_CUSTOMER_APPROVAL" && job.quotes?.[0] && (
+          <Badge variant="secondary" className="text-base px-3 py-1">
+            {job.quotes[0].reminderCount} Reminder{job.quotes[0].reminderCount === 1 ? "" : "s"} Sent
+          </Badge>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -558,15 +659,64 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                     <p className="text-sm mt-1">{job.warrantyStatus}</p>
                   </div>
                 )}
+                {job.warrantyParentJob && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Warranty Parent Job</p>
+                    <button
+                      type="button"
+                      className="text-sm mt-1 text-blue-600 hover:underline"
+                      onClick={() => router.push(`/jobs/${job.warrantyParentJob?.id}`)}
+                    >
+                      {job.warrantyParentJob.jobNumber} ({formatStatus(job.warrantyParentJob.status)})
+                    </button>
+                  </div>
+                )}
                 {job.serviceLocation && (
                   <div>
                     <p className="text-sm font-medium text-gray-600">Service Location</p>
                     <p className="text-sm mt-1">{job.serviceLocation}</p>
                   </div>
                 )}
+                {job.status === "AWAITING_CUSTOMER_APPROVAL" && job.quotes?.[0] && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Quote Reminder Progress</p>
+                    <p className="text-sm mt-1">
+                      {job.quotes[0].reminderCount} of 5 reminders sent
+                      {job.quotes[0].lastReminderSent
+                        ? ` • last sent ${new Date(job.quotes[0].lastReminderSent).toLocaleDateString()}`
+                        : " • no reminders sent yet"}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {job.warrantyFollowUpJobs && job.warrantyFollowUpJobs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Warranty Follow-up Jobs</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {job.warrantyFollowUpJobs.map((followUpJob) => (
+                  <button
+                    key={followUpJob.id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border p-3 text-left hover:bg-gray-50"
+                    onClick={() => router.push(`/jobs/${followUpJob.id}`)}
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{followUpJob.jobNumber}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatStatus(followUpJob.status)} • {new Date(followUpJob.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <ArrowLeft className="h-4 w-4 rotate-180 text-gray-400" />
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -978,6 +1128,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 <SelectContent>
                   <SelectItem value="OPEN">Open</SelectItem>
                   <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="AWAITING_CUSTOMER_APPROVAL">Awaiting Customer Approval</SelectItem>
                   <SelectItem value="AWAITING_PARTS">Awaiting Parts</SelectItem>
                   <SelectItem value="READY_FOR_PICKUP">Ready for Pickup</SelectItem>
                   <SelectItem value="CLOSED">Closed</SelectItem>
@@ -1097,26 +1248,22 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 </Button>
               </div>
 
-              {/* Quote Items Table */}
-              <div className="border rounded-md">
-                <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 border-b font-medium text-sm">
-                  <div className="col-span-5">Description</div>
-                  <div className="col-span-2">Quantity</div>
-                  <div className="col-span-2">Unit Price</div>
-                  <div className="col-span-2">Total</div>
-                  <div className="col-span-1"></div>
-                </div>
-
+              <div className="space-y-3">
                 {quoteItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-12 gap-2 p-3 border-b last:border-b-0 items-center">
-                    <div className="col-span-5">
+                  <div
+                    key={index}
+                    className="grid grid-cols-1 gap-3 rounded-md border p-4 md:grid-cols-12"
+                  >
+                    <div className="md:col-span-5">
+                      <Label className="mb-1 block text-sm">Description</Label>
                       <Input
                         placeholder="Service or part description"
                         value={item.description}
                         onChange={(e) => updateQuoteItem(index, "description", e.target.value)}
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="md:col-span-2">
+                      <Label className="mb-1 block text-sm">Quantity</Label>
                       <Input
                         type="number"
                         min="1"
@@ -1124,7 +1271,8 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                         onChange={(e) => updateQuoteItem(index, "quantity", parseInt(e.target.value) || 1)}
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="md:col-span-2">
+                      <Label className="mb-1 block text-sm">Unit Price</Label>
                       <Input
                         type="number"
                         min="0"
@@ -1134,10 +1282,15 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                         onChange={(e) => updateQuoteItem(index, "unitPrice", parseFloat(e.target.value) || 0)}
                       />
                     </div>
-                    <div className="col-span-2 font-medium">
-                      ${(item.quantity * item.unitPrice).toFixed(2)}
+                    <div className="md:col-span-2">
+                      <Label className="mb-1 block text-sm">Total Price</Label>
+                      <Input
+                        value={(item.quantity * item.unitPrice).toFixed(2)}
+                        readOnly
+                        className="font-medium"
+                      />
                     </div>
-                    <div className="col-span-1">
+                    <div className="md:col-span-1 flex items-end justify-end md:justify-center">
                       {quoteItems.length > 1 && (
                         <Button
                           type="button"
@@ -1221,6 +1374,67 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               disabled={sendingQuote || calculateQuoteTotals().totalAmount === 0}
             >
               {sendingQuote ? "Sending..." : "Send Quote"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={warrantyDialogOpen} onOpenChange={setWarrantyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Warranty Return</DialogTitle>
+            <DialogDescription>
+              Choose whether to reopen this job or create a linked warranty follow-up job. Refunds remain manual outside the system.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Warranty Handling</Label>
+              <Select
+                value={warrantyAction}
+                onValueChange={(value: "REOPEN" | "CREATE_LINKED") => setWarrantyAction(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CREATE_LINKED">Create linked warranty job</SelectItem>
+                  <SelectItem value="REOPEN">Reopen this existing job</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Use linked jobs for cleaner history. Reopen the existing job only if you want everything on one record.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="warrantyIssueDescription">Reported Issue</Label>
+              <Textarea
+                id="warrantyIssueDescription"
+                value={warrantyIssueDescription}
+                onChange={(event) => setWarrantyIssueDescription(event.target.value)}
+                placeholder="Describe what failed or what the customer reported during the warranty period"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="warrantyNotes">Internal Notes</Label>
+              <Textarea
+                id="warrantyNotes"
+                value={warrantyNotes}
+                onChange={(event) => setWarrantyNotes(event.target.value)}
+                placeholder="Optional internal notes. Any refund handling remains manual outside the system."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWarrantyDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleWarrantyReturn} disabled={processingWarranty}>
+              {processingWarranty ? "Processing..." : "Continue"}
             </Button>
           </DialogFooter>
         </DialogContent>

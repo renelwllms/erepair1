@@ -52,13 +52,17 @@ export async function getGmailAccessToken(): Promise<string> {
 /**
  * Generate authorization URL for Gmail OAuth
  */
-export async function generateGmailAuthUrl(redirectUri?: string): Promise<string> {
+export async function generateGmailAuthUrl(
+  redirectUri?: string,
+  state?: string
+): Promise<string> {
   const oauth2Client = await createGmailOAuth2Client(redirectUri);
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: ["https://mail.google.com/"], // Full Gmail access for sending
     prompt: "consent", // Force consent to get refresh token
+    state,
   });
 
   return authUrl;
