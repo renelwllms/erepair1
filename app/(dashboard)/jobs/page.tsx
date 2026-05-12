@@ -243,6 +243,8 @@ export default function JobsPage() {
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
         throw new Error("Failed to update status");
       }
@@ -257,11 +259,15 @@ export default function JobsPage() {
 
       // If status changed to READY_FOR_PICKUP, redirect to invoice creation
       if (newStatus === "READY_FOR_PICKUP") {
-        const updatedJob = refreshedJobs.find((item) => item.id === jobId);
-        if (updatedJob?.invoice?.id) {
-          router.push(`/invoices/${updatedJob.invoice.id}`);
+        if (result?.invoice?.id) {
+          router.push(`/invoices/${result.invoice.id}`);
         } else {
-          router.push(`/invoices/new?jobId=${jobId}`);
+          const updatedJob = refreshedJobs.find((item) => item.id === jobId);
+          if (updatedJob?.invoice?.id) {
+            router.push(`/invoices/${updatedJob.invoice.id}`);
+          } else {
+            router.push(`/invoices/new?jobId=${jobId}`);
+          }
         }
       }
     } catch (error) {
