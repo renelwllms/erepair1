@@ -11,6 +11,7 @@ export async function GET() {
       select: {
         companyName: true,
         companyLogo: true,
+        companyFavicon: true,
         companyPhone: true,
         diagnosticFees: true,
         diagnosticFeeDefaultOther: true,
@@ -23,6 +24,7 @@ export async function GET() {
         {
           companyName: "",
           companyLogo: null,
+          companyFavicon: null,
           companyPhone: null,
           diagnosticFees: {},
           diagnosticFeeDefaultOther: null,
@@ -42,6 +44,7 @@ export async function GET() {
       {
         companyName: settings.companyName || "",
         companyLogo: settings.companyLogo || null,
+        companyFavicon: settings.companyFavicon || "/favicon.png",
         companyPhone: settings.companyPhone || null,
         diagnosticFees: parseDiagnosticFees(settings.diagnosticFees),
         diagnosticFeeDefaultOther:
