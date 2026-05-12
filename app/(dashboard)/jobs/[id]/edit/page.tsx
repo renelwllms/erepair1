@@ -420,7 +420,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Appliance Information */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="applianceType">
                   Appliance Type <span className="text-red-500">*</span>
@@ -536,7 +536,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="modelNumber">Model Number</Label>
                 <Input
@@ -573,7 +573,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
             </div>
 
             {/* Job Priority and Assignment */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="priority">
                   Priority <span className="text-red-500">*</span>
@@ -648,7 +648,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="preferredCalloutDate">
                       Preferred Date/Time <span className="text-red-500">*</span>
@@ -676,7 +676,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="calloutApplianceLocation">
                       Appliance Location <span className="text-red-500">*</span>
@@ -700,7 +700,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="calloutAccessInstructions">
                       Access Instructions <span className="text-red-500">*</span>
@@ -735,7 +735,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
             )}
 
             {/* Additional Information */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="warrantyStatus">Warranty Status</Label>
                 <Input
@@ -755,7 +755,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="estimatedCompletion">Estimated Completion Date</Label>
                 <Input
@@ -777,7 +777,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="diagnosticFeeAmount">Diagnostic Fee</Label>
                 <Input

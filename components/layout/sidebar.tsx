@@ -123,8 +123,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
     item.roles.includes(userRole)
   );
 
+  const mobileNavItems = filteredNavItems.filter((item) =>
+    ["/dashboard", "/jobs", "/dashboard/field-service", "/customers", "/invoices"].includes(item.href)
+  );
+
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <>
+    <div className="hidden w-64 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
       <div className="p-6 border-b border-gray-200">
         <Link href="/dashboard" className="flex items-center justify-center">
           {companySettings.companyLogo ? (
@@ -172,5 +177,30 @@ export default function Sidebar({ userRole }: SidebarProps) {
         </div>
       </div>
     </div>
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+      <div className="grid grid-cols-5 gap-1">
+        {mobileNavItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors",
+                isActive
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="max-w-full truncate">{item.title === "Field Service" ? "Field" : item.title}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+    </>
   );
 }

@@ -319,12 +319,12 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Jobs</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Jobs</h1>
           <p className="text-gray-600 mt-1">Manage repair jobs and track progress</p>
         </div>
-        <Button onClick={() => router.push("/jobs/new")}>
+        <Button onClick={() => router.push("/jobs/new")} className="h-11 w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Job
         </Button>
@@ -340,8 +340,8 @@ export default function JobsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4 mb-6 items-center">
-            <div className="flex-1 relative">
+          <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_150px_200px_auto] lg:items-center">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search jobs..."
@@ -350,14 +350,14 @@ export default function JobsPage() {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="pl-10"
+                className="h-11 pl-10 lg:h-10"
               />
             </div>
             <Select value={statusFilter} onValueChange={(value) => {
               setStatusFilter(value);
               setPage(1);
             }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="h-11 w-full lg:h-10">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -375,7 +375,7 @@ export default function JobsPage() {
               setPriorityFilter(value);
               setPage(1);
             }}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="h-11 w-full lg:h-10">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -387,7 +387,7 @@ export default function JobsPage() {
               </SelectContent>
             </Select>
             <Select value={attentionFilter} onValueChange={setAttentionFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="h-11 w-full lg:h-10">
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>
               <SelectContent>
@@ -401,7 +401,7 @@ export default function JobsPage() {
               </SelectContent>
             </Select>
             {selectedJobs.size > 0 && (
-              <Button variant="destructive" onClick={handleBulkDelete}>
+              <Button variant="destructive" onClick={handleBulkDelete} className="h-11 w-full lg:h-10 lg:w-auto">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete ({selectedJobs.size})
               </Button>
@@ -424,36 +424,125 @@ export default function JobsPage() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
+              <div className="space-y-3 md:hidden">
+                {filteredJobs.map((job) => (
+                  <div
+                    key={job.id}
+                    className={`rounded-2xl border bg-white p-4 shadow-sm ${needsAttention(job) ? "border-yellow-200 bg-yellow-50" : "border-gray-200"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          {needsAttention(job) && <Bell className="h-4 w-4 shrink-0 text-yellow-600" />}
+                          <p className="font-semibold text-gray-950">{job.jobNumber}</p>
+                          <Badge variant={getPriorityBadgeVariant(job.priority)}>{job.priority}</Badge>
+                        </div>
+                        <p className="mt-1 truncate text-sm text-gray-700">
+                          {job.customer.firstName} {job.customer.lastName} · {job.customer.phone}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">{job.applianceBrand} {job.applianceType}</p>
+                      </div>
                       <Checkbox
-                        checked={
-                          filteredJobs.length > 0 &&
-                          filteredJobs.every((job) => selectedJobs.has(job.id))
-                        }
-                        onCheckedChange={(value) => toggleSelectAll(Boolean(value))}
-                        aria-label="Select all jobs"
+                        checked={selectedJobs.has(job.id)}
+                        onCheckedChange={(value) => toggleSelectJob(job.id, Boolean(value))}
+                        aria-label={`Select job ${job.jobNumber}`}
                       />
-                    </TableHead>
-                    <TableHead>Job #</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Appliance</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Technician</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredJobs.map((job) => (
-                    <TableRow
-                      key={job.id}
-                      className={needsAttention(job) ? "bg-yellow-50 hover:bg-yellow-100 cursor-pointer" : "cursor-pointer"}
-                      onDoubleClick={() => router.push(`/jobs/${job.id}`)}
-                    >
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      <Select
+                        value={job.status}
+                        onValueChange={(value) => handleStatusChange(job.id, value, job)}
+                      >
+                        <SelectTrigger
+                          className={`h-11 w-full rounded-md border px-3 text-left text-sm font-medium shadow-none [&>span]:truncate ${getStatusFieldClass(job.status)}`}
+                        >
+                          <SelectValue>
+                            <span className="block w-full truncate">{formatStatus(job.status)}</span>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="OPEN">Open</SelectItem>
+                          <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                          <SelectItem value="AWAITING_CUSTOMER_APPROVAL">Awaiting Customer Approval</SelectItem>
+                          <SelectItem value="AWAITING_PARTS">Awaiting Parts</SelectItem>
+                          <SelectItem value="READY_FOR_PICKUP">Ready for Pickup</SelectItem>
+                          <SelectItem value="CLOSED">Closed</SelectItem>
+                          <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-lg bg-gray-50 p-3">
+                          <p className="text-xs text-gray-500">Technician</p>
+                          <p className="truncate font-medium">
+                            {job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-3">
+                          <p className="text-xs text-gray-500">Created</p>
+                          <p className="font-medium">{new Date(job.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="default" className="h-11" onClick={() => router.push(`/jobs/${job.id}`)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Open
+                        </Button>
+                        <Button variant="outline" className="h-11" onClick={() => router.push(`/jobs/${job.id}/edit`)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" className="h-11" onClick={() => router.push(`/customers/${job.customer.id}`)}>
+                          Customer
+                        </Button>
+                        {job.invoice ? (
+                          <Button variant="outline" className="h-11" onClick={() => router.push(`/invoices/${job.invoice?.id}`)}>
+                            Invoice
+                          </Button>
+                        ) : (
+                          <Button variant="outline" className="h-11" onClick={() => router.push(`/invoices/new?jobId=${job.id}`)}>
+                            Invoice
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            filteredJobs.length > 0 &&
+                            filteredJobs.every((job) => selectedJobs.has(job.id))
+                          }
+                          onCheckedChange={(value) => toggleSelectAll(Boolean(value))}
+                          aria-label="Select all jobs"
+                        />
+                      </TableHead>
+                      <TableHead>Job #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Appliance</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Technician</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredJobs.map((job) => (
+                      <TableRow
+                        key={job.id}
+                        className={needsAttention(job) ? "bg-yellow-50 hover:bg-yellow-100 cursor-pointer" : "cursor-pointer"}
+                        onDoubleClick={() => router.push(`/jobs/${job.id}`)}
+                      >
                       <TableCell onClick={(event) => event.stopPropagation()}>
                         <Checkbox
                           checked={selectedJobs.has(job.id)}
@@ -572,13 +661,14 @@ export default function JobsPage() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-gray-500">
                     Page {page} of {totalPages}
                   </p>

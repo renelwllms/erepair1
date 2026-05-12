@@ -550,7 +550,7 @@ export default function NewJobPage() {
                       </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmitCustomer(onCreateCustomer)} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="firstName">
                             First Name <span className="text-red-500">*</span>
@@ -571,7 +571,7 @@ export default function NewJobPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="email">
                             Email <span className="text-red-500">*</span>
@@ -597,7 +597,7 @@ export default function NewJobPage() {
                         <Input id="address" {...registerCustomer("address")} />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div className="space-y-2">
                           <Label htmlFor="city">City</Label>
                           <Input id="city" {...registerCustomer("city")} />
@@ -635,7 +635,7 @@ export default function NewJobPage() {
             </div>
 
             {/* Appliance Information with Dropdowns */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="applianceType">
                   Appliance Type <span className="text-red-500">*</span>
@@ -778,7 +778,7 @@ export default function NewJobPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="modelNumber">Model Number</Label>
                 <Input
@@ -815,7 +815,7 @@ export default function NewJobPage() {
             </div>
 
             {/* Job Priority and Assignment */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="priority">
                   {jobType === "CALLOUT_REPAIR" ? "Urgency" : "Priority"} <span className="text-red-500">*</span>
@@ -883,7 +883,7 @@ export default function NewJobPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="preferredCalloutDate">
                       Preferred Date/Time <span className="text-red-500">*</span>
@@ -913,7 +913,7 @@ export default function NewJobPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="calloutAccessInstructions">
                       Access Instructions <span className="text-red-500">*</span>
@@ -948,7 +948,7 @@ export default function NewJobPage() {
             )}
 
             {/* Additional Information */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="warrantyStatus">Warranty Status</Label>
                 <Input
