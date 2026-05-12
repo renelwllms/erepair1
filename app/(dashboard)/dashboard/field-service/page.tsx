@@ -257,6 +257,8 @@ export default function FieldServiceDashboardPage() {
   const [noteText, setNoteText] = useState("");
   const [noteType, setNoteType] = useState("Site Visit");
   const [noteVisibility, setNoteVisibility] = useState("Internal");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteSavedMessage, setNoteSavedMessage] = useState("");
   const [photoCategory, setPhotoCategory] = useState("Before Repair");
   const [photoCaption, setPhotoCaption] = useState("");
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
@@ -504,6 +506,8 @@ export default function FieldServiceDashboardPage() {
 
   const addNote = async () => {
     if (!selectedJob || !noteText.trim()) return;
+    setSavingNote(true);
+    setNoteSavedMessage("");
     try {
       await mutateJob(selectedJob.id, {
         action: "note",
@@ -512,9 +516,12 @@ export default function FieldServiceDashboardPage() {
         visibility: noteVisibility,
       }, "POST");
       setNoteText("");
+      setNoteSavedMessage(`Saved at ${new Date().toLocaleTimeString("en-NZ", { hour: "2-digit", minute: "2-digit" })}`);
       toast({ title: "Note added", description: "Technician note saved." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSavingNote(false);
     }
   };
 
@@ -890,7 +897,7 @@ export default function FieldServiceDashboardPage() {
 
               <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
                 <div className="space-y-5">
-                  <Card ref={notesSectionRef}>
+                  <Card>
                     <CardHeader><CardTitle className="text-base">Customer and Appliance</CardTitle></CardHeader>
                     <CardContent className="grid gap-3 text-sm md:grid-cols-2">
                       <div><span className="text-slate-500">Customer</span><p className="font-medium">{selectedJob.customer.firstName} {selectedJob.customer.lastName}</p></div>
@@ -953,10 +960,15 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Technician Notes</CardTitle></CardHeader>
+                  <Card ref={notesSectionRef}>
+                    <CardHeader>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <CardTitle className="text-base">Technician Notes</CardTitle>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedJob(null)}>Back to Dashboard</Button>
+                      </div>
+                    </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="grid gap-3 md:grid-cols-3">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <Select value={noteType} onValueChange={setNoteType}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>{FIELD_NOTE_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
@@ -968,9 +980,32 @@ export default function FieldServiceDashboardPage() {
                             <SelectItem value="Customer Visible">Customer Visible</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button onClick={addNote}>Add Note</Button>
                       </div>
-                      <Textarea ref={noteTextareaRef} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add technician note" />
+                      <Textarea
+                        ref={noteTextareaRef}
+                        value={noteText}
+                        onChange={(event) => {
+                          setNoteText(event.target.value);
+                          setNoteSavedMessage("");
+                        }}
+                        placeholder="Add technician note"
+                        className="min-h-32"
+                      />
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-h-5 text-sm">
+                          {noteSavedMessage ? (
+                            <span className="inline-flex items-center text-emerald-700">
+                              <CheckCircle2 className="mr-1 h-4 w-4" />
+                              Note saved. {noteSavedMessage}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">Type a note, then tap Save Note.</span>
+                          )}
+                        </div>
+                        <Button className="h-11 sm:min-w-32" onClick={addNote} disabled={!noteText.trim() || savingNote}>
+                          {savingNote ? "Saving..." : "Save Note"}
+                        </Button>
+                      </div>
                       <div className="space-y-2">
                         {selectedJob.fieldNotes.map((note) => (
                           <div key={note.id} className="rounded-md border border-slate-200 p-3 text-sm">
