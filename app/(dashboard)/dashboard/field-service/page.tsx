@@ -1,0 +1,943 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  Bell,
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  Clock,
+  Compass,
+  MapPin,
+  Navigation,
+  Phone,
+  Plus,
+  Route,
+  Search,
+  Send,
+  UserCheck,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast";
+import { FIELD_PHOTO_CATEGORIES, FIELD_SERVICE_STATUSES, FIELD_NOTE_TYPES, formatFieldStatus } from "@/lib/field-service";
+
+declare global {
+  interface Window {
+    google?: any;
+    initFieldServiceMap?: () => void;
+  }
+}
+
+interface Technician {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+}
+
+interface FieldJob {
+  id: string;
+  jobNumber: string;
+  jobType: string;
+  applianceBrand: string;
+  applianceType: string;
+  issueDescription: string;
+  priority: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  scheduledAt?: string | null;
+  scheduledTime?: string | null;
+  preferredCalloutDate?: string | null;
+  assignedTechnicianId?: string | null;
+  assignedAt?: string | null;
+  assignmentNotes?: string | null;
+  calloutAddress?: string | null;
+  calloutLatitude?: number | null;
+  calloutLongitude?: number | null;
+  googlePlaceId?: string | null;
+  distanceFromOfficeKm?: number | null;
+  estimatedTravelTime?: string | null;
+  calloutAccessInstructions?: string | null;
+  calloutParkingNotes?: string | null;
+  calloutApplianceLocation?: string | null;
+  calloutFee?: number | null;
+  runningLate: boolean;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+  assignedTechnician?: Technician | null;
+  statusHistory: Array<{
+    id: string;
+    status: string;
+    previousStatus?: string | null;
+    newStatus?: string | null;
+    notes?: string | null;
+    createdAt: string;
+    changedAt?: string | null;
+  }>;
+  fieldNotes: Array<{
+    id: string;
+    noteType: string;
+    noteText: string;
+    visibility: string;
+    createdAt: string;
+    technician?: { firstName: string; lastName: string } | null;
+  }>;
+  fieldPhotos: Array<{
+    id: string;
+    photoCategory: string;
+    fileUrl: string;
+    caption?: string | null;
+    createdAt: string;
+  }>;
+  customerNotifications: Array<{
+    id: string;
+    notificationType: string;
+    recipient: string;
+    status: string;
+    message: string;
+    sentAt?: string | null;
+    queuedUntil?: string | null;
+    createdAt: string;
+  }>;
+}
+
+interface DashboardResponse {
+  counts: Record<string, number>;
+  jobs: FieldJob[];
+  technicians: Technician[];
+  map: {
+    googleApiKey?: string | null;
+    officeAddress?: string | null;
+    officeLatitude?: number | null;
+    officeLongitude?: number | null;
+  };
+  generatedAt: string;
+}
+
+const statusTone: Record<string, string> = {
+  NEW_CALLOUT: "bg-slate-100 text-slate-700 border-slate-200",
+  SCHEDULED: "bg-blue-50 text-blue-700 border-blue-200",
+  TECHNICIAN_ASSIGNED: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  TECHNICIAN_ON_THE_WAY: "bg-amber-50 text-amber-800 border-amber-200",
+  ARRIVED_ON_SITE: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  WORK_IN_PROGRESS: "bg-sky-50 text-sky-700 border-sky-200",
+  WAITING_FOR_PARTS: "bg-violet-50 text-violet-700 border-violet-200",
+  WAITING_FOR_CUSTOMER: "bg-orange-50 text-orange-700 border-orange-200",
+  COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
+};
+
+const priorityTone: Record<string, string> = {
+  LOW: "bg-slate-100 text-slate-700",
+  MEDIUM: "bg-blue-50 text-blue-700",
+  HIGH: "bg-orange-50 text-orange-700",
+  URGENT: "bg-rose-100 text-rose-700",
+};
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "Not scheduled";
+  return new Date(value).toLocaleString("en-NZ", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatDistance = (value?: number | null) =>
+  typeof value === "number" ? `${value.toFixed(1)} km` : "Not calculated";
+
+const compressImage = async (file: File) => {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const width = Math.round(bitmap.width * scale);
+  const height = Math.round(bitmap.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return file;
+  context.drawImage(bitmap, 0, 0, width, height);
+
+  let quality = 0.82;
+  let blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  while (blob && blob.size > 500 * 1024 && quality > 0.45) {
+    quality -= 0.08;
+    blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  }
+
+  return blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file;
+};
+
+export default function FieldServiceDashboardPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeCard, setActiveCard] = useState("all");
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [technicianId, setTechnicianId] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [priority, setPriority] = useState("all");
+  const [suburb, setSuburb] = useState("");
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
+  const [runningLateOnly, setRunningLateOnly] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<FieldJob | null>(null);
+  const [assignmentNotes, setAssignmentNotes] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [noteType, setNoteType] = useState("Site Visit");
+  const [noteVisibility, setNoteVisibility] = useState("Internal");
+  const [photoCategory, setPhotoCategory] = useState("Before Repair");
+  const [photoCaption, setPhotoCaption] = useState("");
+  const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const addressInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedPlaceRef = useRef<any>(null);
+
+  const fetchDashboard = async () => {
+    const params = new URLSearchParams({
+      card: activeCard,
+      date,
+      technicianId,
+      status,
+      priority,
+      search,
+      suburb,
+      unassignedOnly: String(unassignedOnly),
+      runningLateOnly: String(runningLateOnly),
+    });
+
+    try {
+      const response = await fetch(`/api/field-service?${params}`);
+      if (!response.ok) throw new Error("Failed to load field service dashboard");
+      const result = await response.json();
+      setData(result);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load field service dashboard",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+    const interval = window.setInterval(fetchDashboard, 15000);
+    return () => window.clearInterval(interval);
+  }, [activeCard, date, technicianId, status, priority, search, suburb, unassignedOnly, runningLateOnly]);
+
+  useEffect(() => {
+    if (!data?.map.googleApiKey || window.google?.maps) return;
+
+    window.initFieldServiceMap = () => renderMap();
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.map.googleApiKey}&libraries=places&callback=initFieldServiceMap`;
+    script.async = true;
+    document.head.appendChild(script);
+    return () => {
+      delete window.initFieldServiceMap;
+    };
+  }, [data?.map.googleApiKey]);
+
+  useEffect(() => {
+    renderMap();
+  }, [data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
+
+  useEffect(() => {
+    if (!window.google?.maps?.places || !addressInputRef.current || !selectedJob) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      fields: ["formatted_address", "geometry", "place_id"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      selectedPlaceRef.current = autocomplete.getPlace();
+    });
+
+    return () => listener.remove();
+  }, [selectedJob, data?.map.googleApiKey]);
+
+  const renderMap = () => {
+    if (!window.google?.maps || !mapRef.current || !data) return;
+
+    const office = {
+      lat: data.map.officeLatitude || -36.8485,
+      lng: data.map.officeLongitude || 174.7633,
+    };
+
+    if (!mapInstanceRef.current) {
+      mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
+        center: office,
+        zoom: 10,
+        mapTypeControl: false,
+        streetViewControl: false,
+      });
+    }
+
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = [];
+
+    const officeMarker = new window.google.maps.Marker({
+      position: office,
+      map: mapInstanceRef.current,
+      title: "Office",
+      icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+    });
+    markersRef.current.push(officeMarker);
+
+    data.jobs
+      .filter((job) => job.calloutLatitude && job.calloutLongitude)
+      .forEach((job) => {
+        const marker = new window.google.maps.Marker({
+          position: { lat: job.calloutLatitude, lng: job.calloutLongitude },
+          map: mapInstanceRef.current,
+          title: job.jobNumber,
+          icon: job.runningLate
+            ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+            : job.status === "COMPLETED"
+              ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+              : "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
+        });
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div style="min-width:220px">
+              <strong>${job.jobNumber}</strong><br/>
+              ${job.customer.firstName} ${job.customer.lastName}<br/>
+              ${job.calloutAddress || ""}<br/>
+              <strong>Status:</strong> ${formatFieldStatus(job.status)}<br/>
+              <strong>Technician:</strong> ${job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}<br/>
+              <strong>Scheduled:</strong> ${formatDateTime(job.scheduledAt)}<br/>
+              <strong>Distance:</strong> ${formatDistance(job.distanceFromOfficeKm)}
+            </div>
+          `,
+        });
+        marker.addListener("click", () => {
+          infoWindow.open(mapInstanceRef.current, marker);
+          setSelectedJob(job);
+        });
+        markersRef.current.push(marker);
+      });
+  };
+
+  const refreshSelectedJob = (jobs: FieldJob[]) => {
+    if (!selectedJob) return;
+    const fresh = jobs.find((job) => job.id === selectedJob.id);
+    if (fresh) setSelectedJob(fresh);
+  };
+
+  const mutateJob = async (jobId: string, payload: Record<string, unknown>, method: "PATCH" | "POST" = "PATCH") => {
+    const response = await fetch(`/api/field-service/jobs/${jobId}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Field service action failed");
+    await fetchDashboard();
+    return result;
+  };
+
+  const assignTechnician = async (jobId: string, nextTechnicianId: string) => {
+    try {
+      await mutateJob(jobId, {
+        action: "assign",
+        assignedTechnicianId: nextTechnicianId === "unassigned" ? null : nextTechnicianId,
+        assignmentNotes,
+      });
+      setAssignmentNotes("");
+      toast({ title: "Technician updated", description: "Assignment saved." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const updateStatus = async (job: FieldJob, nextStatus: string) => {
+    try {
+      await mutateJob(job.id, { action: "status", status: nextStatus });
+      toast({ title: "Status updated", description: `${job.jobNumber} is now ${formatFieldStatus(nextStatus)}.` });
+      if (nextStatus === "TECHNICIAN_ON_THE_WAY") {
+        prepareOnTheWayNotification(job);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const prepareOnTheWayNotification = (job: FieldJob) => {
+    if (pendingNotification?.timer) {
+      window.clearTimeout(pendingNotification.timer);
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        await mutateJob(job.id, {
+          action: "notifyCustomer",
+          notificationType: "TECHNICIAN_ON_THE_WAY",
+          message: `Hi ${job.customer.firstName}, your eRepair technician is now on the way for Job #${job.jobNumber}.`,
+        }, "POST");
+        toast({ title: "Customer notification processed", description: "The on-the-way message was sent or queued." });
+      } catch (error: any) {
+        toast({ title: "Notification error", description: error.message, variant: "destructive" });
+      } finally {
+        setPendingNotification(null);
+      }
+    }, 2000);
+    setPendingNotification({ job, timer });
+  };
+
+  const undoNotification = () => {
+    if (pendingNotification?.timer) {
+      window.clearTimeout(pendingNotification.timer);
+    }
+    setPendingNotification(null);
+  };
+
+  const addNote = async () => {
+    if (!selectedJob || !noteText.trim()) return;
+    try {
+      await mutateJob(selectedJob.id, {
+        action: "note",
+        noteType,
+        noteText,
+        visibility: noteVisibility,
+      }, "POST");
+      setNoteText("");
+      toast({ title: "Note added", description: "Technician note saved." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const uploadPhoto = async (file?: File | null) => {
+    if (!selectedJob || !file) return;
+    try {
+      const compressed = await compressImage(file);
+      const formData = new FormData();
+      formData.append("file", compressed);
+      formData.append("photoCategory", photoCategory);
+      formData.append("caption", photoCaption);
+
+      const response = await fetch(`/api/field-service/jobs/${selectedJob.id}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Photo upload failed");
+      setPhotoCaption("");
+      await fetchDashboard();
+      toast({ title: "Photo uploaded", description: "Compressed photo saved to the job." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const saveCalloutDetails = async () => {
+    if (!selectedJob) return;
+    const place = selectedPlaceRef.current;
+    const addressValue = addressInputRef.current?.value?.trim();
+    const payload: Record<string, unknown> = {
+      action: "schedule",
+      scheduledTime: (document.getElementById("scheduledTime") as HTMLInputElement | null)?.value || undefined,
+      calloutAccessInstructions: (document.getElementById("accessInstructions") as HTMLTextAreaElement | null)?.value || undefined,
+      calloutParkingNotes: (document.getElementById("parkingInstructions") as HTMLTextAreaElement | null)?.value || undefined,
+      calloutApplianceLocation: (document.getElementById("applianceLocation") as HTMLInputElement | null)?.value || undefined,
+      calloutFee: Number((document.getElementById("calloutFee") as HTMLInputElement | null)?.value || selectedJob.calloutFee || 0),
+    };
+
+    if (addressValue && addressValue !== selectedJob.calloutAddress) {
+      if (!place?.geometry?.location || !place.place_id) {
+        toast({
+          title: "Select an address",
+          description: "Choose a Google Places suggestion before saving the callout address.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      payload.calloutAddress = place.formatted_address;
+      payload.calloutLatitude = place.geometry.location.lat();
+      payload.calloutLongitude = place.geometry.location.lng();
+      payload.googlePlaceId = place.place_id;
+
+      if (window.google?.maps?.DistanceMatrixService && data?.map.officeLatitude && data?.map.officeLongitude) {
+        const service = new window.google.maps.DistanceMatrixService();
+        const result = await service.getDistanceMatrix({
+          origins: [{ lat: data.map.officeLatitude, lng: data.map.officeLongitude }],
+          destinations: [{ lat: payload.calloutLatitude, lng: payload.calloutLongitude }],
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          drivingOptions: {
+            departureTime: new Date(Date.now() + 5 * 60 * 1000),
+            trafficModel: "bestguess",
+          },
+        });
+        const element = result.rows?.[0]?.elements?.[0];
+        if (element?.status === "OK") {
+          payload.distanceFromOfficeKm = element.distance.value / 1000;
+          payload.estimatedTravelTime = element.duration_in_traffic?.text || element.duration?.text;
+        }
+      }
+    }
+
+    try {
+      await mutateJob(selectedJob.id, payload);
+      selectedPlaceRef.current = null;
+      toast({ title: "Callout updated", description: "Schedule and address details saved." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const counts = data?.counts || {};
+  const jobs = data?.jobs || [];
+  useEffect(() => {
+    refreshSelectedJob(jobs);
+  }, [jobs]);
+
+  const overviewCards = useMemo(() => [
+    { key: "totalToday", label: "Total Callouts Today", value: counts.totalToday || 0, icon: CalendarDays },
+    { key: "scheduled", label: "Scheduled Jobs", value: counts.scheduled || 0, icon: Clock },
+    { key: "inProgress", label: "Jobs In Progress", value: counts.inProgress || 0, icon: Wrench },
+    { key: "onTheWay", label: "Technicians On The Way", value: counts.onTheWay || 0, icon: Navigation },
+    { key: "completedToday", label: "Completed Today", value: counts.completedToday || 0, icon: CheckCircle2 },
+    { key: "urgent", label: "Urgent Jobs", value: counts.urgent || 0, icon: AlertTriangle },
+    { key: "unassigned", label: "Unassigned Jobs", value: counts.unassigned || 0, icon: Users },
+    { key: "runningLate", label: "Running Late Jobs", value: counts.runningLate || 0, icon: Bell },
+  ], [counts]);
+
+  if (loading) {
+    return <div className="p-6 text-sm text-gray-600">Loading field service dashboard...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 lg:p-6">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-950">Field Service Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-600">Callout repair operations, scheduling, dispatch, and technician work.</p>
+        </div>
+        <Button onClick={() => router.push("/jobs/new")} className="w-full lg:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          New Callout
+        </Button>
+      </div>
+
+      {pendingNotification && (
+        <div className="mb-4 flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
+          <span>Sending customer notification for {pendingNotification.job.jobNumber} in 2 seconds.</span>
+          <Button variant="outline" size="sm" onClick={undoNotification}>
+            <X className="mr-2 h-4 w-4" />
+            Undo
+          </Button>
+        </div>
+      )}
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {overviewCards.map((card) => {
+          const Icon = card.icon;
+          const active = activeCard === card.key;
+          return (
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => setActiveCard(active ? "all" : card.key)}
+              className={`rounded-lg border bg-white p-4 text-left shadow-sm transition ${active ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200 hover:border-slate-300"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-600">{card.label}</span>
+                <Icon className="h-5 w-5 text-slate-500" />
+              </div>
+              <div className="mt-3 text-3xl font-bold text-slate-950">{card.value}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
+          <div className="xl:col-span-2">
+            <Label htmlFor="search">Search</Label>
+            <div className="relative mt-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Job, customer, phone, address" />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="date">Date</Label>
+            <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label>Technician</Label>
+            <Select value={technicianId} onValueChange={setTechnicianId}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All technicians</SelectItem>
+                {data?.technicians.map((tech) => (
+                  <SelectItem key={tech.id} value={tech.id}>{tech.firstName} {tech.lastName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {FIELD_SERVICE_STATUSES.map((item) => (
+                  <SelectItem key={item} value={item}>{formatFieldStatus(item)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Priority</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="LOW">Low</SelectItem>
+                <SelectItem value="MEDIUM">Normal</SelectItem>
+                <SelectItem value="HIGH">High</SelectItem>
+                <SelectItem value="URGENT">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="suburb">Suburb</Label>
+            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1" placeholder="Address contains" />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button variant={unassignedOnly ? "default" : "outline"} onClick={() => setUnassignedOnly(!unassignedOnly)} className="flex-1">
+              <UserCheck className="mr-2 h-4 w-4" />
+              Unassigned
+            </Button>
+            <Button variant={runningLateOnly ? "default" : "outline"} onClick={() => setRunningLateOnly(!runningLateOnly)} className="flex-1">
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Late
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.9fr)]">
+        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-4">
+            <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
+            <p className="text-sm text-slate-500">{jobs.length} callout jobs shown</p>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Appliance</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Booking</TableHead>
+                  <TableHead>Scheduled</TableHead>
+                  <TableHead>Technician</TableHead>
+                  <TableHead>Distance</TableHead>
+                  <TableHead>Travel</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jobs.map((job) => (
+                  <TableRow key={job.id} className={job.runningLate ? "bg-rose-50" : !job.assignedTechnicianId ? "bg-amber-50/50" : ""}>
+                    <TableCell className="font-medium">{job.jobNumber}</TableCell>
+                    <TableCell>{job.customer.firstName} {job.customer.lastName}</TableCell>
+                    <TableCell><a className="text-blue-700 hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a></TableCell>
+                    <TableCell>{job.applianceType}</TableCell>
+                    <TableCell className="min-w-[220px] text-sm">{job.calloutAddress || "Address not selected"}</TableCell>
+                    <TableCell>{formatDateTime(job.createdAt)}</TableCell>
+                    <TableCell>{formatDateTime(job.scheduledAt)}</TableCell>
+                    <TableCell>{job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}</TableCell>
+                    <TableCell>{formatDistance(job.distanceFromOfficeKm)}</TableCell>
+                    <TableCell>{job.estimatedTravelTime || "Not calculated"}</TableCell>
+                    <TableCell><Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge></TableCell>
+                    <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
+                    <TableCell>{formatDateTime(job.updatedAt)}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedJob(job)}>Open</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="h-[520px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            {data?.map.googleApiKey ? (
+              <div ref={mapRef} className="h-full w-full" />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-600">
+                <MapPin className="mb-3 h-8 w-8 text-slate-400" />
+                Add a Google Maps API key in settings to enable map markers and Places address selection.
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
+            <h2 className="font-semibold text-slate-950">Technician Mobile View</h2>
+            <p className="text-sm text-slate-500">My Jobs Today</p>
+            <div className="mt-3 space-y-3">
+              {jobs.slice(0, 4).map((job) => (
+                <div key={job.id} className="rounded-md border border-slate-200 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{job.jobNumber}</p>
+                      <p className="text-sm text-slate-600">{job.customer.firstName} {job.customer.lastName}</p>
+                    </div>
+                    <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Button size="lg" variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`}><Compass className="mr-2 h-4 w-4" />Maps</a></Button>
+                    <Button size="lg" variant="outline" asChild><a href={`tel:${job.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
+                    <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
+                    <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
+                    <Button size="lg" variant="outline" onClick={() => setSelectedJob(job)}>Add Note</Button>
+                    <Button size="lg" variant="outline" onClick={() => setSelectedJob(job)}>Upload Photos</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={Boolean(selectedJob)} onOpenChange={(open) => !open && setSelectedJob(null)}>
+        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+          {selectedJob && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  {selectedJob.jobNumber}
+                  <Badge className={statusTone[selectedJob.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(selectedJob.status)}</Badge>
+                  {selectedJob.runningLate && <Badge className="bg-rose-100 text-rose-700">Running Late</Badge>}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+                <div className="space-y-5">
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Customer and Appliance</CardTitle></CardHeader>
+                    <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+                      <div><span className="text-slate-500">Customer</span><p className="font-medium">{selectedJob.customer.firstName} {selectedJob.customer.lastName}</p></div>
+                      <div><span className="text-slate-500">Phone</span><p><a className="text-blue-700" href={`tel:${selectedJob.customer.phone}`}>{selectedJob.customer.phone}</a></p></div>
+                      <div><span className="text-slate-500">Appliance</span><p>{selectedJob.applianceBrand} {selectedJob.applianceType}</p></div>
+                      <div><span className="text-slate-500">Priority</span><p>{selectedJob.priority === "MEDIUM" ? "Normal" : selectedJob.priority}</p></div>
+                      <div className="md:col-span-2"><span className="text-slate-500">Issue</span><p>{selectedJob.issueDescription}</p></div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Callout Details</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                          <Label htmlFor="calloutAddress">Google Places Address</Label>
+                          <Input ref={addressInputRef} id="calloutAddress" defaultValue={selectedJob.calloutAddress || ""} placeholder="Select a Google Places result" />
+                        </div>
+                        <div>
+                          <Label htmlFor="scheduledTime">Scheduled Time</Label>
+                          <Input id="scheduledTime" type="datetime-local" defaultValue={(selectedJob.scheduledAt || "").slice(0, 16)} />
+                        </div>
+                        <div>
+                          <Label htmlFor="applianceLocation">Appliance Location</Label>
+                          <Input id="applianceLocation" defaultValue={selectedJob.calloutApplianceLocation || ""} />
+                        </div>
+                        <div>
+                          <Label htmlFor="calloutFee">Callout Fee</Label>
+                          <Input id="calloutFee" type="number" step="0.01" defaultValue={selectedJob.calloutFee || 0} />
+                        </div>
+                        <div>
+                          <Label>Distance</Label>
+                          <div className="mt-2 text-sm">{formatDistance(selectedJob.distanceFromOfficeKm)} / {selectedJob.estimatedTravelTime || "No travel time"}</div>
+                        </div>
+                        <div>
+                          <Label htmlFor="accessInstructions">Access Instructions</Label>
+                          <Textarea id="accessInstructions" defaultValue={selectedJob.calloutAccessInstructions || ""} />
+                        </div>
+                        <div>
+                          <Label htmlFor="parkingInstructions">Parking Instructions</Label>
+                          <Textarea id="parkingInstructions" defaultValue={selectedJob.calloutParkingNotes || ""} />
+                        </div>
+                      </div>
+                      <Button onClick={saveCalloutDetails}><Route className="mr-2 h-4 w-4" />Save Schedule and Route</Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Technician Notes</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <Select value={noteType} onValueChange={setNoteType}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>{FIELD_NOTE_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={noteVisibility} onValueChange={setNoteVisibility}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Internal">Internal</SelectItem>
+                            <SelectItem value="Customer Visible">Customer Visible</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button onClick={addNote}>Add Note</Button>
+                      </div>
+                      <Textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Add technician note" />
+                      <div className="space-y-2">
+                        {selectedJob.fieldNotes.map((note) => (
+                          <div key={note.id} className="rounded-md border border-slate-200 p-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-medium">{note.noteType}</span>
+                              <span className="text-xs text-slate-500">{formatDateTime(note.createdAt)}</span>
+                            </div>
+                            <p className="mt-1 whitespace-pre-wrap text-slate-700">{note.noteText}</p>
+                            <p className="mt-1 text-xs text-slate-500">{note.visibility}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Photos</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <Select value={photoCategory} onValueChange={setPhotoCategory}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>{FIELD_PHOTO_CATEGORIES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Input value={photoCaption} onChange={(event) => setPhotoCaption(event.target.value)} placeholder="Caption" />
+                        <Label className="flex cursor-pointer items-center justify-center rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">
+                          <Camera className="mr-2 h-4 w-4" />
+                          Upload Photo
+                          <Input type="file" accept="image/*" className="hidden" onChange={(event) => uploadPhoto(event.target.files?.[0])} />
+                        </Label>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {selectedJob.fieldPhotos.map((photo) => (
+                          <div key={photo.id} className="overflow-hidden rounded-md border border-slate-200">
+                            <img src={photo.fileUrl} alt={photo.caption || photo.photoCategory} className="h-32 w-full object-cover" />
+                            <div className="p-2 text-xs">
+                              <p className="font-medium">{photo.photoCategory}</p>
+                              {photo.caption && <p className="text-slate-500">{photo.caption}</p>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Dispatch</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <Label>Assigned Technician</Label>
+                        <Select value={selectedJob.assignedTechnicianId || "unassigned"} onValueChange={(value) => assignTechnician(selectedJob.id, value)}>
+                          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {data?.technicians.map((tech) => (
+                              <SelectItem key={tech.id} value={tech.id}>{tech.firstName} {tech.lastName}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Textarea value={assignmentNotes} onChange={(event) => setAssignmentNotes(event.target.value)} placeholder="Assignment notes" />
+                      <div>
+                        <Label>Status</Label>
+                        <Select value={selectedJob.status} onValueChange={(value) => updateStatus(selectedJob, value)}>
+                          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>{FIELD_SERVICE_STATUSES.map((item) => <SelectItem key={item} value={item}>{formatFieldStatus(item)}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" asChild><a href={`tel:${selectedJob.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
+                        <Button variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedJob.calloutAddress || "")}`} target="_blank" rel="noreferrer"><Navigation className="mr-2 h-4 w-4" />Maps</a></Button>
+                      </div>
+                      <Button className="w-full" onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}><Send className="mr-2 h-4 w-4" />Technician On The Way</Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Status History</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                      {selectedJob.statusHistory.map((entry) => (
+                        <div key={entry.id} className="rounded-md border border-slate-200 p-2 text-sm">
+                          <p className="font-medium">{formatFieldStatus(entry.newStatus || entry.status)}</p>
+                          {entry.notes && <p className="text-slate-600">{entry.notes}</p>}
+                          <p className="text-xs text-slate-500">{formatDateTime(entry.changedAt || entry.createdAt)}</p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader><CardTitle className="text-base">Customer Notifications</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                      {selectedJob.customerNotifications.length === 0 && <p className="text-sm text-slate-500">No customer notifications yet.</p>}
+                      {selectedJob.customerNotifications.map((notification) => (
+                        <div key={notification.id} className="rounded-md border border-slate-200 p-2 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{notification.notificationType}</span>
+                            <Badge variant="secondary">{notification.status}</Badge>
+                          </div>
+                          <p className="mt-1 text-slate-600">{notification.message}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {notification.sentAt ? `Sent ${formatDateTime(notification.sentAt)}` : notification.queuedUntil ? `Queued until ${formatDateTime(notification.queuedUntil)}` : formatDateTime(notification.createdAt)}
+                          </p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

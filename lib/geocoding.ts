@@ -2,6 +2,7 @@ export interface GeocodeResult {
   lat: number;
   lng: number;
   formattedAddress: string;
+  placeId?: string;
   city: string;
   postcode: string;
 }
@@ -30,6 +31,7 @@ export async function geocodeAddress(address: string, apiKey: string): Promise<G
         lat: result.geometry.location.lat,
         lng: result.geometry.location.lng,
         formattedAddress: result.formatted_address,
+        placeId: result.place_id,
         city: extractComponent(result, "locality"),
         postcode: extractComponent(result, "postal_code"),
       };

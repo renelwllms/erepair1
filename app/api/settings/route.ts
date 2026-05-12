@@ -51,6 +51,9 @@ const settingsSchema = z.object({
   // Callout settings
   calloutLocations: z.string().optional(),
   calloutTerms: z.string().optional(),
+  officeAddress: z.string().optional(),
+  officeLatitude: z.number().optional(),
+  officeLongitude: z.number().optional(),
   geocodingApiKey: z.string().optional(),
   geocodingProvider: z.string().optional(),
 });
@@ -178,6 +181,17 @@ export async function PUT(request: NextRequest) {
       quoteReminderDays: validatedData.quoteReminderDays || 3,
       quoteReminderFrequency: validatedData.quoteReminderFrequency || 3,
       quoteMaxReminders: validatedData.quoteMaxReminders || 3,
+
+      // Callout settings
+      calloutLocations: validatedData.calloutLocations || null,
+      calloutTerms: validatedData.calloutTerms || null,
+      officeAddress: validatedData.officeAddress || null,
+      officeLatitude:
+        typeof validatedData.officeLatitude === "number" ? validatedData.officeLatitude : null,
+      officeLongitude:
+        typeof validatedData.officeLongitude === "number" ? validatedData.officeLongitude : null,
+      geocodingApiKey: validatedData.geocodingApiKey || null,
+      geocodingProvider: validatedData.geocodingProvider || "GOOGLE",
     };
 
     // Only update passwords and secrets if provided (not empty)

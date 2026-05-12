@@ -19,6 +19,13 @@ import {
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
+declare global {
+  interface Window {
+    google?: any;
+    initEditJobPlaces?: () => void;
+  }
+}
+
 // Common appliances and brands
 const COMMON_APPLIANCES = [
   "Refrigerator",
@@ -89,6 +96,7 @@ const COMMON_BRANDS = [
 ];
 
 const jobSchema = z.object({
+  jobType: z.enum(["WORKSHOP_REPAIR", "CALLOUT_REPAIR"]).optional(),
   applianceBrand: z.string().min(1, "Appliance brand is required"),
   applianceType: z.string().min(1, "Appliance type is required"),
   modelNumber: z.string().optional(),
@@ -104,6 +112,50 @@ const jobSchema = z.object({
   diagnosticResults: z.string().optional(),
   technicianNotes: z.string().optional(),
   customerNotes: z.string().optional(),
+  calloutAddress: z.string().optional(),
+  calloutLatitude: z.number().optional(),
+  calloutLongitude: z.number().optional(),
+  googlePlaceId: z.string().optional(),
+  distanceFromOfficeKm: z.number().optional(),
+  estimatedTravelTime: z.string().optional(),
+  preferredCalloutDate: z.string().optional(),
+  calloutAccessInstructions: z.string().optional(),
+  calloutParkingNotes: z.string().optional(),
+  calloutApplianceLocation: z.string().optional(),
+  calloutFee: z.number().min(0).optional(),
+}).superRefine((data, ctx) => {
+  if (data.jobType !== "CALLOUT_REPAIR") {
+    return;
+  }
+
+  const requiredFields: Array<[
+    "calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation",
+    string
+  ]> = [
+    ["calloutAddress", "Full address is required for callout repairs"],
+    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
+    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
+    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
+    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
+  ];
+
+  for (const [field, message] of requiredFields) {
+    if (!data[field]?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message,
+      });
+    }
+  }
+
+  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["calloutAddress"],
+      message: "Select a Google Places address from the suggestions",
+    });
+  }
 });
 
 type JobFormData = z.infer<typeof jobSchema>;
@@ -125,6 +177,8 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const [customBrand, setCustomBrand] = useState("");
   const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
   const [brandSearchTerm, setBrandSearchTerm] = useState("");
+  const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+  const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const {
     register,
@@ -140,6 +194,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const assignedTechnicianId = watch("assignedTechnicianId");
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
+  const jobType = watch("jobType");
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -154,11 +209,82 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
+      return;
+    }
+
+    window.initEditJobPlaces = () => undefined;
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initEditJobPlaces`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, [jobType, mapsApiKey]);
+
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
+      return;
+    }
+
+    const input = document.getElementById("calloutAddress") as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["formatted_address", "geometry", "place_id"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", async () => {
+      const place = autocomplete.getPlace();
+      if (!place?.formatted_address || !place?.geometry?.location || !place.place_id) {
+        return;
+      }
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setValue("calloutAddress", place.formatted_address, { shouldValidate: true });
+      setValue("calloutLatitude", lat, { shouldValidate: true });
+      setValue("calloutLongitude", lng, { shouldValidate: true });
+      setValue("googlePlaceId", place.place_id, { shouldValidate: true });
+
+      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
+        const service = new window.google.maps.DistanceMatrixService();
+        service.getDistanceMatrix(
+          {
+            origins: [officeLocation],
+            destinations: [{ lat, lng }],
+            travelMode: window.google.maps.TravelMode.DRIVING,
+            drivingOptions: {
+              departureTime: new Date(Date.now() + 5 * 60 * 1000),
+              trafficModel: "bestguess",
+            },
+          },
+          (result: any, status: string) => {
+            if (status !== "OK") {
+              return;
+            }
+            const element = result?.rows?.[0]?.elements?.[0];
+            if (element?.status === "OK") {
+              setValue("distanceFromOfficeKm", element.distance.value / 1000);
+              setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+            }
+          }
+        );
+      }
+    });
+
+    return () => listener.remove();
+  }, [jobType, mapsApiKey, officeLocation, setValue]);
+
   const fetchData = async () => {
     try {
-      const [jobRes, techniciansRes] = await Promise.all([
+      const [jobRes, techniciansRes, settingsRes] = await Promise.all([
         fetch(`/api/jobs/${params.id}`),
         fetch("/api/users/technicians"),
+        fetch("/api/settings"),
       ]);
 
       if (!jobRes.ok) {
@@ -168,6 +294,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       const job = await jobRes.json();
 
       // Set form values
+      setValue("jobType", job.jobType || (job.isCallout ? "CALLOUT_REPAIR" : "WORKSHOP_REPAIR"));
       setValue("applianceBrand", job.applianceBrand);
       setValue("applianceType", job.applianceType);
       setValue("modelNumber", job.modelNumber || "");
@@ -182,15 +309,39 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       setValue("diagnosticResults", job.diagnosticResults || "");
       setValue("technicianNotes", job.technicianNotes || "");
       setValue("customerNotes", job.customerNotes || "");
+      setValue("calloutAddress", job.calloutAddress || "");
+      setValue("calloutLatitude", job.calloutLatitude ?? undefined);
+      setValue("calloutLongitude", job.calloutLongitude ?? undefined);
+      setValue("googlePlaceId", job.googlePlaceId || undefined);
+      setValue("distanceFromOfficeKm", job.distanceFromOfficeKm ?? undefined);
+      setValue("estimatedTravelTime", job.estimatedTravelTime || undefined);
+      setValue("calloutAccessInstructions", job.calloutAccessInstructions || "");
+      setValue("calloutParkingNotes", job.calloutParkingNotes || "");
+      setValue("calloutApplianceLocation", job.calloutApplianceLocation || "");
+      setValue("calloutFee", job.calloutFee ?? undefined);
 
       if (job.estimatedCompletion) {
         const date = new Date(job.estimatedCompletion);
         setValue("estimatedCompletion", date.toISOString().split('T')[0]);
       }
 
+      if (job.preferredCalloutDate) {
+        const date = new Date(job.preferredCalloutDate);
+        const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        setValue("preferredCalloutDate", localDate.toISOString().slice(0, 16));
+      }
+
       if (techniciansRes.ok) {
         const techData = await techniciansRes.json();
         setTechnicians(techData);
+      }
+
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        setMapsApiKey(settings.geocodingApiKey || null);
+        if (typeof settings.officeLatitude === "number" && typeof settings.officeLongitude === "number") {
+          setOfficeLocation({ lat: settings.officeLatitude, lng: settings.officeLongitude });
+        }
       }
     } catch (error: any) {
       toast({
@@ -463,6 +614,125 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                 </Select>
               </div>
             </div>
+
+            {jobType === "CALLOUT_REPAIR" && (
+              <>
+                <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+                  <h3 className="font-semibold text-blue-950">Callout Repair Details</h3>
+                  <p className="mt-1 text-sm text-blue-800">
+                    Address changes must be selected from Google Places so distance, travel time, and map routing stay accurate.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="calloutAddress">
+                    Full Address <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="calloutAddress"
+                    {...register("calloutAddress")}
+                    onChange={(event) => {
+                      setValue("calloutAddress", event.target.value, { shouldValidate: true });
+                      setValue("calloutLatitude", undefined, { shouldValidate: true });
+                      setValue("calloutLongitude", undefined, { shouldValidate: true });
+                      setValue("googlePlaceId", undefined, { shouldValidate: true });
+                    }}
+                    placeholder={mapsApiKey ? "Start typing and select a Google address" : "Google Maps API key required"}
+                    disabled={!mapsApiKey}
+                  />
+                  {!mapsApiKey && (
+                    <p className="text-xs text-amber-700">Add a Google Maps API key in settings before editing callout addresses.</p>
+                  )}
+                  {errors.calloutAddress && (
+                    <p className="text-sm text-red-500">{errors.calloutAddress.message}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="preferredCalloutDate">
+                      Preferred Date/Time <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="preferredCalloutDate"
+                      type="datetime-local"
+                      {...register("preferredCalloutDate")}
+                    />
+                    {errors.preferredCalloutDate && (
+                      <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutFee">Callout Fee</Label>
+                    <Input
+                      id="calloutFee"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      {...register("calloutFee", { valueAsNumber: true })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutApplianceLocation">
+                      Appliance Location <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="calloutApplianceLocation"
+                      {...register("calloutApplianceLocation")}
+                      placeholder="e.g., Kitchen, garage, upstairs laundry"
+                    />
+                    {errors.calloutApplianceLocation && (
+                      <p className="text-sm text-red-500">{errors.calloutApplianceLocation.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Travel Estimate</Label>
+                    <div className="rounded-md border px-3 py-2 text-sm text-gray-700">
+                      {watch("distanceFromOfficeKm") ? `${watch("distanceFromOfficeKm")?.toFixed(1)} km` : "Distance pending"}
+                      {watch("estimatedTravelTime") ? `, ${watch("estimatedTravelTime")}` : ""}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutAccessInstructions">
+                      Access Instructions <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutAccessInstructions"
+                      {...register("calloutAccessInstructions")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Gate codes, contact-on-arrival notes, entry details"
+                    />
+                    {errors.calloutAccessInstructions && (
+                      <p className="text-sm text-red-500">{errors.calloutAccessInstructions.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutParkingNotes">
+                      Parking Notes <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutParkingNotes"
+                      {...register("calloutParkingNotes")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Parking availability, permits, loading zone notes"
+                    />
+                    {errors.calloutParkingNotes && (
+                      <p className="text-sm text-red-500">{errors.calloutParkingNotes.message}</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Additional Information */}
             <div className="grid grid-cols-2 gap-4">

@@ -29,6 +29,13 @@ import { useToast } from "@/components/ui/use-toast";
 import { TermsSummary } from "@/components/legal/terms-summary";
 import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
 
+declare global {
+  interface Window {
+    google?: any;
+    initNewJobPlaces?: () => void;
+  }
+}
+
 // Common appliances and brands
 const COMMON_APPLIANCES = [
   "Refrigerator",
@@ -102,6 +109,7 @@ const COMMON_BRANDS = [
 ];
 
 const jobSchema = z.object({
+  jobType: z.enum(["WORKSHOP_REPAIR", "CALLOUT_REPAIR"]),
   customerId: z.string().min(1, "Customer is required"),
   applianceBrand: z.string().min(1, "Appliance brand is required"),
   applianceType: z.string().min(1, "Appliance type is required"),
@@ -114,6 +122,16 @@ const jobSchema = z.object({
   serviceLocation: z.string().optional(),
   estimatedCompletion: z.string().optional(),
   diagnosticFeeAmount: z.number().min(0).optional(),
+  calloutAddress: z.string().optional(),
+  calloutLatitude: z.number().optional(),
+  calloutLongitude: z.number().optional(),
+  googlePlaceId: z.string().optional(),
+  distanceFromOfficeKm: z.number().optional(),
+  estimatedTravelTime: z.string().optional(),
+  preferredCalloutDate: z.string().optional(),
+  calloutAccessInstructions: z.string().optional(),
+  calloutParkingNotes: z.string().optional(),
+  calloutApplianceLocation: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.applianceType === "Other" && (data.diagnosticFeeAmount === undefined || Number.isNaN(data.diagnosticFeeAmount))) {
     ctx.addIssue({
@@ -121,6 +139,34 @@ const jobSchema = z.object({
       path: ["diagnosticFeeAmount"],
       message: "Diagnostic fee is required when appliance type is Other",
     });
+  }
+
+  if (data.jobType === "CALLOUT_REPAIR") {
+    const requiredFields: Array<[("calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation"), string]> = [
+      ["calloutAddress", "Full address is required for callout repairs"],
+      ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
+      ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
+      ["calloutParkingNotes", "Parking notes are required for callout repairs"],
+      ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
+    ];
+
+    for (const [field, message] of requiredFields) {
+      if (!data[field]?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message,
+        });
+      }
+    }
+
+    if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["calloutAddress"],
+        message: "Select a Google Places address from the suggestions",
+      });
+    }
   }
 });
 
@@ -170,6 +216,8 @@ export default function NewJobPage() {
   const [diagnosticFees, setDiagnosticFees] = useState<Record<string, number>>({});
   const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState<number | null>(null);
   const [diagnosticFeeTouched, setDiagnosticFeeTouched] = useState(false);
+  const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+  const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const preselectedCustomerId = searchParams.get("customerId");
 
@@ -182,6 +230,7 @@ export default function NewJobPage() {
   } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
     defaultValues: {
+      jobType: "WORKSHOP_REPAIR",
       priority: "MEDIUM",
       customerId: preselectedCustomerId || "",
     },
@@ -200,6 +249,7 @@ export default function NewJobPage() {
   });
 
   const customerId = watch("customerId");
+  const jobType = watch("jobType");
   const priority = watch("priority");
   const assignedTechnicianId = watch("assignedTechnicianId");
   const applianceType = watch("applianceType");
@@ -232,6 +282,72 @@ export default function NewJobPage() {
     }
   }, [applianceType, diagnosticFees, diagnosticFeeDefaultOther, diagnosticFeeTouched, setValue]);
 
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
+      return;
+    }
+
+    window.initNewJobPlaces = () => undefined;
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initNewJobPlaces`;
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      delete window.initNewJobPlaces;
+    };
+  }, [jobType, mapsApiKey]);
+
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
+      return;
+    }
+
+    const input = document.getElementById("calloutAddress") as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["formatted_address", "geometry", "place_id"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", async () => {
+      const place = autocomplete.getPlace();
+      if (!place?.formatted_address || !place?.geometry?.location || !place.place_id) {
+        return;
+      }
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setValue("calloutAddress", place.formatted_address, { shouldValidate: true });
+      setValue("calloutLatitude", lat, { shouldValidate: true });
+      setValue("calloutLongitude", lng, { shouldValidate: true });
+      setValue("googlePlaceId", place.place_id, { shouldValidate: true });
+
+      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
+        const service = new window.google.maps.DistanceMatrixService();
+        const result = await service.getDistanceMatrix({
+          origins: [officeLocation],
+          destinations: [{ lat, lng }],
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          drivingOptions: {
+            departureTime: new Date(Date.now() + 5 * 60 * 1000),
+            trafficModel: "bestguess",
+          },
+        });
+        const element = result.rows?.[0]?.elements?.[0];
+        if (element?.status === "OK") {
+          setValue("distanceFromOfficeKm", element.distance.value / 1000);
+          setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+        }
+      }
+    });
+
+    return () => listener.remove();
+  }, [jobType, mapsApiKey, officeLocation, setValue]);
+
   const fetchData = async () => {
     try {
       const [customersRes, techniciansRes, settingsRes] = await Promise.all([
@@ -256,6 +372,10 @@ export default function NewJobPage() {
         setDiagnosticFeeDefaultOther(
           typeof data.diagnosticFeeDefaultOther === "number" ? data.diagnosticFeeDefaultOther : null
         );
+        setMapsApiKey(data.geocodingApiKey || null);
+        if (typeof data.officeLatitude === "number" && typeof data.officeLongitude === "number") {
+          setOfficeLocation({ lat: data.officeLatitude, lng: data.officeLongitude });
+        }
       }
     } catch (error) {
       toast({
@@ -372,6 +492,22 @@ export default function NewJobPage() {
             <CardDescription>Fill in the details below to create a new repair job</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Customer Selection with Create New Button */}
+            <div className="space-y-2">
+              <Label htmlFor="jobType">
+                Job Type <span className="text-red-500">*</span>
+              </Label>
+              <Select value={jobType} onValueChange={(value) => setValue("jobType", value as JobFormData["jobType"])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select job type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WORKSHOP_REPAIR">Workshop Repair</SelectItem>
+                  <SelectItem value="CALLOUT_REPAIR">Callout Repair</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Customer Selection with Create New Button */}
             <div className="space-y-2">
               <Label htmlFor="customerId">
@@ -675,11 +811,11 @@ export default function NewJobPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="priority">
-                  Priority <span className="text-red-500">*</span>
+                  {jobType === "CALLOUT_REPAIR" ? "Urgency" : "Priority"} <span className="text-red-500">*</span>
                 </Label>
                 <Select value={priority} onValueChange={(value) => setValue("priority", value as any)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
+                    <SelectValue placeholder={jobType === "CALLOUT_REPAIR" ? "Select urgency" : "Select priority"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="LOW">Low</SelectItem>
@@ -714,6 +850,96 @@ export default function NewJobPage() {
               </div>
             </div>
 
+            {jobType === "CALLOUT_REPAIR" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="calloutAddress">
+                    Full Address <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="calloutAddress"
+                    {...register("calloutAddress")}
+                    onChange={(event) => {
+                      setValue("calloutAddress", event.target.value, { shouldValidate: true });
+                      setValue("calloutLatitude", undefined);
+                      setValue("calloutLongitude", undefined);
+                      setValue("googlePlaceId", undefined);
+                    }}
+                    placeholder={mapsApiKey ? "Start typing and select a Google address" : "Google Maps API key required"}
+                    disabled={!mapsApiKey}
+                  />
+                  {!mapsApiKey && (
+                    <p className="text-xs text-amber-700">Add a Google Maps API key in settings before creating callout jobs.</p>
+                  )}
+                  {errors.calloutAddress && (
+                    <p className="text-sm text-red-500">{errors.calloutAddress.message}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="preferredCalloutDate">
+                      Preferred Date/Time <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="preferredCalloutDate"
+                      type="datetime-local"
+                      {...register("preferredCalloutDate")}
+                    />
+                    {errors.preferredCalloutDate && (
+                      <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutApplianceLocation">
+                      Appliance Location <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="calloutApplianceLocation"
+                      {...register("calloutApplianceLocation")}
+                      placeholder="e.g., Kitchen, garage, upstairs laundry"
+                    />
+                    {errors.calloutApplianceLocation && (
+                      <p className="text-sm text-red-500">{errors.calloutApplianceLocation.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutAccessInstructions">
+                      Access Instructions <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutAccessInstructions"
+                      {...register("calloutAccessInstructions")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Gate codes, contact-on-arrival notes, entry details"
+                    />
+                    {errors.calloutAccessInstructions && (
+                      <p className="text-sm text-red-500">{errors.calloutAccessInstructions.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutParkingNotes">
+                      Parking Notes <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutParkingNotes"
+                      {...register("calloutParkingNotes")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Parking availability, permits, loading zone notes"
+                    />
+                    {errors.calloutParkingNotes && (
+                      <p className="text-sm text-red-500">{errors.calloutParkingNotes.message}</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Additional Information */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -730,7 +956,7 @@ export default function NewJobPage() {
                 <Input
                   id="serviceLocation"
                   {...register("serviceLocation")}
-                  placeholder="e.g., Customer Location, Shop"
+                  placeholder={jobType === "CALLOUT_REPAIR" ? "e.g., On-site repair visit" : "e.g., Customer Location, Shop"}
                 />
               </div>
             </div>

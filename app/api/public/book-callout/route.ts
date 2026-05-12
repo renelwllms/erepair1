@@ -137,18 +137,25 @@ export async function POST(request: NextRequest) {
     const job = await db.job.create({
       data: {
         jobNumber,
+        jobType: "CALLOUT_REPAIR",
         customerId: customer.id,
         applianceBrand: "N/A",
         applianceType: "Callout Service",
         issueDescription: data.serviceDescription,
         priority: "MEDIUM",
-        status: "OPEN",
+        status: "NEW_CALLOUT",
         createdById: systemUser.id,
         isCallout: true,
         calloutLocation: detectedLocation.name,
         calloutFee: detectedLocation.fee,
-        calloutAddress: `${data.address}, ${data.city}, ${data.postcode}`,
+        calloutAddress: geocodeResult.formattedAddress || `${data.address}, ${data.city}, ${data.postcode}`,
+        calloutLatitude: geocodeResult.lat,
+        calloutLongitude: geocodeResult.lng,
+        googlePlaceId: geocodeResult.placeId || null,
         preferredCalloutDate: new Date(data.preferredDate),
+        scheduledTime: new Date(data.preferredDate),
+        scheduledDate: new Date(data.preferredDate),
+        statusUpdatedAt: new Date(),
         customerNotes: `Preferred contact: ${data.preferredContactMethod}`,
       }
     });
@@ -157,8 +164,11 @@ export async function POST(request: NextRequest) {
     await db.jobStatusHistory.create({
       data: {
         jobId: job.id,
-        status: "OPEN",
+        status: "NEW_CALLOUT",
+        previousStatus: null,
+        newStatus: "NEW_CALLOUT",
         notes: "Callout booking submitted via customer portal",
+        changedAt: new Date(),
       }
     });
 

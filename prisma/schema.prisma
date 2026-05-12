@@ -27,6 +27,15 @@ enum JobStatus {
   AWAITING_PARTS
   AWAITING_CUSTOMER_APPROVAL
   READY_FOR_PICKUP
+  NEW_CALLOUT
+  SCHEDULED
+  TECHNICIAN_ASSIGNED
+  TECHNICIAN_ON_THE_WAY
+  ARRIVED_ON_SITE
+  WORK_IN_PROGRESS
+  WAITING_FOR_PARTS
+  WAITING_FOR_CUSTOMER
+  COMPLETED
   CLOSED
   CANCELLED
   CUSTOMER_CANCELLED
@@ -37,6 +46,11 @@ enum JobPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum JobType {
+  WORKSHOP_REPAIR
+  CALLOUT_REPAIR
 }
 
 enum InvoiceStatus {
@@ -100,6 +114,9 @@ model User {
   notifications     Notification[]
   activityLogs      ActivityLog[]
   pushSubscriptions PushSubscription[]
+  jobNotes          JobNote[]               @relation("JobNoteTechnician")
+  uploadedJobPhotos JobPhoto[]              @relation("JobPhotoUploader")
+  createdCustomerNotifications CustomerNotification[] @relation("CustomerNotificationCreator")
 
   @@index([email])
   @@index([role])
@@ -137,6 +154,7 @@ model Customer {
 model Job {
   id                    String       @id @default(cuid())
   jobNumber             String       @unique
+  jobType               JobType      @default(WORKSHOP_REPAIR)
   customerId            String
   warrantyParentJobId   String?
   applianceBrand        String
@@ -166,7 +184,22 @@ model Job {
   calloutLocation       String?
   calloutFee            Float?
   calloutAddress        String?      @db.Text
+  calloutLatitude       Float?
+  calloutLongitude      Float?
+  googlePlaceId         String?
+  distanceFromOfficeKm  Float?
+  estimatedTravelTime   String?
+  scheduledDate         DateTime?
+  scheduledTime         DateTime?
+  assignedAt            DateTime?
+  assignedBy            String?
+  assignmentNotes       String?      @db.Text
+  statusUpdatedAt       DateTime?
+  customerNotificationSentAt DateTime?
   preferredCalloutDate  DateTime?
+  calloutAccessInstructions String?  @db.Text
+  calloutParkingNotes   String?      @db.Text
+  calloutApplianceLocation String?   @db.Text
 
   diagnosticFeeAmount       Float        @default(0)
   diagnosticFeePaid         Boolean      @default(false)
@@ -186,6 +219,9 @@ model Job {
   assignedTechnician    User?             @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
   createdBy             User              @relation("CreatedByUser", fields: [createdById], references: [id])
   statusHistory         JobStatusHistory[]
+  fieldNotes            JobNote[]
+  fieldPhotos           JobPhoto[]
+  customerNotifications CustomerNotification[]
   jobParts              JobPart[]
   quotes                Quote[]
   invoice               Invoice?
@@ -198,6 +234,8 @@ model Job {
   @@index([assignedTechnicianId])
   @@index([createdAt])
   @@index([lastNotificationSent])
+  @@index([jobType])
+  @@index([scheduledTime])
 }
 
 // 4. Job Status History Model (Timeline tracking)
@@ -205,14 +243,72 @@ model JobStatusHistory {
   id          String    @id @default(cuid())
   jobId       String
   status      JobStatus
+  previousStatus String?
+  newStatus   String?
   notes       String?   @db.Text
   changedBy   String?
+  changedAt   DateTime?
   createdAt   DateTime  @default(now())
 
   // Relations
   job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
+  @@index([createdAt])
+}
+
+model JobNote {
+  id            String   @id @default(cuid())
+  jobId         String
+  technicianId String?
+  noteType      String
+  noteText      String   @db.Text
+  visibility    String   @default("Internal")
+  createdAt     DateTime @default(now())
+
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  technician    User?    @relation("JobNoteTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([technicianId])
+  @@index([createdAt])
+}
+
+model JobPhoto {
+  id            String   @id @default(cuid())
+  jobId         String
+  uploadedBy    String?
+  photoCategory String
+  fileUrl       String
+  caption       String?
+  createdAt     DateTime @default(now())
+
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  uploader      User?    @relation("JobPhotoUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([uploadedBy])
+  @@index([createdAt])
+}
+
+model CustomerNotification {
+  id               String    @id @default(cuid())
+  jobId            String
+  notificationType String
+  recipient        String
+  status           String    @default("PENDING")
+  message          String    @db.Text
+  sentAt           DateTime?
+  queuedUntil      DateTime?
+  createdBy        String?
+  createdAt        DateTime  @default(now())
+
+  job              Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  creator          User?     @relation("CustomerNotificationCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([status])
+  @@index([queuedUntil])
   @@index([createdAt])
 }
 
@@ -462,6 +558,9 @@ model Settings {
   // Callout Settings
   calloutLocations          String?      @db.Text  // JSON: [{name, fee, bounds: {north, south, east, west}}]
   calloutTerms              String?      @db.Text
+  officeAddress             String?
+  officeLatitude            Float?
+  officeLongitude           Float?
   geocodingApiKey           String?      // Google Maps or alternative
   geocodingProvider         String       @default("GOOGLE")  // GOOGLE, OPENCAGE, MAPBOX
 
