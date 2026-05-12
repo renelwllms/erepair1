@@ -658,7 +658,14 @@ export default function FieldServiceDashboardPage() {
           </div>
           <div>
             <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1" />
+            <div className="mt-1 flex gap-2">
+              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+              {date && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setDate("")}>
+                  All
+                </Button>
+              )}
+            </div>
           </div>
           <div>
             <Label>Technician</Label>
