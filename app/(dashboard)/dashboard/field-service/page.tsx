@@ -79,6 +79,7 @@ interface FieldJob {
   googlePlaceId?: string | null;
   distanceFromOfficeKm?: number | null;
   estimatedTravelTime?: string | null;
+  travelEstimateSource?: string | null;
   calloutAccessInstructions?: string | null;
   calloutParkingNotes?: string | null;
   calloutApplianceLocation?: string | null;
@@ -174,6 +175,47 @@ const formatDateTime = (value?: string | null) => {
 const formatDistance = (value?: number | null) =>
   typeof value === "number" ? `${value.toFixed(1)} km` : "Not calculated";
 
+const calculateGoogleTravel = async (
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+) =>
+  new Promise<{ distanceFromOfficeKm: number; estimatedTravelTime: string } | null>((resolve) => {
+    if (!window.google?.maps?.DistanceMatrixService) {
+      resolve(null);
+      return;
+    }
+
+    const service = new window.google.maps.DistanceMatrixService();
+    service.getDistanceMatrix(
+      {
+        origins: [origin],
+        destinations: [destination],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(Date.now() + 5 * 60 * 1000),
+          trafficModel: "bestguess",
+        },
+      },
+      (result: any, status: string) => {
+        if (status !== "OK") {
+          resolve(null);
+          return;
+        }
+
+        const element = result?.rows?.[0]?.elements?.[0];
+        if (element?.status !== "OK") {
+          resolve(null);
+          return;
+        }
+
+        resolve({
+          distanceFromOfficeKm: element.distance.value / 1000,
+          estimatedTravelTime: element.duration_in_traffic?.text || element.duration?.text,
+        });
+      }
+    );
+  });
+
 const compressImage = async (file: File) => {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
@@ -203,7 +245,7 @@ export default function FieldServiceDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeCard, setActiveCard] = useState("all");
   const [search, setSearch] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState("");
   const [technicianId, setTechnicianId] = useState("all");
   const [status, setStatus] = useState("all");
   const [priority, setPriority] = useState("all");
@@ -218,6 +260,7 @@ export default function FieldServiceDashboardPage() {
   const [photoCategory, setPhotoCategory] = useState("Before Repair");
   const [photoCaption, setPhotoCaption] = useState("");
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
+  const [calloutAddressValue, setCalloutAddressValue] = useState("");
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -277,6 +320,11 @@ export default function FieldServiceDashboardPage() {
   }, [data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
 
   useEffect(() => {
+    setCalloutAddressValue(selectedJob?.calloutAddress || "");
+    selectedPlaceRef.current = null;
+  }, [selectedJob?.id]);
+
+  useEffect(() => {
     if (!window.google?.maps?.places || !addressInputRef.current || !selectedJob) return;
 
     const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
@@ -285,7 +333,14 @@ export default function FieldServiceDashboardPage() {
     });
 
     const listener = autocomplete.addListener("place_changed", () => {
-      selectedPlaceRef.current = autocomplete.getPlace();
+      const place = autocomplete.getPlace();
+      selectedPlaceRef.current = place;
+      if (place?.formatted_address) {
+        setCalloutAddressValue(place.formatted_address);
+        if (addressInputRef.current) {
+          addressInputRef.current.value = place.formatted_address;
+        }
+      }
     });
 
     return () => listener.remove();
@@ -467,7 +522,7 @@ export default function FieldServiceDashboardPage() {
   const saveCalloutDetails = async () => {
     if (!selectedJob) return;
     const place = selectedPlaceRef.current;
-    const addressValue = addressInputRef.current?.value?.trim();
+    const addressValue = calloutAddressValue.trim();
     const payload: Record<string, unknown> = {
       action: "schedule",
       scheduledTime: (document.getElementById("scheduledTime") as HTMLInputElement | null)?.value || undefined,
@@ -492,22 +547,29 @@ export default function FieldServiceDashboardPage() {
       payload.calloutLongitude = place.geometry.location.lng();
       payload.googlePlaceId = place.place_id;
 
-      if (window.google?.maps?.DistanceMatrixService && data?.map.officeLatitude && data?.map.officeLongitude) {
-        const service = new window.google.maps.DistanceMatrixService();
-        const result = await service.getDistanceMatrix({
-          origins: [{ lat: data.map.officeLatitude, lng: data.map.officeLongitude }],
-          destinations: [{ lat: payload.calloutLatitude, lng: payload.calloutLongitude }],
-          travelMode: window.google.maps.TravelMode.DRIVING,
-          drivingOptions: {
-            departureTime: new Date(Date.now() + 5 * 60 * 1000),
-            trafficModel: "bestguess",
-          },
-        });
-        const element = result.rows?.[0]?.elements?.[0];
-        if (element?.status === "OK") {
-          payload.distanceFromOfficeKm = element.distance.value / 1000;
-          payload.estimatedTravelTime = element.duration_in_traffic?.text || element.duration?.text;
-        }
+    }
+
+    const destination =
+      typeof payload.calloutLatitude === "number" && typeof payload.calloutLongitude === "number"
+        ? { lat: payload.calloutLatitude, lng: payload.calloutLongitude }
+        : typeof selectedJob.calloutLatitude === "number" && typeof selectedJob.calloutLongitude === "number"
+          ? { lat: selectedJob.calloutLatitude, lng: selectedJob.calloutLongitude }
+          : null;
+
+    if (
+      destination &&
+      data?.map.officeLatitude &&
+      data?.map.officeLongitude &&
+      (!selectedJob.distanceFromOfficeKm || !selectedJob.estimatedTravelTime || payload.calloutAddress)
+    ) {
+      const travel = await calculateGoogleTravel(
+        { lat: data.map.officeLatitude, lng: data.map.officeLongitude },
+        destination
+      );
+
+      if (travel) {
+        payload.distanceFromOfficeKm = travel.distanceFromOfficeKm;
+        payload.estimatedTravelTime = travel.estimatedTravelTime;
       }
     }
 
@@ -596,7 +658,14 @@ export default function FieldServiceDashboardPage() {
           </div>
           <div>
             <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1" />
+            <div className="mt-1 flex gap-2">
+              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+              {date && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setDate("")}>
+                  All
+                </Button>
+              )}
+            </div>
           </div>
           <div>
             <Label>Technician</Label>
@@ -689,7 +758,10 @@ export default function FieldServiceDashboardPage() {
                     <TableCell>{formatDateTime(job.createdAt)}</TableCell>
                     <TableCell>{formatDateTime(job.scheduledAt)}</TableCell>
                     <TableCell>{job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}</TableCell>
-                    <TableCell>{formatDistance(job.distanceFromOfficeKm)}</TableCell>
+                    <TableCell>
+                      {formatDistance(job.distanceFromOfficeKm)}
+                      {job.travelEstimateSource === "STRAIGHT_LINE_ESTIMATE" && <span className="ml-1 text-xs text-slate-500">(est.)</span>}
+                    </TableCell>
                     <TableCell>{job.estimatedTravelTime || "Not calculated"}</TableCell>
                     <TableCell><Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge></TableCell>
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
@@ -745,7 +817,15 @@ export default function FieldServiceDashboardPage() {
       </div>
 
       <Dialog open={Boolean(selectedJob)} onOpenChange={(open) => !open && setSelectedJob(null)}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+        <DialogContent
+          className="max-h-[92vh] max-w-5xl overflow-y-auto"
+          onInteractOutside={(event) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest(".pac-container")) {
+              event.preventDefault();
+            }
+          }}
+        >
           {selectedJob && (
             <>
               <DialogHeader>
@@ -773,10 +853,22 @@ export default function FieldServiceDashboardPage() {
                     <CardHeader><CardTitle className="text-base">Callout Details</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid gap-3 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                          <Label htmlFor="calloutAddress">Google Places Address</Label>
-                          <Input ref={addressInputRef} id="calloutAddress" defaultValue={selectedJob.calloutAddress || ""} placeholder="Select a Google Places result" />
-                        </div>
+	                        <div className="md:col-span-2">
+	                          <Label htmlFor="calloutAddress">Google Places Address</Label>
+	                          <Input
+	                            ref={addressInputRef}
+	                            id="calloutAddress"
+	                            value={calloutAddressValue}
+	                            onChange={(event) => {
+	                              setCalloutAddressValue(event.target.value);
+	                              selectedPlaceRef.current = null;
+	                            }}
+	                            placeholder="Select a Google Places result"
+	                          />
+	                          <p className="mt-1 text-xs text-slate-500">
+	                            Select a Google suggestion before saving if you change the address.
+	                          </p>
+	                        </div>
                         <div>
                           <Label htmlFor="scheduledTime">Scheduled Time</Label>
                           <Input id="scheduledTime" type="datetime-local" defaultValue={(selectedJob.scheduledAt || "").slice(0, 16)} />
@@ -791,7 +883,10 @@ export default function FieldServiceDashboardPage() {
                         </div>
                         <div>
                           <Label>Distance</Label>
-                          <div className="mt-2 text-sm">{formatDistance(selectedJob.distanceFromOfficeKm)} / {selectedJob.estimatedTravelTime || "No travel time"}</div>
+                          <div className="mt-2 text-sm">
+                            {formatDistance(selectedJob.distanceFromOfficeKm)} / {selectedJob.estimatedTravelTime || "No travel time"}
+                            {selectedJob.travelEstimateSource === "STRAIGHT_LINE_ESTIMATE" && <span className="ml-1 text-xs text-slate-500">(estimated)</span>}
+                          </div>
                         </div>
                         <div>
                           <Label htmlFor="accessInstructions">Access Instructions</Label>

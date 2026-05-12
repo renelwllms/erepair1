@@ -328,20 +328,27 @@ export default function NewJobPage() {
 
       if (officeLocation && window.google?.maps?.DistanceMatrixService) {
         const service = new window.google.maps.DistanceMatrixService();
-        const result = await service.getDistanceMatrix({
-          origins: [officeLocation],
-          destinations: [{ lat, lng }],
-          travelMode: window.google.maps.TravelMode.DRIVING,
-          drivingOptions: {
-            departureTime: new Date(Date.now() + 5 * 60 * 1000),
-            trafficModel: "bestguess",
+        service.getDistanceMatrix(
+          {
+            origins: [officeLocation],
+            destinations: [{ lat, lng }],
+            travelMode: window.google.maps.TravelMode.DRIVING,
+            drivingOptions: {
+              departureTime: new Date(Date.now() + 5 * 60 * 1000),
+              trafficModel: "bestguess",
+            },
           },
-        });
-        const element = result.rows?.[0]?.elements?.[0];
-        if (element?.status === "OK") {
-          setValue("distanceFromOfficeKm", element.distance.value / 1000);
-          setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
-        }
+          (result: any, status: string) => {
+            if (status !== "OK") {
+              return;
+            }
+            const element = result?.rows?.[0]?.elements?.[0];
+            if (element?.status === "OK") {
+              setValue("distanceFromOfficeKm", element.distance.value / 1000);
+              setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+            }
+          }
+        );
       }
     });
 
