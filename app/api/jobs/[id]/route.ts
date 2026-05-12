@@ -41,7 +41,10 @@ const jobUpdateSchema = z.object({
     return;
   }
 
-  const requiredFields: Array<[keyof typeof data, string]> = [
+  const requiredFields: Array<[
+    "calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation",
+    string
+  ]> = [
     ["calloutAddress", "Full address is required for callout repairs"],
     ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
     ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
