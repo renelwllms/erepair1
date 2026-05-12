@@ -482,12 +482,17 @@ export default function FieldServiceDashboardPage() {
     }
     const timer = window.setTimeout(async () => {
       try {
-        await mutateJob(job.id, {
+        const notification = await mutateJob(job.id, {
           action: "notifyCustomer",
           notificationType: "TECHNICIAN_ON_THE_WAY",
           message: `Hi ${job.customer.firstName}, your eRepair technician is now on the way for Job #${job.jobNumber}.`,
         }, "POST");
-        toast({ title: "Customer notification processed", description: "The on-the-way message was sent or queued." });
+        toast({
+          title: notification.status === "QUEUED" ? "Customer notification queued" : "Customer notification sent",
+          description: notification.status === "QUEUED" && notification.queuedUntil
+            ? `Quiet hours are active. It will send at ${formatDateTime(notification.queuedUntil)}.`
+            : "The on-the-way message was emailed to the customer.",
+        });
       } catch (error: any) {
         toast({ title: "Notification error", description: error.message, variant: "destructive" });
       } finally {
@@ -502,6 +507,24 @@ export default function FieldServiceDashboardPage() {
       window.clearTimeout(pendingNotification.timer);
     }
     setPendingNotification(null);
+  };
+
+  const sendQueuedNotificationNow = async (job: FieldJob, notification: FieldJob["customerNotifications"][number]) => {
+    try {
+      const updated = await mutateJob(job.id, {
+        action: "notifyCustomer",
+        notificationId: notification.id,
+        notificationType: notification.notificationType,
+        message: notification.message,
+        overrideQuietHours: true,
+      }, "POST");
+      toast({
+        title: updated.status === "SENT" ? "Customer notification sent" : "Customer notification updated",
+        description: updated.status === "SENT" ? "The queued message was emailed now." : `Status: ${updated.status}`,
+      });
+    } catch (error: any) {
+      toast({ title: "Notification error", description: error.message, variant: "destructive" });
+    }
   };
 
   const addNote = async () => {
@@ -1102,7 +1125,7 @@ export default function FieldServiceDashboardPage() {
                       {selectedJob.customerNotifications.length === 0 && <p className="text-sm text-slate-500">No customer notifications yet.</p>}
                       {selectedJob.customerNotifications.map((notification) => (
                         <div key={notification.id} className="rounded-md border border-slate-200 p-2 text-sm">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <span className="font-medium">{notification.notificationType}</span>
                             <Badge variant="secondary">{notification.status}</Badge>
                           </div>
@@ -1110,6 +1133,16 @@ export default function FieldServiceDashboardPage() {
                           <p className="mt-1 text-xs text-slate-500">
                             {notification.sentAt ? `Sent ${formatDateTime(notification.sentAt)}` : notification.queuedUntil ? `Queued until ${formatDateTime(notification.queuedUntil)}` : formatDateTime(notification.createdAt)}
                           </p>
+                          {notification.status === "QUEUED" && (
+                            <Button
+                              className="mt-2 h-9 w-full"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => sendQueuedNotificationNow(selectedJob, notification)}
+                            >
+                              Send Now
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </CardContent>
