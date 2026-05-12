@@ -131,19 +131,19 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Invoices</h1>
           <p className="text-gray-600 mt-1">Create and manage invoices</p>
         </div>
-        <Button onClick={() => router.push("/invoices/new")}>
+        <Button onClick={() => router.push("/invoices/new")} className="h-11 w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Invoice
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
@@ -198,8 +198,8 @@ export default function InvoicesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1 relative">
+          <div className="mb-6 grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px]">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search by invoice number, customer name, or email..."
@@ -208,7 +208,7 @@ export default function InvoicesPage() {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                className="pl-10"
+                className="h-11 pl-10 md:h-10"
               />
             </div>
             <Select
@@ -218,7 +218,7 @@ export default function InvoicesPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="h-11 w-full md:h-10">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -254,7 +254,47 @@ export default function InvoicesPage() {
             </div>
           ) : (
             <>
-              <div className="rounded-md border">
+              <div className="space-y-3 md:hidden">
+                {invoices.map((invoice) => (
+                  <div key={invoice.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-950">{invoice.invoiceNumber}</p>
+                        <p className="mt-1 truncate text-sm text-gray-700">
+                          {invoice.customer.firstName} {invoice.customer.lastName}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">{invoice.job.jobNumber} · {invoice.job.applianceBrand} {invoice.job.applianceType}</p>
+                      </div>
+                      <Badge variant={getStatusBadgeVariant(invoice.status)}>{formatStatus(invoice.status)}</Badge>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Total</p>
+                        <p className="font-semibold">{formatCurrency(invoice.totalAmount)}</p>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Paid</p>
+                        <p className="font-semibold text-green-600">{formatCurrency(invoice.paidAmount)}</p>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Balance</p>
+                        <p className="font-semibold text-orange-600">{formatCurrency(invoice.balanceAmount)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <Button className="h-11" onClick={() => handleViewInvoice(invoice.id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Open
+                      </Button>
+                      <Button variant="outline" className="h-11" onClick={() => router.push(`/jobs/${invoice.job.id}`)}>
+                        Job
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden rounded-md border overflow-x-auto md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -356,7 +396,7 @@ export default function InvoicesPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-gray-700">
                     Page {page} of {totalPages}
                   </p>
