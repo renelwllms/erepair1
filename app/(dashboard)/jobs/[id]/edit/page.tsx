@@ -19,6 +19,13 @@ import {
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
+declare global {
+  interface Window {
+    google?: any;
+    initEditJobPlaces?: () => void;
+  }
+}
+
 // Common appliances and brands
 const COMMON_APPLIANCES = [
   "Refrigerator",
@@ -89,6 +96,7 @@ const COMMON_BRANDS = [
 ];
 
 const jobSchema = z.object({
+  jobType: z.enum(["WORKSHOP_REPAIR", "CALLOUT_REPAIR"]).optional(),
   applianceBrand: z.string().min(1, "Appliance brand is required"),
   applianceType: z.string().min(1, "Appliance type is required"),
   modelNumber: z.string().optional(),
@@ -104,6 +112,50 @@ const jobSchema = z.object({
   diagnosticResults: z.string().optional(),
   technicianNotes: z.string().optional(),
   customerNotes: z.string().optional(),
+  calloutAddress: z.string().optional(),
+  calloutLatitude: z.number().optional(),
+  calloutLongitude: z.number().optional(),
+  googlePlaceId: z.string().optional(),
+  distanceFromOfficeKm: z.number().optional(),
+  estimatedTravelTime: z.string().optional(),
+  preferredCalloutDate: z.string().optional(),
+  calloutAccessInstructions: z.string().optional(),
+  calloutParkingNotes: z.string().optional(),
+  calloutApplianceLocation: z.string().optional(),
+  calloutFee: z.number().min(0).optional(),
+}).superRefine((data, ctx) => {
+  if (data.jobType !== "CALLOUT_REPAIR") {
+    return;
+  }
+
+  const requiredFields: Array<[
+    "calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation",
+    string
+  ]> = [
+    ["calloutAddress", "Full address is required for callout repairs"],
+    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
+    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
+    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
+    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
+  ];
+
+  for (const [field, message] of requiredFields) {
+    if (!data[field]?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message,
+      });
+    }
+  }
+
+  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["calloutAddress"],
+      message: "Select a Google Places address from the suggestions",
+    });
+  }
 });
 
 type JobFormData = z.infer<typeof jobSchema>;
@@ -125,6 +177,8 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const [customBrand, setCustomBrand] = useState("");
   const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
   const [brandSearchTerm, setBrandSearchTerm] = useState("");
+  const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+  const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const {
     register,
@@ -140,6 +194,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const assignedTechnicianId = watch("assignedTechnicianId");
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
+  const jobType = watch("jobType");
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -154,11 +209,82 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
+      return;
+    }
+
+    window.initEditJobPlaces = () => undefined;
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initEditJobPlaces`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, [jobType, mapsApiKey]);
+
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
+      return;
+    }
+
+    const input = document.getElementById("calloutAddress") as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["formatted_address", "geometry", "place_id"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", async () => {
+      const place = autocomplete.getPlace();
+      if (!place?.formatted_address || !place?.geometry?.location || !place.place_id) {
+        return;
+      }
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setValue("calloutAddress", place.formatted_address, { shouldValidate: true });
+      setValue("calloutLatitude", lat, { shouldValidate: true });
+      setValue("calloutLongitude", lng, { shouldValidate: true });
+      setValue("googlePlaceId", place.place_id, { shouldValidate: true });
+
+      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
+        const service = new window.google.maps.DistanceMatrixService();
+        service.getDistanceMatrix(
+          {
+            origins: [officeLocation],
+            destinations: [{ lat, lng }],
+            travelMode: window.google.maps.TravelMode.DRIVING,
+            drivingOptions: {
+              departureTime: new Date(Date.now() + 5 * 60 * 1000),
+              trafficModel: "bestguess",
+            },
+          },
+          (result: any, status: string) => {
+            if (status !== "OK") {
+              return;
+            }
+            const element = result?.rows?.[0]?.elements?.[0];
+            if (element?.status === "OK") {
+              setValue("distanceFromOfficeKm", element.distance.value / 1000);
+              setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+            }
+          }
+        );
+      }
+    });
+
+    return () => listener.remove();
+  }, [jobType, mapsApiKey, officeLocation, setValue]);
+
   const fetchData = async () => {
     try {
-      const [jobRes, techniciansRes] = await Promise.all([
+      const [jobRes, techniciansRes, settingsRes] = await Promise.all([
         fetch(`/api/jobs/${params.id}`),
         fetch("/api/users/technicians"),
+        fetch("/api/settings"),
       ]);
 
       if (!jobRes.ok) {
@@ -168,6 +294,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       const job = await jobRes.json();
 
       // Set form values
+      setValue("jobType", job.jobType || (job.isCallout ? "CALLOUT_REPAIR" : "WORKSHOP_REPAIR"));
       setValue("applianceBrand", job.applianceBrand);
       setValue("applianceType", job.applianceType);
       setValue("modelNumber", job.modelNumber || "");
@@ -182,15 +309,39 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
       setValue("diagnosticResults", job.diagnosticResults || "");
       setValue("technicianNotes", job.technicianNotes || "");
       setValue("customerNotes", job.customerNotes || "");
+      setValue("calloutAddress", job.calloutAddress || "");
+      setValue("calloutLatitude", job.calloutLatitude ?? undefined);
+      setValue("calloutLongitude", job.calloutLongitude ?? undefined);
+      setValue("googlePlaceId", job.googlePlaceId || undefined);
+      setValue("distanceFromOfficeKm", job.distanceFromOfficeKm ?? undefined);
+      setValue("estimatedTravelTime", job.estimatedTravelTime || undefined);
+      setValue("calloutAccessInstructions", job.calloutAccessInstructions || "");
+      setValue("calloutParkingNotes", job.calloutParkingNotes || "");
+      setValue("calloutApplianceLocation", job.calloutApplianceLocation || "");
+      setValue("calloutFee", job.calloutFee ?? undefined);
 
       if (job.estimatedCompletion) {
         const date = new Date(job.estimatedCompletion);
         setValue("estimatedCompletion", date.toISOString().split('T')[0]);
       }
 
+      if (job.preferredCalloutDate) {
+        const date = new Date(job.preferredCalloutDate);
+        const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        setValue("preferredCalloutDate", localDate.toISOString().slice(0, 16));
+      }
+
       if (techniciansRes.ok) {
         const techData = await techniciansRes.json();
         setTechnicians(techData);
+      }
+
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        setMapsApiKey(settings.geocodingApiKey || null);
+        if (typeof settings.officeLatitude === "number" && typeof settings.officeLongitude === "number") {
+          setOfficeLocation({ lat: settings.officeLatitude, lng: settings.officeLongitude });
+        }
       }
     } catch (error: any) {
       toast({
