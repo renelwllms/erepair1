@@ -58,6 +58,13 @@
   }
 }
 
+/* Google Places appends suggestions to <body>, outside Radix dialogs.
+   Keep the popup clickable and above modal overlays. */
+.pac-container {
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+
 /* Print Styles */
 @media print {
   /* Remove page margins for better layout */
