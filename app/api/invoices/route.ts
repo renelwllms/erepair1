@@ -7,16 +7,37 @@ import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
 
+const invoiceItemSchema = z.object({
+  description: z.string().min(1, "Description is required"),
+  quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+  unitPrice: z.number(),
+  itemType: z.enum(["PART", "LABOR", "SERVICE_FEE", "TAX", "DISCOUNT"]),
+}).superRefine((item, ctx) => {
+  if (item.itemType === "DISCOUNT") {
+    if (item.unitPrice > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["unitPrice"],
+        message: "Discount items must use a negative amount",
+      });
+    }
+    return;
+  }
+
+  if (item.unitPrice < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["unitPrice"],
+      message: "Only discount items can use a negative amount",
+    });
+  }
+});
+
 // Validation schema for invoice creation
 const invoiceCreateSchema = z.object({
   jobId: z.string().min(1, "Job ID is required"),
   dueDate: z.string().datetime(),
-  items: z.array(z.object({
-    description: z.string().min(1, "Description is required"),
-    quantity: z.number().min(0.01),
-    unitPrice: z.number().min(0),
-    itemType: z.enum(["PART", "LABOR", "SERVICE_FEE", "TAX", "DISCOUNT"]),
-  })).min(1, "At least one item is required"),
+  items: z.array(invoiceItemSchema).min(1, "At least one item is required"),
   taxRate: z.number().min(0).max(100).optional(),
   discountAmount: z.number().min(0).optional(),
   notes: z.string().optional(),
@@ -194,10 +215,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const hasDiagnosticCreditItem = validatedData.items.some((item) =>
+      item.itemType === "DISCOUNT" &&
+      item.description === "Diagnostic Fee (credited)" &&
+      item.quantity === 1 &&
+      Number(item.unitPrice) === -Math.abs(existingJob.diagnosticFeeAmount || 0)
+    );
+
     const shouldApplyDiagnosticFee =
       existingJob.diagnosticFeeAmount > 0 &&
       existingJob.diagnosticFeePaid &&
-      !existingJob.diagnosticFeeAppliedToInvoice;
+      !existingJob.diagnosticFeeAppliedToInvoice &&
+      !hasDiagnosticCreditItem;
 
     const invoiceItems = [
       ...validatedData.items,

@@ -305,7 +305,17 @@ export default function NewInvoicePage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to create invoice");
+        const detailMessage = Array.isArray(error.details)
+          ? error.details
+              .map((detail: { path?: Array<string | number>; message?: string }) => {
+                const path = Array.isArray(detail.path) && detail.path.length > 0
+                  ? `${detail.path.join(".")}: `
+                  : "";
+                return `${path}${detail.message || "Invalid value"}`;
+              })
+              .join(" | ")
+          : "";
+        throw new Error(detailMessage || error.error || "Failed to create invoice");
       }
 
       const invoice = await response.json();
