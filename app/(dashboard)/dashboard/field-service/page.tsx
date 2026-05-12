@@ -260,6 +260,7 @@ export default function FieldServiceDashboardPage() {
   const [photoCategory, setPhotoCategory] = useState("Before Repair");
   const [photoCaption, setPhotoCaption] = useState("");
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
+  const [calloutAddressValue, setCalloutAddressValue] = useState("");
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -319,6 +320,11 @@ export default function FieldServiceDashboardPage() {
   }, [data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
 
   useEffect(() => {
+    setCalloutAddressValue(selectedJob?.calloutAddress || "");
+    selectedPlaceRef.current = null;
+  }, [selectedJob?.id]);
+
+  useEffect(() => {
     if (!window.google?.maps?.places || !addressInputRef.current || !selectedJob) return;
 
     const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
@@ -327,7 +333,14 @@ export default function FieldServiceDashboardPage() {
     });
 
     const listener = autocomplete.addListener("place_changed", () => {
-      selectedPlaceRef.current = autocomplete.getPlace();
+      const place = autocomplete.getPlace();
+      selectedPlaceRef.current = place;
+      if (place?.formatted_address) {
+        setCalloutAddressValue(place.formatted_address);
+        if (addressInputRef.current) {
+          addressInputRef.current.value = place.formatted_address;
+        }
+      }
     });
 
     return () => listener.remove();
@@ -509,7 +522,7 @@ export default function FieldServiceDashboardPage() {
   const saveCalloutDetails = async () => {
     if (!selectedJob) return;
     const place = selectedPlaceRef.current;
-    const addressValue = addressInputRef.current?.value?.trim();
+    const addressValue = calloutAddressValue.trim();
     const payload: Record<string, unknown> = {
       action: "schedule",
       scheduledTime: (document.getElementById("scheduledTime") as HTMLInputElement | null)?.value || undefined,
@@ -825,10 +838,22 @@ export default function FieldServiceDashboardPage() {
                     <CardHeader><CardTitle className="text-base">Callout Details</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid gap-3 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                          <Label htmlFor="calloutAddress">Google Places Address</Label>
-                          <Input ref={addressInputRef} id="calloutAddress" defaultValue={selectedJob.calloutAddress || ""} placeholder="Select a Google Places result" />
-                        </div>
+	                        <div className="md:col-span-2">
+	                          <Label htmlFor="calloutAddress">Google Places Address</Label>
+	                          <Input
+	                            ref={addressInputRef}
+	                            id="calloutAddress"
+	                            value={calloutAddressValue}
+	                            onChange={(event) => {
+	                              setCalloutAddressValue(event.target.value);
+	                              selectedPlaceRef.current = null;
+	                            }}
+	                            placeholder="Select a Google Places result"
+	                          />
+	                          <p className="mt-1 text-xs text-slate-500">
+	                            Select a Google suggestion before saving if you change the address.
+	                          </p>
+	                        </div>
                         <div>
                           <Label htmlFor="scheduledTime">Scheduled Time</Label>
                           <Input id="scheduledTime" type="datetime-local" defaultValue={(selectedJob.scheduledAt || "").slice(0, 16)} />
