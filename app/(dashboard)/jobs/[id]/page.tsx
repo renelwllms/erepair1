@@ -45,6 +45,8 @@ import { Textarea } from "@/components/ui/textarea";
 interface JobDetails {
   id: string;
   jobNumber: string;
+  jobType?: "WORKSHOP_REPAIR" | "CALLOUT_REPAIR";
+  isCallout?: boolean;
   isWarrantyReturn?: boolean;
   applianceBrand: string;
   applianceType: string;
@@ -57,6 +59,11 @@ interface JobDetails {
   actualCompletion?: string;
   warrantyStatus?: string;
   serviceLocation?: string;
+  calloutAddress?: string | null;
+  preferredCalloutDate?: string | null;
+  calloutAccessInstructions?: string | null;
+  calloutParkingNotes?: string | null;
+  calloutApplianceLocation?: string | null;
   laborHours: number;
   diagnosticFeeAmount: number;
   diagnosticFeePaid: boolean;
@@ -608,6 +615,9 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
       {/* Status and Priority Badges */}
       <div className="flex gap-2">
+        <Badge variant="secondary" className="text-base px-3 py-1">
+          {job.jobType === "CALLOUT_REPAIR" || job.isCallout ? "Callout Repair" : "Workshop Repair"}
+        </Badge>
         <Badge variant={getStatusBadgeVariant(job.status)} className="text-base px-3 py-1">
           {formatStatus(job.status)}
         </Badge>
@@ -675,6 +685,36 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Service Location</p>
                     <p className="text-sm mt-1">{job.serviceLocation}</p>
+                  </div>
+                )}
+                {(job.jobType === "CALLOUT_REPAIR" || job.isCallout) && job.calloutAddress && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Full Address</p>
+                    <p className="text-sm mt-1 whitespace-pre-wrap">{job.calloutAddress}</p>
+                  </div>
+                )}
+                {(job.jobType === "CALLOUT_REPAIR" || job.isCallout) && job.preferredCalloutDate && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Preferred Date/Time</p>
+                    <p className="text-sm mt-1">{new Date(job.preferredCalloutDate).toLocaleString()}</p>
+                  </div>
+                )}
+                {(job.jobType === "CALLOUT_REPAIR" || job.isCallout) && job.calloutApplianceLocation && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Appliance Location</p>
+                    <p className="text-sm mt-1 whitespace-pre-wrap">{job.calloutApplianceLocation}</p>
+                  </div>
+                )}
+                {(job.jobType === "CALLOUT_REPAIR" || job.isCallout) && job.calloutAccessInstructions && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Access Instructions</p>
+                    <p className="text-sm mt-1 whitespace-pre-wrap">{job.calloutAccessInstructions}</p>
+                  </div>
+                )}
+                {(job.jobType === "CALLOUT_REPAIR" || job.isCallout) && job.calloutParkingNotes && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Parking Notes</p>
+                    <p className="text-sm mt-1 whitespace-pre-wrap">{job.calloutParkingNotes}</p>
                   </div>
                 )}
                 {job.status === "AWAITING_CUSTOMER_APPROVAL" && job.quotes?.[0] && (

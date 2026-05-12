@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 
 // Validation schema for job update
 const jobUpdateSchema = z.object({
+  jobType: z.enum(["WORKSHOP_REPAIR", "CALLOUT_REPAIR"]).optional(),
   applianceBrand: z.string().min(1, "Appliance brand is required").optional(),
   applianceType: z.string().min(1, "Appliance type is required").optional(),
   modelNumber: z.string().optional(),
@@ -30,6 +31,33 @@ const jobUpdateSchema = z.object({
   diagnosticFeePaymentMethod: z.enum(["CASH", "CREDIT_CARD", "DEBIT_CARD", "BANK_TRANSFER", "CHECK", "OTHER"]).nullable().optional(),
   diagnosticFeeAppliedToInvoice: z.boolean().optional(),
   repairApproved: z.boolean().optional(),
+  calloutAddress: z.string().nullable().optional(),
+  preferredCalloutDate: z.string().nullable().optional(),
+  calloutAccessInstructions: z.string().nullable().optional(),
+  calloutParkingNotes: z.string().nullable().optional(),
+  calloutApplianceLocation: z.string().nullable().optional(),
+}).superRefine((data, ctx) => {
+  if (data.jobType !== "CALLOUT_REPAIR") {
+    return;
+  }
+
+  const requiredFields: Array<[keyof typeof data, string]> = [
+    ["calloutAddress", "Full address is required for callout repairs"],
+    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
+    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
+    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
+    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
+  ];
+
+  for (const [field, message] of requiredFields) {
+    if (!data[field]?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message,
+      });
+    }
+  }
 });
 
 // GET /api/jobs/[id] - Get a single job
@@ -214,14 +242,30 @@ export async function PUT(
         ? new Date(validatedData.diagnosticFeePaidAt)
         : null;
     }
+    let preferredCalloutDate: Date | null | undefined = undefined;
+    if (validatedData.preferredCalloutDate !== undefined) {
+      preferredCalloutDate = validatedData.preferredCalloutDate
+        ? new Date(validatedData.preferredCalloutDate)
+        : null;
+    }
+
+    const nextJobType = validatedData.jobType ?? existingJob.jobType ?? (existingJob.isCallout ? "CALLOUT_REPAIR" : "WORKSHOP_REPAIR");
+    const isCallout = nextJobType === "CALLOUT_REPAIR";
 
     // Update job
     const job = await dbAny.job.update({
       where: { id: params.id },
       data: {
         ...validatedData,
+        jobType: nextJobType,
+        isCallout,
         estimatedCompletion: estimatedCompletionDate,
         diagnosticFeePaidAt: diagnosticFeePaidAtDate,
+        preferredCalloutDate,
+        calloutAddress: isCallout ? validatedData.calloutAddress ?? existingJob.calloutAddress : null,
+        calloutAccessInstructions: isCallout ? validatedData.calloutAccessInstructions ?? existingJob.calloutAccessInstructions : null,
+        calloutParkingNotes: isCallout ? validatedData.calloutParkingNotes ?? existingJob.calloutParkingNotes : null,
+        calloutApplianceLocation: isCallout ? validatedData.calloutApplianceLocation ?? existingJob.calloutApplianceLocation : null,
       },
       include: {
         customer: true,

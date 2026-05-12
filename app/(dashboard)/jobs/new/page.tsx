@@ -102,6 +102,7 @@ const COMMON_BRANDS = [
 ];
 
 const jobSchema = z.object({
+  jobType: z.enum(["WORKSHOP_REPAIR", "CALLOUT_REPAIR"]),
   customerId: z.string().min(1, "Customer is required"),
   applianceBrand: z.string().min(1, "Appliance brand is required"),
   applianceType: z.string().min(1, "Appliance type is required"),
@@ -114,6 +115,11 @@ const jobSchema = z.object({
   serviceLocation: z.string().optional(),
   estimatedCompletion: z.string().optional(),
   diagnosticFeeAmount: z.number().min(0).optional(),
+  calloutAddress: z.string().optional(),
+  preferredCalloutDate: z.string().optional(),
+  calloutAccessInstructions: z.string().optional(),
+  calloutParkingNotes: z.string().optional(),
+  calloutApplianceLocation: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.applianceType === "Other" && (data.diagnosticFeeAmount === undefined || Number.isNaN(data.diagnosticFeeAmount))) {
     ctx.addIssue({
@@ -121,6 +127,26 @@ const jobSchema = z.object({
       path: ["diagnosticFeeAmount"],
       message: "Diagnostic fee is required when appliance type is Other",
     });
+  }
+
+  if (data.jobType === "CALLOUT_REPAIR") {
+    const requiredFields: Array<[("calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation"), string]> = [
+      ["calloutAddress", "Full address is required for callout repairs"],
+      ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
+      ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
+      ["calloutParkingNotes", "Parking notes are required for callout repairs"],
+      ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
+    ];
+
+    for (const [field, message] of requiredFields) {
+      if (!data[field]?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message,
+        });
+      }
+    }
   }
 });
 
@@ -182,6 +208,7 @@ export default function NewJobPage() {
   } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
     defaultValues: {
+      jobType: "WORKSHOP_REPAIR",
       priority: "MEDIUM",
       customerId: preselectedCustomerId || "",
     },
@@ -200,6 +227,7 @@ export default function NewJobPage() {
   });
 
   const customerId = watch("customerId");
+  const jobType = watch("jobType");
   const priority = watch("priority");
   const assignedTechnicianId = watch("assignedTechnicianId");
   const applianceType = watch("applianceType");
@@ -372,6 +400,22 @@ export default function NewJobPage() {
             <CardDescription>Fill in the details below to create a new repair job</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Customer Selection with Create New Button */}
+            <div className="space-y-2">
+              <Label htmlFor="jobType">
+                Job Type <span className="text-red-500">*</span>
+              </Label>
+              <Select value={jobType} onValueChange={(value) => setValue("jobType", value as JobFormData["jobType"])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select job type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WORKSHOP_REPAIR">Workshop Repair</SelectItem>
+                  <SelectItem value="CALLOUT_REPAIR">Callout Repair</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Customer Selection with Create New Button */}
             <div className="space-y-2">
               <Label htmlFor="customerId">
@@ -675,11 +719,11 @@ export default function NewJobPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="priority">
-                  Priority <span className="text-red-500">*</span>
+                  {jobType === "CALLOUT_REPAIR" ? "Urgency" : "Priority"} <span className="text-red-500">*</span>
                 </Label>
                 <Select value={priority} onValueChange={(value) => setValue("priority", value as any)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
+                    <SelectValue placeholder={jobType === "CALLOUT_REPAIR" ? "Select urgency" : "Select priority"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="LOW">Low</SelectItem>
@@ -714,6 +758,86 @@ export default function NewJobPage() {
               </div>
             </div>
 
+            {jobType === "CALLOUT_REPAIR" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="calloutAddress">
+                    Full Address <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="calloutAddress"
+                    {...register("calloutAddress")}
+                    placeholder="Enter the full service address"
+                  />
+                  {errors.calloutAddress && (
+                    <p className="text-sm text-red-500">{errors.calloutAddress.message}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="preferredCalloutDate">
+                      Preferred Date/Time <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="preferredCalloutDate"
+                      type="datetime-local"
+                      {...register("preferredCalloutDate")}
+                    />
+                    {errors.preferredCalloutDate && (
+                      <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutApplianceLocation">
+                      Appliance Location <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="calloutApplianceLocation"
+                      {...register("calloutApplianceLocation")}
+                      placeholder="e.g., Kitchen, garage, upstairs laundry"
+                    />
+                    {errors.calloutApplianceLocation && (
+                      <p className="text-sm text-red-500">{errors.calloutApplianceLocation.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutAccessInstructions">
+                      Access Instructions <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutAccessInstructions"
+                      {...register("calloutAccessInstructions")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Gate codes, contact-on-arrival notes, entry details"
+                    />
+                    {errors.calloutAccessInstructions && (
+                      <p className="text-sm text-red-500">{errors.calloutAccessInstructions.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutParkingNotes">
+                      Parking Notes <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutParkingNotes"
+                      {...register("calloutParkingNotes")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Parking availability, permits, loading zone notes"
+                    />
+                    {errors.calloutParkingNotes && (
+                      <p className="text-sm text-red-500">{errors.calloutParkingNotes.message}</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Additional Information */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -730,7 +854,7 @@ export default function NewJobPage() {
                 <Input
                   id="serviceLocation"
                   {...register("serviceLocation")}
-                  placeholder="e.g., Customer Location, Shop"
+                  placeholder={jobType === "CALLOUT_REPAIR" ? "e.g., On-site repair visit" : "e.g., Customer Location, Shop"}
                 />
               </div>
             </div>

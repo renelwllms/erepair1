@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 
 // Validation schema for job
 const jobSchema = z.object({
+  jobType: z.enum(["WORKSHOP_REPAIR", "CALLOUT_REPAIR"]).default("WORKSHOP_REPAIR"),
   customerId: z.string().min(1, "Customer is required"),
   applianceBrand: z.string().min(1, "Appliance brand is required"),
   applianceType: z.string().min(1, "Appliance type is required"),
@@ -23,6 +24,33 @@ const jobSchema = z.object({
   serviceLocation: z.string().optional(),
   estimatedCompletion: z.string().optional(),
   diagnosticFeeAmount: z.number().min(0).optional(),
+  calloutAddress: z.string().optional(),
+  preferredCalloutDate: z.string().optional(),
+  calloutAccessInstructions: z.string().optional(),
+  calloutParkingNotes: z.string().optional(),
+  calloutApplianceLocation: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.jobType !== "CALLOUT_REPAIR") {
+    return;
+  }
+
+  const requiredFields: Array<[keyof typeof data, string]> = [
+    ["calloutAddress", "Full address is required for callout repairs"],
+    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
+    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
+    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
+    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
+  ];
+
+  for (const [field, message] of requiredFields) {
+    if (!data[field]?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message,
+      });
+    }
+  }
 });
 
 // GET /api/jobs - Get all jobs with optional filters
@@ -288,11 +316,16 @@ export async function POST(request: NextRequest) {
     let estimatedCompletionDate = validatedData.estimatedCompletion
       ? new Date(validatedData.estimatedCompletion)
       : null;
+    const preferredCalloutDate = validatedData.preferredCalloutDate
+      ? new Date(validatedData.preferredCalloutDate)
+      : null;
+    const isCallout = validatedData.jobType === "CALLOUT_REPAIR";
 
     // Create job
     const job = await dbAny.job.create({
       data: {
         jobNumber,
+        jobType: validatedData.jobType,
         customerId: validatedData.customerId,
         applianceBrand: validatedData.applianceBrand,
         applianceType: validatedData.applianceType,
@@ -306,6 +339,12 @@ export async function POST(request: NextRequest) {
         warrantyStatus: validatedData.warrantyStatus,
         serviceLocation: validatedData.serviceLocation,
         estimatedCompletion: estimatedCompletionDate,
+        isCallout,
+        calloutAddress: isCallout ? validatedData.calloutAddress : null,
+        preferredCalloutDate,
+        calloutAccessInstructions: isCallout ? validatedData.calloutAccessInstructions : null,
+        calloutParkingNotes: isCallout ? validatedData.calloutParkingNotes : null,
+        calloutApplianceLocation: isCallout ? validatedData.calloutApplianceLocation : null,
         diagnosticFeeAmount,
       },
       include: {

@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
     const job = await db.job.create({
       data: {
         jobNumber,
+        jobType: "CALLOUT_REPAIR",
         customerId: customer.id,
         applianceBrand: "N/A",
         applianceType: "Callout Service",
