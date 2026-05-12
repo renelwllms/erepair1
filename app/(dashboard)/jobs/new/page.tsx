@@ -29,6 +29,13 @@ import { useToast } from "@/components/ui/use-toast";
 import { TermsSummary } from "@/components/legal/terms-summary";
 import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
 
+declare global {
+  interface Window {
+    google?: any;
+    initNewJobPlaces?: () => void;
+  }
+}
+
 // Common appliances and brands
 const COMMON_APPLIANCES = [
   "Refrigerator",
@@ -116,6 +123,11 @@ const jobSchema = z.object({
   estimatedCompletion: z.string().optional(),
   diagnosticFeeAmount: z.number().min(0).optional(),
   calloutAddress: z.string().optional(),
+  calloutLatitude: z.number().optional(),
+  calloutLongitude: z.number().optional(),
+  googlePlaceId: z.string().optional(),
+  distanceFromOfficeKm: z.number().optional(),
+  estimatedTravelTime: z.string().optional(),
   preferredCalloutDate: z.string().optional(),
   calloutAccessInstructions: z.string().optional(),
   calloutParkingNotes: z.string().optional(),
@@ -146,6 +158,14 @@ const jobSchema = z.object({
           message,
         });
       }
+    }
+
+    if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["calloutAddress"],
+        message: "Select a Google Places address from the suggestions",
+      });
     }
   }
 });
@@ -196,6 +216,8 @@ export default function NewJobPage() {
   const [diagnosticFees, setDiagnosticFees] = useState<Record<string, number>>({});
   const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState<number | null>(null);
   const [diagnosticFeeTouched, setDiagnosticFeeTouched] = useState(false);
+  const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+  const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const preselectedCustomerId = searchParams.get("customerId");
 
@@ -260,6 +282,72 @@ export default function NewJobPage() {
     }
   }, [applianceType, diagnosticFees, diagnosticFeeDefaultOther, diagnosticFeeTouched, setValue]);
 
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
+      return;
+    }
+
+    window.initNewJobPlaces = () => undefined;
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initNewJobPlaces`;
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      delete window.initNewJobPlaces;
+    };
+  }, [jobType, mapsApiKey]);
+
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
+      return;
+    }
+
+    const input = document.getElementById("calloutAddress") as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["formatted_address", "geometry", "place_id"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", async () => {
+      const place = autocomplete.getPlace();
+      if (!place?.formatted_address || !place?.geometry?.location || !place.place_id) {
+        return;
+      }
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setValue("calloutAddress", place.formatted_address, { shouldValidate: true });
+      setValue("calloutLatitude", lat, { shouldValidate: true });
+      setValue("calloutLongitude", lng, { shouldValidate: true });
+      setValue("googlePlaceId", place.place_id, { shouldValidate: true });
+
+      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
+        const service = new window.google.maps.DistanceMatrixService();
+        const result = await service.getDistanceMatrix({
+          origins: [officeLocation],
+          destinations: [{ lat, lng }],
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          drivingOptions: {
+            departureTime: new Date(Date.now() + 5 * 60 * 1000),
+            trafficModel: "bestguess",
+          },
+        });
+        const element = result.rows?.[0]?.elements?.[0];
+        if (element?.status === "OK") {
+          setValue("distanceFromOfficeKm", element.distance.value / 1000);
+          setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+        }
+      }
+    });
+
+    return () => listener.remove();
+  }, [jobType, mapsApiKey, officeLocation, setValue]);
+
   const fetchData = async () => {
     try {
       const [customersRes, techniciansRes, settingsRes] = await Promise.all([
@@ -284,6 +372,10 @@ export default function NewJobPage() {
         setDiagnosticFeeDefaultOther(
           typeof data.diagnosticFeeDefaultOther === "number" ? data.diagnosticFeeDefaultOther : null
         );
+        setMapsApiKey(data.geocodingApiKey || null);
+        if (typeof data.officeLatitude === "number" && typeof data.officeLongitude === "number") {
+          setOfficeLocation({ lat: data.officeLatitude, lng: data.officeLongitude });
+        }
       }
     } catch (error) {
       toast({
@@ -767,8 +859,18 @@ export default function NewJobPage() {
                   <Input
                     id="calloutAddress"
                     {...register("calloutAddress")}
-                    placeholder="Enter the full service address"
+                    onChange={(event) => {
+                      setValue("calloutAddress", event.target.value, { shouldValidate: true });
+                      setValue("calloutLatitude", undefined);
+                      setValue("calloutLongitude", undefined);
+                      setValue("googlePlaceId", undefined);
+                    }}
+                    placeholder={mapsApiKey ? "Start typing and select a Google address" : "Google Maps API key required"}
+                    disabled={!mapsApiKey}
                   />
+                  {!mapsApiKey && (
+                    <p className="text-xs text-amber-700">Add a Google Maps API key in settings before creating callout jobs.</p>
+                  )}
                   {errors.calloutAddress && (
                     <p className="text-sm text-red-500">{errors.calloutAddress.message}</p>
                   )}

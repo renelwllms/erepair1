@@ -25,6 +25,11 @@ const jobSchema = z.object({
   estimatedCompletion: z.string().optional(),
   diagnosticFeeAmount: z.number().min(0).optional(),
   calloutAddress: z.string().optional(),
+  calloutLatitude: z.number().optional(),
+  calloutLongitude: z.number().optional(),
+  googlePlaceId: z.string().optional(),
+  distanceFromOfficeKm: z.number().optional(),
+  estimatedTravelTime: z.string().optional(),
   preferredCalloutDate: z.string().optional(),
   calloutAccessInstructions: z.string().optional(),
   calloutParkingNotes: z.string().optional(),
@@ -53,6 +58,14 @@ const jobSchema = z.object({
         message,
       });
     }
+  }
+
+  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["calloutAddress"],
+      message: "Select a Google Places address before creating a callout repair",
+    });
   }
 });
 
@@ -336,7 +349,7 @@ export async function POST(request: NextRequest) {
         serialNumber: validatedData.serialNumber,
         issueDescription: validatedData.issueDescription,
         priority: validatedData.priority,
-        status: "OPEN",
+        status: isCallout ? "NEW_CALLOUT" : "OPEN",
         assignedTechnicianId: validatedData.assignedTechnicianId,
         createdById: session.user.id,
         warrantyStatus: validatedData.warrantyStatus,
@@ -344,10 +357,18 @@ export async function POST(request: NextRequest) {
         estimatedCompletion: estimatedCompletionDate,
         isCallout,
         calloutAddress: isCallout ? validatedData.calloutAddress : null,
+        calloutLatitude: isCallout ? validatedData.calloutLatitude : null,
+        calloutLongitude: isCallout ? validatedData.calloutLongitude : null,
+        googlePlaceId: isCallout ? validatedData.googlePlaceId : null,
+        distanceFromOfficeKm: isCallout ? validatedData.distanceFromOfficeKm : null,
+        estimatedTravelTime: isCallout ? validatedData.estimatedTravelTime : null,
+        scheduledTime: isCallout ? preferredCalloutDate : null,
+        scheduledDate: isCallout ? preferredCalloutDate : null,
         preferredCalloutDate,
         calloutAccessInstructions: isCallout ? validatedData.calloutAccessInstructions : null,
         calloutParkingNotes: isCallout ? validatedData.calloutParkingNotes : null,
         calloutApplianceLocation: isCallout ? validatedData.calloutApplianceLocation : null,
+        statusUpdatedAt: isCallout ? new Date() : null,
         diagnosticFeeAmount,
       },
       include: {
@@ -361,9 +382,12 @@ export async function POST(request: NextRequest) {
     await db.jobStatusHistory.create({
       data: {
         jobId: job.id,
-        status: "OPEN",
+        status: isCallout ? "NEW_CALLOUT" : "OPEN",
+        previousStatus: null,
+        newStatus: isCallout ? "NEW_CALLOUT" : "OPEN",
         notes: "Job created",
         changedBy: session.user.id,
+        changedAt: new Date(),
       },
     });
 

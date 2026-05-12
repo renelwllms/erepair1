@@ -14,6 +14,7 @@ import {
   BarChart3,
   Calendar,
   Receipt,
+  MapPinned,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { useState, useEffect } from "react";
@@ -38,6 +39,12 @@ const navItems = [
     title: "Jobs",
     href: "/jobs",
     icon: Briefcase,
+    roles: ["ADMIN", "TECHNICIAN"],
+  },
+  {
+    title: "Field Service",
+    href: "/dashboard/field-service",
+    icon: MapPinned,
     roles: ["ADMIN", "TECHNICIAN"],
   },
   {
