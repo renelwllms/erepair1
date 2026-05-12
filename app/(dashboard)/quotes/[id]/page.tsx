@@ -170,7 +170,7 @@ export default function QuoteDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="space-y-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
@@ -180,7 +180,7 @@ export default function QuoteDetailPage() {
 
   if (!quote) {
     return (
-      <div className="p-6">
+      <div className="space-y-6">
         <div className="text-center">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Quote Not Found</h2>
@@ -300,10 +300,10 @@ export default function QuoteDetailPage() {
         }
       `}</style>
 
-      <div className="p-6">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between print:hidden">
-          <div className="flex items-center gap-4">
+        <div className="mb-6 flex flex-col gap-4 print:hidden lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               onClick={() => router.push("/quotes")}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -315,7 +315,7 @@ export default function QuoteDetailPage() {
               <p className="text-gray-600">View quote sent to customer</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {(quote?.status === "DRAFT" || quote?.status === "SENT") && (
               <button
                 onClick={() => router.push(`/quotes/${params.id}/edit`)}
@@ -355,15 +355,15 @@ export default function QuoteDetailPage() {
         </div>
 
         {/* Quote Document */}
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto print-container">
+        <div className="mx-auto max-w-4xl rounded-lg bg-white p-4 shadow-lg print-container sm:p-8">
         {/* Header */}
         <div className="border-b-2 border-gray-200 pb-6 mb-8">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-3">QUOTE</h2>
               <p className="text-lg text-gray-600 font-medium">{quote.quoteNumber}</p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <h3 className="text-2xl font-bold text-gray-900 mb-2">{companySettings?.companyName || "E-Repair Shop"}</h3>
               {companySettings?.address && <p className="text-gray-600 text-sm">{companySettings.address}</p>}
               {companySettings?.city && (
@@ -391,7 +391,7 @@ export default function QuoteDetailPage() {
         </div>
 
         {/* Quote Info Grid */}
-        <div className="grid grid-cols-2 gap-8 mb-8 no-page-break">
+        <div className="mb-8 grid grid-cols-1 gap-6 no-page-break md:grid-cols-2 md:gap-8">
           <div>
             <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-4 border-b pb-2">Quote To</h4>
             <div className="space-y-2.5">
@@ -471,7 +471,7 @@ export default function QuoteDetailPage() {
         {/* Quote Items Table */}
         <div className="mb-8 no-page-break">
           <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-4">Quote Items</h4>
-          <div className="overflow-hidden border border-gray-300 rounded-lg">
+          <div className="overflow-x-auto rounded-lg border border-gray-300">
             <table className="min-w-full divide-y divide-gray-300">
               <thead className="bg-gray-100">
                 <tr>
@@ -499,8 +499,8 @@ export default function QuoteDetailPage() {
 
         {/* Totals */}
         <div className="border-t-2 border-gray-300 pt-6 mb-8 no-page-break">
-          <div className="flex justify-end">
-            <div className="w-80 space-y-3">
+          <div className="flex justify-start md:justify-end">
+            <div className="w-full space-y-3 md:w-80">
               <div className="flex justify-between items-center text-gray-700">
                 <span className="text-base">Subtotal:</span>
                 <span className="font-semibold text-lg">${quote.subtotal.toFixed(2)}</span>

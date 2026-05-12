@@ -454,10 +454,10 @@ export default function InvoiceDetailPage() {
         }
       `}</style>
 
-      <div id="invoice-content" className="space-y-6 max-w-6xl">
+      <div id="invoice-content" className="mx-auto max-w-6xl space-y-6">
         {/* Header - Hide on print */}
-        <div className="flex items-center justify-between no-print">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 no-print lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
             variant="ghost"
             size="icon"
@@ -466,7 +466,7 @@ export default function InvoiceDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Invoice {invoice.invoiceNumber}
             </h1>
             <p className="text-gray-600 mt-1">
@@ -475,7 +475,7 @@ export default function InvoiceDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {canEditInvoice && (
             <Button variant="outline" onClick={() => router.push(`/invoices/${params.id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
@@ -601,7 +601,7 @@ export default function InvoiceDetailPage() {
           )}
 
           {/* Header Info */}
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
             <div>
               <h3 className="font-semibold text-sm text-gray-500 mb-2">BILL TO</h3>
               <p className="font-medium">
@@ -670,6 +670,7 @@ export default function InvoiceDetailPage() {
           {/* Line Items */}
           <div>
             <h3 className="font-semibold mb-3">Items</h3>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -698,13 +699,14 @@ export default function InvoiceDetailPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
 
           <Separator />
 
           {/* Totals */}
-          <div className="flex justify-end">
-            <div className="w-80 space-y-2">
+          <div className="flex justify-start md:justify-end">
+            <div className="w-full space-y-2 md:w-80">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal:</span>
                 <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
@@ -779,6 +781,7 @@ export default function InvoiceDetailPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -813,6 +816,7 @@ export default function InvoiceDetailPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -821,7 +825,7 @@ export default function InvoiceDetailPage() {
 
       {/* Add Payment Dialog */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
