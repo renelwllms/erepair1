@@ -24,10 +24,13 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # local env files
 .env*.local
 .env
+.codex
+.claude/settings.local.json
 
 # vercel
 .vercel
@@ -39,3 +42,11 @@ next-env.d.ts
 # prisma
 prisma/migrations/*
 !prisma/migrations/.gitkeep
+
+# local runtime artifacts
+logs/
+dev-server.log
+server.log
+next.config.mjs.save
+public/uploads/
+public/workbox-*.js
