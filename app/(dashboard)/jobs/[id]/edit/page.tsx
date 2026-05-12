@@ -615,6 +615,125 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
+            {jobType === "CALLOUT_REPAIR" && (
+              <>
+                <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+                  <h3 className="font-semibold text-blue-950">Callout Repair Details</h3>
+                  <p className="mt-1 text-sm text-blue-800">
+                    Address changes must be selected from Google Places so distance, travel time, and map routing stay accurate.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="calloutAddress">
+                    Full Address <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="calloutAddress"
+                    {...register("calloutAddress")}
+                    onChange={(event) => {
+                      setValue("calloutAddress", event.target.value, { shouldValidate: true });
+                      setValue("calloutLatitude", undefined, { shouldValidate: true });
+                      setValue("calloutLongitude", undefined, { shouldValidate: true });
+                      setValue("googlePlaceId", undefined, { shouldValidate: true });
+                    }}
+                    placeholder={mapsApiKey ? "Start typing and select a Google address" : "Google Maps API key required"}
+                    disabled={!mapsApiKey}
+                  />
+                  {!mapsApiKey && (
+                    <p className="text-xs text-amber-700">Add a Google Maps API key in settings before editing callout addresses.</p>
+                  )}
+                  {errors.calloutAddress && (
+                    <p className="text-sm text-red-500">{errors.calloutAddress.message}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="preferredCalloutDate">
+                      Preferred Date/Time <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="preferredCalloutDate"
+                      type="datetime-local"
+                      {...register("preferredCalloutDate")}
+                    />
+                    {errors.preferredCalloutDate && (
+                      <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutFee">Callout Fee</Label>
+                    <Input
+                      id="calloutFee"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      {...register("calloutFee", { valueAsNumber: true })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutApplianceLocation">
+                      Appliance Location <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="calloutApplianceLocation"
+                      {...register("calloutApplianceLocation")}
+                      placeholder="e.g., Kitchen, garage, upstairs laundry"
+                    />
+                    {errors.calloutApplianceLocation && (
+                      <p className="text-sm text-red-500">{errors.calloutApplianceLocation.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Travel Estimate</Label>
+                    <div className="rounded-md border px-3 py-2 text-sm text-gray-700">
+                      {watch("distanceFromOfficeKm") ? `${watch("distanceFromOfficeKm")?.toFixed(1)} km` : "Distance pending"}
+                      {watch("estimatedTravelTime") ? `, ${watch("estimatedTravelTime")}` : ""}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutAccessInstructions">
+                      Access Instructions <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutAccessInstructions"
+                      {...register("calloutAccessInstructions")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Gate codes, contact-on-arrival notes, entry details"
+                    />
+                    {errors.calloutAccessInstructions && (
+                      <p className="text-sm text-red-500">{errors.calloutAccessInstructions.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="calloutParkingNotes">
+                      Parking Notes <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      id="calloutParkingNotes"
+                      {...register("calloutParkingNotes")}
+                      className="w-full min-h-[100px] px-3 py-2 text-sm border rounded-md"
+                      placeholder="Parking availability, permits, loading zone notes"
+                    />
+                    {errors.calloutParkingNotes && (
+                      <p className="text-sm text-red-500">{errors.calloutParkingNotes.message}</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Additional Information */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

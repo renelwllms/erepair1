@@ -32,10 +32,16 @@ const jobUpdateSchema = z.object({
   diagnosticFeeAppliedToInvoice: z.boolean().optional(),
   repairApproved: z.boolean().optional(),
   calloutAddress: z.string().nullable().optional(),
+  calloutLatitude: z.number().nullable().optional(),
+  calloutLongitude: z.number().nullable().optional(),
+  googlePlaceId: z.string().nullable().optional(),
+  distanceFromOfficeKm: z.number().nullable().optional(),
+  estimatedTravelTime: z.string().nullable().optional(),
   preferredCalloutDate: z.string().nullable().optional(),
   calloutAccessInstructions: z.string().nullable().optional(),
   calloutParkingNotes: z.string().nullable().optional(),
   calloutApplianceLocation: z.string().nullable().optional(),
+  calloutFee: z.number().nullable().optional(),
 }).superRefine((data, ctx) => {
   if (data.jobType !== "CALLOUT_REPAIR") {
     return;
@@ -60,6 +66,14 @@ const jobUpdateSchema = z.object({
         message,
       });
     }
+  }
+
+  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["calloutAddress"],
+      message: "Select a Google Places address before saving a callout repair",
+    });
   }
 });
 
@@ -254,6 +268,37 @@ export async function PUT(
 
     const nextJobType = validatedData.jobType ?? existingJob.jobType ?? (existingJob.isCallout ? "CALLOUT_REPAIR" : "WORKSHOP_REPAIR");
     const isCallout = nextJobType === "CALLOUT_REPAIR";
+    const addressChanged =
+      validatedData.calloutAddress !== undefined &&
+      validatedData.calloutAddress !== existingJob.calloutAddress;
+
+    if (isCallout) {
+      const effectiveAddress = validatedData.calloutAddress ?? existingJob.calloutAddress;
+      const effectivePreferredDate = validatedData.preferredCalloutDate ?? existingJob.preferredCalloutDate?.toISOString();
+      const effectiveAccess = validatedData.calloutAccessInstructions ?? existingJob.calloutAccessInstructions;
+      const effectiveParking = validatedData.calloutParkingNotes ?? existingJob.calloutParkingNotes;
+      const effectiveApplianceLocation = validatedData.calloutApplianceLocation ?? existingJob.calloutApplianceLocation;
+      const effectiveLatitude = validatedData.calloutLatitude ?? existingJob.calloutLatitude;
+      const effectiveLongitude = validatedData.calloutLongitude ?? existingJob.calloutLongitude;
+      const effectivePlaceId = validatedData.googlePlaceId ?? existingJob.googlePlaceId;
+
+      const missingFields = [
+        !effectiveAddress?.trim() && "Full address is required for callout repairs",
+        !effectivePreferredDate && "Preferred date/time is required for callout repairs",
+        !effectiveAccess?.trim() && "Access instructions are required for callout repairs",
+        !effectiveParking?.trim() && "Parking notes are required for callout repairs",
+        !effectiveApplianceLocation?.trim() && "Appliance location is required for callout repairs",
+        (!effectiveLatitude || !effectiveLongitude || !effectivePlaceId) && "Select a Google Places address before saving a callout repair",
+        addressChanged && (!validatedData.calloutLatitude || !validatedData.calloutLongitude || !validatedData.googlePlaceId) && "Address changes must be selected from Google Places",
+      ].filter(Boolean);
+
+      if (missingFields.length > 0) {
+        return NextResponse.json(
+          { error: "Validation error", details: missingFields.map((message) => ({ message })) },
+          { status: 400 }
+        );
+      }
+    }
 
     // Update job
     const job = await dbAny.job.update({
@@ -265,7 +310,15 @@ export async function PUT(
         estimatedCompletion: estimatedCompletionDate,
         diagnosticFeePaidAt: diagnosticFeePaidAtDate,
         preferredCalloutDate,
+        scheduledDate: isCallout ? preferredCalloutDate ?? existingJob.scheduledDate : null,
+        scheduledTime: isCallout ? preferredCalloutDate ?? existingJob.scheduledTime : null,
         calloutAddress: isCallout ? validatedData.calloutAddress ?? existingJob.calloutAddress : null,
+        calloutLatitude: isCallout ? validatedData.calloutLatitude ?? existingJob.calloutLatitude : null,
+        calloutLongitude: isCallout ? validatedData.calloutLongitude ?? existingJob.calloutLongitude : null,
+        googlePlaceId: isCallout ? validatedData.googlePlaceId ?? existingJob.googlePlaceId : null,
+        distanceFromOfficeKm: isCallout ? validatedData.distanceFromOfficeKm ?? existingJob.distanceFromOfficeKm : null,
+        estimatedTravelTime: isCallout ? validatedData.estimatedTravelTime ?? existingJob.estimatedTravelTime : null,
+        calloutFee: isCallout ? validatedData.calloutFee ?? existingJob.calloutFee : null,
         calloutAccessInstructions: isCallout ? validatedData.calloutAccessInstructions ?? existingJob.calloutAccessInstructions : null,
         calloutParkingNotes: isCallout ? validatedData.calloutParkingNotes ?? existingJob.calloutParkingNotes : null,
         calloutApplianceLocation: isCallout ? validatedData.calloutApplianceLocation ?? existingJob.calloutApplianceLocation : null,
