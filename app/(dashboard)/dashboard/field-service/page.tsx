@@ -266,6 +266,7 @@ export default function FieldServiceDashboardPage() {
   const [calloutAddressValue, setCalloutAddressValue] = useState("");
   const [pendingDialogSection, setPendingDialogSection] = useState<"notes" | "photos" | null>(null);
   const [dashboardTab, setDashboardTab] = useState<"jobs" | "map">("jobs");
+  const [mapLoadError, setMapLoadError] = useState("");
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -313,10 +314,16 @@ export default function FieldServiceDashboardPage() {
   useEffect(() => {
     if (!data?.map.googleApiKey || window.google?.maps) return;
 
-    window.initFieldServiceMap = () => renderMap();
+    window.initFieldServiceMap = () => {
+      setMapLoadError("");
+      renderMap();
+    };
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${data.map.googleApiKey}&libraries=places&callback=initFieldServiceMap`;
     script.async = true;
+    script.onerror = () => {
+      setMapLoadError("Google Maps could not load. Check the API key browser restrictions, Maps JavaScript API access, and billing status in Google Cloud.");
+    };
     document.head.appendChild(script);
     return () => {
       delete window.initFieldServiceMap;
@@ -368,7 +375,7 @@ export default function FieldServiceDashboardPage() {
   }, [selectedJob, data?.map.googleApiKey]);
 
   const renderMap = () => {
-    if (!window.google?.maps || !mapRef.current || !data) return;
+    if (dashboardTab !== "map" || !window.google?.maps || !mapRef.current || !data) return;
 
     const office = {
       lat: data.map.officeLatitude || -36.8485,
@@ -382,6 +389,8 @@ export default function FieldServiceDashboardPage() {
         mapTypeControl: false,
         streetViewControl: false,
       });
+    } else {
+      mapInstanceRef.current.setCenter(office);
     }
 
     markersRef.current.forEach((marker) => marker.setMap(null));
@@ -781,7 +790,7 @@ export default function FieldServiceDashboardPage() {
           <TabsTrigger value="map" className="h-10">Map View</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="jobs" className="mt-0">
+        <TabsContent value="jobs" className="mt-0" forceMount hidden={dashboardTab !== "jobs"}>
           <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4">
             <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
@@ -867,10 +876,15 @@ export default function FieldServiceDashboardPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="map" className="mt-0">
+        <TabsContent value="map" className="mt-0" forceMount hidden={dashboardTab !== "map"}>
           <div className="space-y-5">
           <div className="h-[420px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[520px] xl:h-[calc(100vh-260px)] xl:min-h-[560px]">
-            {data?.map.googleApiKey ? (
+            {mapLoadError ? (
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-600">
+                <MapPin className="mb-3 h-8 w-8 text-slate-400" />
+                <p className="max-w-md">{mapLoadError}</p>
+              </div>
+            ) : data?.map.googleApiKey ? (
               <div ref={mapRef} className="h-full w-full" />
             ) : (
               <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-600">
