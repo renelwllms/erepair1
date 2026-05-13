@@ -35,6 +35,11 @@ interface Job {
   diagnosticFeeAmount: number;
   diagnosticFeePaid: boolean;
   diagnosticFeeAppliedToInvoice: boolean;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+  } | null;
 }
 
 interface InvoiceItem {
@@ -74,6 +79,7 @@ export default function NewInvoicePage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const invoiceableStatuses = ["READY_FOR_PICKUP", "COMPLETED", "CLOSED"];
 
   useEffect(() => {
     fetchJobs();
@@ -84,7 +90,7 @@ export default function NewInvoicePage() {
     setLoadingJobs(true);
     try {
       // Fetch jobs that don't have invoices yet
-      const response = await fetch("/api/jobs?limit=100");
+      const response = await fetch("/api/jobs?limit=500");
       if (!response.ok) throw new Error("Failed to fetch jobs");
 
       const data = await response.json();
@@ -97,9 +103,8 @@ export default function NewInvoicePage() {
         const jobResponse = await fetch(`/api/jobs/${jobIdParam}`);
         if (jobResponse.ok) {
           const specificJob = await jobResponse.json();
-          // Include the specific job along with eligible jobs
           const eligibleJobs = data.jobs.filter(
-            (job: Job) => job.status === "READY_FOR_PICKUP"
+            (job: Job) => invoiceableStatuses.includes(job.status) && !job.invoice
           );
 
           // Add the specific job if it's not already in the list
@@ -113,14 +118,14 @@ export default function NewInvoicePage() {
         } else {
           // If can't fetch specific job, just show eligible jobs
           const eligibleJobs = data.jobs.filter(
-            (job: Job) => job.status === "READY_FOR_PICKUP"
+            (job: Job) => invoiceableStatuses.includes(job.status) && !job.invoice
           );
           setJobs(eligibleJobs);
         }
       } else {
         // No jobId param, just show eligible jobs
         const eligibleJobs = data.jobs.filter(
-          (job: Job) => job.status === "READY_FOR_PICKUP"
+          (job: Job) => invoiceableStatuses.includes(job.status) && !job.invoice
         );
         setJobs(eligibleJobs);
       }
@@ -350,7 +355,7 @@ export default function NewInvoicePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Create Invoice</h1>
-          <p className="text-gray-600 mt-1">Generate an invoice from a ready-for-pickup job</p>
+          <p className="text-gray-600 mt-1">Generate an invoice from a ready, completed, or closed job</p>
         </div>
       </div>
 
@@ -373,7 +378,7 @@ export default function NewInvoicePage() {
                 <SelectContent>
                   {jobs.length === 0 ? (
                     <div className="p-4 text-center text-sm text-gray-500">
-                      No eligible jobs found. Jobs must be READY_FOR_PICKUP.
+                      No eligible jobs found. Jobs must be ready, completed, or closed and must not already have an invoice.
                     </div>
                   ) : (
                     jobs.map((job) => (

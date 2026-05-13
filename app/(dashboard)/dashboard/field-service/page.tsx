@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowLeft,
   Bell,
   CalendarDays,
   Camera,
@@ -936,11 +937,17 @@ export default function FieldServiceDashboardPage() {
           {selectedJob && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex flex-wrap items-center gap-2">
-                  {selectedJob.jobNumber}
-                  <Badge className={statusTone[selectedJob.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(selectedJob.status)}</Badge>
-                  {selectedJob.runningLate && <Badge className="bg-rose-100 text-rose-700">Running Late</Badge>}
-                </DialogTitle>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <DialogTitle className="flex flex-wrap items-center gap-2">
+                    {selectedJob.jobNumber}
+                    <Badge className={statusTone[selectedJob.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(selectedJob.status)}</Badge>
+                    {selectedJob.runningLate && <Badge className="bg-rose-100 text-rose-700">Running Late</Badge>}
+                  </DialogTitle>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setSelectedJob(null)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Dashboard
+                  </Button>
+                </div>
               </DialogHeader>
 
               <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
@@ -1128,6 +1135,10 @@ export default function FieldServiceDashboardPage() {
                         <Button variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedJob.calloutAddress || "")}`} target="_blank" rel="noreferrer"><Navigation className="mr-2 h-4 w-4" />Maps</a></Button>
                       </div>
                       <Button className="w-full" onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}><Send className="mr-2 h-4 w-4" />Technician On The Way</Button>
+                      <Button variant="outline" className="w-full" onClick={() => setSelectedJob(null)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Dashboard
+                      </Button>
                     </CardContent>
                   </Card>
 
