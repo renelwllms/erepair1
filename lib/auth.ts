@@ -136,26 +136,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
       }
 
-      if (token.email) {
-        const dbUser = await db.user.findUnique({
-          where: { email: token.email },
-          select: {
-            id: true,
-            role: true,
-            firstName: true,
-            lastName: true,
-            isActive: true,
-          },
-        });
-
-        if (dbUser?.isActive) {
-          token.role = dbUser.role;
-          token.firstName = dbUser.firstName;
-          token.lastName = dbUser.lastName;
-          token.id = dbUser.id;
-        }
-      }
-
       return token;
     },
     async session({ session, token }) {
