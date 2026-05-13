@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { FIELD_PHOTO_CATEGORIES, FIELD_SERVICE_STATUSES, FIELD_NOTE_TYPES, formatFieldStatus } from "@/lib/field-service";
@@ -264,6 +265,7 @@ export default function FieldServiceDashboardPage() {
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
   const [calloutAddressValue, setCalloutAddressValue] = useState("");
   const [pendingDialogSection, setPendingDialogSection] = useState<"notes" | "photos" | null>(null);
+  const [dashboardTab, setDashboardTab] = useState<"jobs" | "map">("jobs");
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -323,7 +325,7 @@ export default function FieldServiceDashboardPage() {
 
   useEffect(() => {
     renderMap();
-  }, [data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
+  }, [dashboardTab, data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
 
   useEffect(() => {
     setCalloutAddressValue(selectedJob?.calloutAddress || "");
@@ -773,8 +775,14 @@ export default function FieldServiceDashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.9fr)]">
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <Tabs value={dashboardTab} onValueChange={(value) => setDashboardTab(value as "jobs" | "map")} className="space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 p-1 sm:w-[360px]">
+          <TabsTrigger value="jobs" className="h-10">Callout Jobs</TabsTrigger>
+          <TabsTrigger value="map" className="h-10">Map View</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="jobs" className="mt-0">
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-4">
             <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
             <p className="text-sm text-slate-500">{jobs.length} callout jobs shown</p>
@@ -856,10 +864,12 @@ export default function FieldServiceDashboardPage() {
               </TableBody>
             </Table>
           </div>
-        </div>
+          </div>
+        </TabsContent>
 
-        <div className="space-y-5">
-          <div className="h-[340px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[420px] xl:h-[520px]">
+        <TabsContent value="map" className="mt-0">
+          <div className="space-y-5">
+          <div className="h-[420px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[520px] xl:h-[calc(100vh-260px)] xl:min-h-[560px]">
             {data?.map.googleApiKey ? (
               <div ref={mapRef} className="h-full w-full" />
             ) : (
@@ -895,8 +905,9 @@ export default function FieldServiceDashboardPage() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={Boolean(selectedJob)} onOpenChange={(open) => !open && setSelectedJob(null)}>
         <DialogContent
