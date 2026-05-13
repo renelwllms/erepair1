@@ -127,13 +127,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user }) {
       // For credentials login or initial Google sign-in, user object has all the info
       if (user) {
         token.role = user.role;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
         token.id = user.id;
+      }
+
+      if (token.email) {
+        const dbUser = await db.user.findUnique({
+          where: { email: token.email },
+          select: {
+            id: true,
+            role: true,
+            firstName: true,
+            lastName: true,
+            isActive: true,
+          },
+        });
+
+        if (dbUser?.isActive) {
+          token.role = dbUser.role;
+          token.firstName = dbUser.firstName;
+          token.lastName = dbUser.lastName;
+          token.id = dbUser.id;
+        }
       }
 
       return token;
