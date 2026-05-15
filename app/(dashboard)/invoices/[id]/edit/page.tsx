@@ -54,6 +54,11 @@ export default function EditInvoicePage() {
   const [notes, setNotes] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const parseNumberInput = (value: string, fallback = 0) => {
+    if (value.trim() === "") return fallback;
+    const nextValue = Number(value);
+    return Number.isFinite(nextValue) ? nextValue : fallback;
+  };
 
   useEffect(() => {
     fetchInvoice();
@@ -131,10 +136,17 @@ export default function EditInvoicePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (items.some((item) => !item.description || item.quantity <= 0)) {
+    if (
+      items.some(
+        (item) =>
+          !item.description ||
+          item.quantity <= 0 ||
+          (item.itemType === "DISCOUNT" ? item.unitPrice > 0 : item.unitPrice < 0)
+      )
+    ) {
       toast({
         title: "Invalid items",
-        description: "All items must have a description and valid quantity",
+        description: "All items must have a description and valid amounts",
         variant: "destructive",
       });
       return;
@@ -255,6 +267,7 @@ export default function EditInvoicePage() {
                     <option value="PART">Part</option>
                     <option value="LABOR">Labor</option>
                     <option value="SERVICE_FEE">Service Fee</option>
+                    <option value="DISCOUNT">Discount</option>
                   </select>
                 </div>
                 <div className="md:col-span-2">
@@ -264,9 +277,9 @@ export default function EditInvoicePage() {
                   <input
                     type="number"
                     value={item.quantity}
-                    onChange={(e) => handleItemChange(index, "quantity", Number(e.target.value))}
+                    onChange={(e) => handleItemChange(index, "quantity", parseNumberInput(e.target.value, 0))}
                     placeholder="Qty"
-                    min="1"
+                    min="0.01"
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
@@ -279,9 +292,9 @@ export default function EditInvoicePage() {
                   <input
                     type="number"
                     value={item.unitPrice}
-                    onChange={(e) => handleItemChange(index, "unitPrice", Number(e.target.value))}
+                    onChange={(e) => handleItemChange(index, "unitPrice", parseNumberInput(e.target.value, 0))}
                     placeholder="Price"
-                    min="0"
+                    min={item.itemType === "DISCOUNT" ? undefined : "0"}
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
@@ -330,7 +343,7 @@ export default function EditInvoicePage() {
                       <input
                         type="number"
                         value={taxRate}
-                        onChange={(e) => setTaxRate(Number(e.target.value))}
+                        onChange={(e) => setTaxRate(parseNumberInput(e.target.value, 0))}
                         min="0"
                         max="100"
                         step="0.01"
@@ -351,7 +364,7 @@ export default function EditInvoicePage() {
                       <input
                         type="number"
                         value={discountAmount}
-                        onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                        onChange={(e) => setDiscountAmount(parseNumberInput(e.target.value, 0))}
                         min="0"
                         step="0.01"
                         className="w-32 px-2 py-1 border border-gray-300 rounded text-right"

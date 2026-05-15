@@ -42,6 +42,7 @@ import {
   FileText,
   Printer,
   CreditCard,
+  RotateCcw,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
@@ -64,6 +65,14 @@ interface Payment {
   paymentDate: string;
   referenceNumber?: string;
   notes?: string;
+}
+
+interface Refund {
+  id: string;
+  amount: number;
+  refundMethod: string;
+  refundDate: string;
+  reason: string;
 }
 
 interface Invoice {
@@ -95,6 +104,10 @@ interface Invoice {
   job: {
     id: string;
     jobNumber: string;
+    isCallout?: boolean;
+    calloutFee?: number | null;
+    diagnosticFeeAmount?: number;
+    diagnosticFeePaid?: boolean;
     applianceType: string;
     applianceBrand: string;
     modelNumber?: string;
@@ -108,6 +121,7 @@ interface Invoice {
   };
   invoiceItems: InvoiceItem[];
   payments: Payment[];
+  refunds: Refund[];
 }
 
 interface CompanySettings {
@@ -133,7 +147,9 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
 
@@ -143,6 +159,12 @@ export default function InvoiceDetailPage() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
+
+  // Refund form state
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundMethod, setRefundMethod] = useState("CASH");
+  const [refundDate, setRefundDate] = useState(new Date().toISOString().split("T")[0]);
 
   const fetchInvoice = async () => {
     setLoading(true);
@@ -207,6 +229,40 @@ export default function InvoiceDetailPage() {
       CANCELLED: "destructive",
     };
     return statusMap[status] || "default";
+  };
+
+  const calculateRefundSummary = (currentInvoice: Invoice) => {
+    const totalRefunded = (currentInvoice.refunds || []).reduce(
+      (sum, refund) => sum + refund.amount,
+      0
+    );
+    const refundableLineItems = currentInvoice.invoiceItems
+      .filter((item) => item.itemType === "PART" || item.itemType === "LABOR")
+      .reduce((sum, item) => sum + item.totalPrice, 0);
+    const nonRefundableDiagnosticFee =
+      currentInvoice.job.diagnosticFeePaid && currentInvoice.job.diagnosticFeeAmount
+        ? currentInvoice.job.diagnosticFeeAmount
+        : 0;
+    const nonRefundableCalloutFee = currentInvoice.job.isCallout
+      ? currentInvoice.job.calloutFee || 0
+      : 0;
+    const maximumRefundableAmount = Math.max(
+      0,
+      Math.min(
+        currentInvoice.paidAmount - totalRefunded,
+        refundableLineItems - totalRefunded
+      )
+    );
+    const totalPaidDisplay =
+      currentInvoice.paidAmount + nonRefundableDiagnosticFee;
+
+    return {
+      totalPaidDisplay,
+      totalRefunded,
+      nonRefundableDiagnosticFee,
+      nonRefundableCalloutFee,
+      maximumRefundableAmount,
+    };
   };
 
   const handleDownloadPDF = async () => {
@@ -333,6 +389,87 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const openRefundDialog = () => {
+    if (!invoice) return;
+
+    const summary = calculateRefundSummary(invoice);
+    setRefundAmount(summary.maximumRefundableAmount.toFixed(2));
+    setRefundReason("");
+    setRefundMethod("CASH");
+    setRefundDate(new Date().toISOString().split("T")[0]);
+    setIsRefundDialogOpen(true);
+  };
+
+  const handleProcessRefund = async () => {
+    if (!invoice) return;
+
+    const amount = parseFloat(refundAmount);
+    const summary = calculateRefundSummary(invoice);
+
+    if (!refundAmount || Number.isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid refund amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (amount > summary.maximumRefundableAmount) {
+      toast({
+        title: "Amount Too Large",
+        description: `Refund cannot exceed ${formatCurrency(summary.maximumRefundableAmount)}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!refundReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please enter a refund reason",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingRefund(true);
+    try {
+      const response = await fetch(`/api/invoices/${params.id}/refunds`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          refundMethod,
+          refundDate: new Date(refundDate).toISOString(),
+          reason: refundReason.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to process refund");
+      }
+
+      setInvoice(result.invoice);
+      setIsRefundDialogOpen(false);
+
+      toast({
+        title: "Success",
+        description: "Refund recorded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process refund",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingRefund(false);
+    }
+  };
+
   const handleDeleteInvoice = async () => {
     if (!invoice) return;
 
@@ -392,6 +529,11 @@ export default function InvoiceDetailPage() {
   const canDeleteInvoice =
     sessionInfo?.user?.role === "ADMIN" &&
     invoice.payments.length === 0;
+  const canProcessRefund =
+    (sessionInfo?.user?.role === "ADMIN" || sessionInfo?.user?.role === "TECHNICIAN") &&
+    invoice.status !== "CANCELLED" &&
+    calculateRefundSummary(invoice).maximumRefundableAmount > 0;
+  const refundSummary = calculateRefundSummary(invoice);
 
   return (
     <>
@@ -553,6 +695,56 @@ export default function InvoiceDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Refund Section - Hide on print */}
+      <Card className="no-print">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5" />
+            Refund
+          </CardTitle>
+          <CardDescription>
+            Refunds exclude earned diagnostic and callout fees.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-gray-500">Total Paid</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(refundSummary.totalPaidDisplay)}
+              </div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-gray-500">Non-refundable Diagnostic Fee</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(refundSummary.nonRefundableDiagnosticFee)}
+              </div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-gray-500">Non-refundable Callout Fee</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(refundSummary.nonRefundableCalloutFee)}
+              </div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-gray-500">Maximum Refundable Amount</div>
+              <div className="text-lg font-semibold text-green-700">
+                {formatCurrency(refundSummary.maximumRefundableAmount)}
+              </div>
+            </div>
+          </div>
+          {refundSummary.totalRefunded > 0 && (
+            <div className="text-sm text-gray-600">
+              Previous refunds: {formatCurrency(refundSummary.totalRefunded)}
+            </div>
+          )}
+          <Button onClick={openRefundDialog} disabled={!canProcessRefund}>
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Process Refund
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Invoice Details */}
       <Card className="print-section print-card">
@@ -821,6 +1013,51 @@ export default function InvoiceDetailPage() {
         </Card>
       )}
 
+      {invoice.refunds && invoice.refunds.length > 0 && (
+        <Card className="print-section print-card">
+          <CardHeader>
+            <CardTitle>Refund History</CardTitle>
+            <CardDescription>
+              {invoice.refunds.length} refund{invoice.refunds.length !== 1 ? "s" : ""} recorded
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoice.refunds.map((refund) => (
+                  <TableRow key={refund.id}>
+                    <TableCell>
+                      {format(new Date(refund.refundDate), "MMM dd, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {formatStatus(refund.refundMethod)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {refund.reason}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-red-600">
+                      -{formatCurrency(refund.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       </div>
 
       {/* Add Payment Dialog */}
@@ -902,6 +1139,81 @@ export default function InvoiceDetailPage() {
             </Button>
             <Button onClick={handleAddPayment} disabled={isProcessingPayment}>
               {isProcessingPayment ? "Processing..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund Dialog */}
+      <Dialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Process Refund</DialogTitle>
+            <DialogDescription>
+              Maximum refundable amount:{" "}
+              <span className="font-semibold">
+                {formatCurrency(refundSummary.maximumRefundableAmount)}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="refundAmount">Refund Amount *</Label>
+              <Input
+                id="refundAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={refundSummary.maximumRefundableAmount}
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundReason">Refund Reason *</Label>
+              <Textarea
+                id="refundReason"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Reason for refund..."
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundMethod">Refund Method *</Label>
+              <Select value={refundMethod} onValueChange={setRefundMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                  <SelectItem value="CARD">Card</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundDate">Refund Date *</Label>
+              <Input
+                id="refundDate"
+                type="date"
+                value={refundDate}
+                onChange={(e) => setRefundDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRefundDialogOpen(false)}
+              disabled={isProcessingRefund}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleProcessRefund} disabled={isProcessingRefund}>
+              {isProcessingRefund ? "Processing..." : "Process Refund"}
             </Button>
           </DialogFooter>
         </DialogContent>

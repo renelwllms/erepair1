@@ -80,6 +80,11 @@ export default function NewInvoicePage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const invoiceableStatuses = ["READY_FOR_PICKUP", "COMPLETED", "CLOSED"];
+  const parseNumberInput = (value: string, fallback = 0) => {
+    if (value.trim() === "") return fallback;
+    const nextValue = Number(value);
+    return Number.isFinite(nextValue) ? nextValue : fallback;
+  };
 
   useEffect(() => {
     fetchJobs();
@@ -198,10 +203,14 @@ export default function NewInvoicePage() {
   };
 
   const addItem = () => {
-    if (!newItem.description || newItem.unitPrice < 0) {
+    if (
+      !newItem.description ||
+      newItem.quantity <= 0 ||
+      (newItem.itemType === "DISCOUNT" ? newItem.unitPrice > 0 : newItem.unitPrice < 0)
+    ) {
       toast({
         title: "Invalid Item",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields with valid amounts",
         variant: "destructive",
       });
       return;
@@ -451,6 +460,7 @@ export default function NewInvoicePage() {
                         <SelectItem value="PART">Part</SelectItem>
                         <SelectItem value="LABOR">Labor</SelectItem>
                         <SelectItem value="SERVICE_FEE">Service Fee</SelectItem>
+                        <SelectItem value="DISCOUNT">Discount</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -461,7 +471,7 @@ export default function NewInvoicePage() {
                       step="0.01"
                       min="0.01"
                       value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value))}
+                      onChange={(e) => updateItem(item.id, "quantity", parseNumberInput(e.target.value, 0))}
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -469,9 +479,9 @@ export default function NewInvoicePage() {
                     <Input
                       type="number"
                       step="0.01"
-                      min="0"
+                      min={item.itemType === "DISCOUNT" ? undefined : "0"}
                       value={item.unitPrice}
-                      onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value))}
+                      onChange={(e) => updateItem(item.id, "unitPrice", parseNumberInput(e.target.value, 0))}
                     />
                   </div>
                   <div className="md:col-span-1">
@@ -521,6 +531,7 @@ export default function NewInvoicePage() {
                     <SelectItem value="PART">Part</SelectItem>
                     <SelectItem value="LABOR">Labor</SelectItem>
                     <SelectItem value="SERVICE_FEE">Service Fee</SelectItem>
+                    <SelectItem value="DISCOUNT">Discount</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -532,7 +543,7 @@ export default function NewInvoicePage() {
                   min="0.01"
                   placeholder="Qty"
                   value={newItem.quantity}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 1 })}
+                  onChange={(e) => setNewItem({ ...newItem, quantity: parseNumberInput(e.target.value, 0) })}
                 />
               </div>
               <div className="md:col-span-2">
@@ -540,10 +551,10 @@ export default function NewInvoicePage() {
                 <Input
                   type="number"
                   step="0.01"
-                  min="0"
+                  min={newItem.itemType === "DISCOUNT" ? undefined : "0"}
                   placeholder="Price"
                   value={newItem.unitPrice}
-                  onChange={(e) => setNewItem({ ...newItem, unitPrice: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setNewItem({ ...newItem, unitPrice: parseNumberInput(e.target.value, 0) })}
                 />
               </div>
               <div className="md:col-span-2 flex items-end">
