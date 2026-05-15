@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -94,7 +94,7 @@ export function CustomerDialog({
 
   const customerType = watch("customerType");
 
-  const applyAddressComponents = (place: any) => {
+  const applyAddressComponents = useCallback((place: any) => {
     const components = place.address_components || [];
     const findComponent = (type: string, useShortName = false) => {
       const component = components.find((item: any) => item.types.includes(type));
@@ -109,7 +109,7 @@ export function CustomerDialog({
     );
     setValue("state", findComponent("administrative_area_level_1", true), { shouldValidate: true });
     setValue("zipCode", findComponent("postal_code"), { shouldValidate: true });
-  };
+  }, [setValue]);
 
   useEffect(() => {
     if (open) {
@@ -212,7 +212,7 @@ export function CustomerDialog({
     });
 
     return () => listener.remove();
-  }, [open, mapsApiKey, placesReady, setValue]);
+  }, [open, mapsApiKey, placesReady, setValue, applyAddressComponents]);
 
   const onSubmit = async (data: CustomerFormData) => {
     setLoading(true);

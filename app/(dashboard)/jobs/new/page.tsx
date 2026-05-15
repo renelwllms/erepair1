@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -289,7 +289,7 @@ export default function NewJobPage() {
       : [customer.address, ...extraParts].join(", ");
   };
 
-  const updateTravelEstimate = (lat: number, lng: number) => {
+  const updateTravelEstimate = useCallback((lat: number, lng: number) => {
     if (!officeLocation || !window.google?.maps?.DistanceMatrixService) {
       return;
     }
@@ -316,7 +316,7 @@ export default function NewJobPage() {
         }
       }
     );
-  };
+  }, [officeLocation, setValue]);
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -407,7 +407,7 @@ export default function NewJobPage() {
     });
 
     return () => listener.remove();
-  }, [jobType, mapsApiKey, officeLocation, placesReady, setValue]);
+  }, [jobType, mapsApiKey, officeLocation, placesReady, setValue, updateTravelEstimate]);
 
   useEffect(() => {
     if (!showCustomerDialog || (!placesReady && !window.google?.maps?.places)) {
@@ -474,7 +474,7 @@ export default function NewJobPage() {
         trigger("calloutAddress");
       })
       .catch(() => undefined);
-  }, [jobType, selectedCustomer?.id, customers, setValue, trigger]);
+  }, [jobType, selectedCustomer, customers, setValue, trigger, updateTravelEstimate]);
 
   const fetchData = async () => {
     try {
