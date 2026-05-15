@@ -73,7 +73,7 @@ export default function EditInvoicePage() {
     if (focusedAmountField === key && amountDrafts[key] !== undefined) {
       return amountDrafts[key];
     }
-    return value === 0 ? "0" : String(value);
+    return value === 0 ? "" : String(value);
   };
   const focusAmountInput = (key: string, value: number) => {
     setFocusedAmountField(key);

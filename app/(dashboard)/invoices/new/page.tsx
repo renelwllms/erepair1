@@ -99,7 +99,7 @@ export default function NewInvoicePage() {
     if (focusedAmountField === key && amountDrafts[key] !== undefined) {
       return amountDrafts[key];
     }
-    return value === 0 ? "0" : String(value);
+    return value === 0 ? "" : String(value);
   };
   const focusAmountInput = (key: string, value: number) => {
     setFocusedAmountField(key);
@@ -511,6 +511,7 @@ export default function NewInvoicePage() {
                       inputMode="decimal"
                       step="0.01"
                       min={item.itemType === "DISCOUNT" ? undefined : "0"}
+                      placeholder="Price"
                       value={getAmountInputValue(`item-${item.id}`, item.unitPrice)}
                       onFocus={() => focusAmountInput(`item-${item.id}`, item.unitPrice)}
                       onBlur={() => blurAmountInput(`item-${item.id}`)}
