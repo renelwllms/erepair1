@@ -77,6 +77,8 @@ export default function NewInvoicePage() {
     unitPrice: 0,
     itemType: "PART",
   });
+  const [focusedAmountField, setFocusedAmountField] = useState<string | null>(null);
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const invoiceableStatuses = ["READY_FOR_PICKUP", "COMPLETED", "CLOSED"];
@@ -84,6 +86,34 @@ export default function NewInvoicePage() {
     if (value.trim() === "") return fallback;
     const nextValue = Number(value);
     return Number.isFinite(nextValue) ? nextValue : fallback;
+  };
+  const sanitizeAmountInput = (value: string, allowNegative = false) => {
+    const isNegative = allowNegative && value.trim().startsWith("-");
+    const unsignedValue = value.replace(/-/g, "");
+    const [rawInteger = "", ...decimalParts] = unsignedValue.replace(/[^\d.]/g, "").split(".");
+    const integerPart = rawInteger.replace(/^0+(?=\d)/, "") || (rawInteger ? "0" : "");
+    const decimalPart = decimalParts.length > 0 ? `.${decimalParts.join("").slice(0, 2)}` : "";
+    return `${isNegative ? "-" : ""}${integerPart}${decimalPart}`;
+  };
+  const getAmountInputValue = (key: string, value: number) => {
+    if (focusedAmountField === key && amountDrafts[key] !== undefined) {
+      return amountDrafts[key];
+    }
+    return value === 0 ? "0" : String(value);
+  };
+  const focusAmountInput = (key: string, value: number) => {
+    setFocusedAmountField(key);
+    setAmountDrafts((drafts) => ({
+      ...drafts,
+      [key]: value === 0 ? "" : String(value),
+    }));
+  };
+  const blurAmountInput = (key: string) => {
+    setFocusedAmountField(null);
+    setAmountDrafts((drafts) => {
+      const { [key]: _removed, ...nextDrafts } = drafts;
+      return nextDrafts;
+    });
   };
 
   useEffect(() => {
@@ -477,11 +507,18 @@ export default function NewInvoicePage() {
                   <div className="md:col-span-2">
                     <Label className="mb-1 block">Unit Price</Label>
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       step="0.01"
                       min={item.itemType === "DISCOUNT" ? undefined : "0"}
-                      value={item.unitPrice}
-                      onChange={(e) => updateItem(item.id, "unitPrice", parseNumberInput(e.target.value, 0))}
+                      value={getAmountInputValue(`item-${item.id}`, item.unitPrice)}
+                      onFocus={() => focusAmountInput(`item-${item.id}`, item.unitPrice)}
+                      onBlur={() => blurAmountInput(`item-${item.id}`)}
+                      onChange={(e) => {
+                        const sanitizedValue = sanitizeAmountInput(e.target.value, item.itemType === "DISCOUNT");
+                        setAmountDrafts((drafts) => ({ ...drafts, [`item-${item.id}`]: sanitizedValue }));
+                        updateItem(item.id, "unitPrice", parseNumberInput(sanitizedValue, 0));
+                      }}
                     />
                   </div>
                   <div className="md:col-span-1">
@@ -549,12 +586,19 @@ export default function NewInvoicePage() {
               <div className="md:col-span-2">
                 <Label className="mb-1 block">Unit Price</Label>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   step="0.01"
                   min={newItem.itemType === "DISCOUNT" ? undefined : "0"}
                   placeholder="Price"
-                  value={newItem.unitPrice}
-                  onChange={(e) => setNewItem({ ...newItem, unitPrice: parseNumberInput(e.target.value, 0) })}
+                  value={getAmountInputValue("new-item", newItem.unitPrice)}
+                  onFocus={() => focusAmountInput("new-item", newItem.unitPrice)}
+                  onBlur={() => blurAmountInput("new-item")}
+                  onChange={(e) => {
+                    const sanitizedValue = sanitizeAmountInput(e.target.value, newItem.itemType === "DISCOUNT");
+                    setAmountDrafts((drafts) => ({ ...drafts, "new-item": sanitizedValue }));
+                    setNewItem({ ...newItem, unitPrice: parseNumberInput(sanitizedValue, 0) });
+                  }}
                 />
               </div>
               <div className="md:col-span-2 flex items-end">

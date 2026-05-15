@@ -54,10 +54,40 @@ export default function EditInvoicePage() {
   const [notes, setNotes] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [focusedAmountField, setFocusedAmountField] = useState<string | null>(null);
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
   const parseNumberInput = (value: string, fallback = 0) => {
     if (value.trim() === "") return fallback;
     const nextValue = Number(value);
     return Number.isFinite(nextValue) ? nextValue : fallback;
+  };
+  const sanitizeAmountInput = (value: string, allowNegative = false) => {
+    const isNegative = allowNegative && value.trim().startsWith("-");
+    const unsignedValue = value.replace(/-/g, "");
+    const [rawInteger = "", ...decimalParts] = unsignedValue.replace(/[^\d.]/g, "").split(".");
+    const integerPart = rawInteger.replace(/^0+(?=\d)/, "") || (rawInteger ? "0" : "");
+    const decimalPart = decimalParts.length > 0 ? `.${decimalParts.join("").slice(0, 2)}` : "";
+    return `${isNegative ? "-" : ""}${integerPart}${decimalPart}`;
+  };
+  const getAmountInputValue = (key: string, value: number) => {
+    if (focusedAmountField === key && amountDrafts[key] !== undefined) {
+      return amountDrafts[key];
+    }
+    return value === 0 ? "0" : String(value);
+  };
+  const focusAmountInput = (key: string, value: number) => {
+    setFocusedAmountField(key);
+    setAmountDrafts((drafts) => ({
+      ...drafts,
+      [key]: value === 0 ? "" : String(value),
+    }));
+  };
+  const blurAmountInput = (key: string) => {
+    setFocusedAmountField(null);
+    setAmountDrafts((drafts) => {
+      const { [key]: _removed, ...nextDrafts } = drafts;
+      return nextDrafts;
+    });
   };
 
   useEffect(() => {
@@ -290,9 +320,16 @@ export default function EditInvoicePage() {
                     Unit Price
                   </label>
                   <input
-                    type="number"
-                    value={item.unitPrice}
-                    onChange={(e) => handleItemChange(index, "unitPrice", parseNumberInput(e.target.value, 0))}
+                    type="text"
+                    inputMode="decimal"
+                    value={getAmountInputValue(`item-${index}`, item.unitPrice)}
+                    onFocus={() => focusAmountInput(`item-${index}`, item.unitPrice)}
+                    onBlur={() => blurAmountInput(`item-${index}`)}
+                    onChange={(e) => {
+                      const sanitizedValue = sanitizeAmountInput(e.target.value, item.itemType === "DISCOUNT");
+                      setAmountDrafts((drafts) => ({ ...drafts, [`item-${index}`]: sanitizedValue }));
+                      handleItemChange(index, "unitPrice", parseNumberInput(sanitizedValue, 0));
+                    }}
                     placeholder="Price"
                     min={item.itemType === "DISCOUNT" ? undefined : "0"}
                     step="0.01"
