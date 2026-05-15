@@ -71,6 +71,13 @@ enum PaymentMethod {
   OTHER
 }
 
+enum RefundMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
 enum NotificationType {
   JOB_CREATED
   JOB_STATUS_CHANGED
@@ -442,6 +449,7 @@ model Invoice {
   issuedBy        User          @relation(fields: [issuedById], references: [id])
   invoiceItems    InvoiceItem[]
   payments        Payment[]
+  refunds         Refund[]
 
   @@index([invoiceNumber])
   @@index([customerId])
@@ -482,6 +490,24 @@ model Payment {
 
   @@index([invoiceId])
   @@index([paymentDate])
+}
+
+// 9a. Refund Model (Refund Tracking)
+model Refund {
+  id           String       @id @default(cuid())
+  invoiceId    String
+  amount       Float
+  refundMethod RefundMethod
+  refundDate   DateTime     @default(now())
+  reason       String       @db.Text
+  createdById  String?
+  createdAt    DateTime     @default(now())
+
+  // Relations
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([refundDate])
 }
 
 // 10. Email Log Model (Email Notification History)
