@@ -190,6 +190,10 @@ interface Customer {
   firstName: string;
   lastName: string;
   email: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
 }
 
 interface Technician {
@@ -217,6 +221,7 @@ export default function NewJobPage() {
   const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState<number | null>(null);
   const [diagnosticFeeTouched, setDiagnosticFeeTouched] = useState(false);
   const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+  const [placesReady, setPlacesReady] = useState(false);
   const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [confirmedPreferredCalloutDate, setConfirmedPreferredCalloutDate] = useState("");
 
@@ -243,6 +248,7 @@ export default function NewJobPage() {
     handleSubmit: handleSubmitCustomer,
     formState: { errors: customerErrors },
     reset: resetCustomer,
+    setValue: setCustomerValue,
   } = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
@@ -259,6 +265,58 @@ export default function NewJobPage() {
   const diagnosticFeeAmount = watch("diagnosticFeeAmount");
   const preferredCalloutDate = watch("preferredCalloutDate");
   const preferredCalloutDateField = register("preferredCalloutDate");
+  const selectedCustomer = customers.find((customer) => customer.id === customerId);
+
+  const extractAddressComponent = (place: any, type: string, useShortName = false) => {
+    const component = (place.address_components || []).find((item: any) => item.types.includes(type));
+    return component ? (useShortName ? component.short_name : component.long_name) : "";
+  };
+
+  const buildCustomerAddress = (customer?: Customer) => {
+    if (!customer?.address) {
+      return "";
+    }
+
+    const extraParts = [customer.city, customer.state, customer.zipCode]
+      .filter(Boolean)
+      .map((part) => String(part));
+    const addressIncludesExtraParts = extraParts.some((part) =>
+      customer.address?.toLowerCase().includes(part.toLowerCase())
+    );
+
+    return addressIncludesExtraParts || extraParts.length === 0
+      ? customer.address
+      : [customer.address, ...extraParts].join(", ");
+  };
+
+  const updateTravelEstimate = (lat: number, lng: number) => {
+    if (!officeLocation || !window.google?.maps?.DistanceMatrixService) {
+      return;
+    }
+
+    const service = new window.google.maps.DistanceMatrixService();
+    service.getDistanceMatrix(
+      {
+        origins: [officeLocation],
+        destinations: [{ lat, lng }],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(Date.now() + 5 * 60 * 1000),
+          trafficModel: "bestguess",
+        },
+      },
+      (result: any, status: string) => {
+        if (status !== "OK") {
+          return;
+        }
+        const element = result?.rows?.[0]?.elements?.[0];
+        if (element?.status === "OK") {
+          setValue("distanceFromOfficeKm", element.distance.value / 1000);
+          setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+        }
+      }
+    );
+  };
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -287,11 +345,27 @@ export default function NewJobPage() {
   }, [applianceType, diagnosticFees, diagnosticFeeDefaultOther, diagnosticFeeTouched, setValue]);
 
   useEffect(() => {
-    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
+    if (!mapsApiKey || (jobType !== "CALLOUT_REPAIR" && !showCustomerDialog)) {
       return;
     }
 
-    window.initNewJobPlaces = () => undefined;
+    if (window.google?.maps?.places) {
+      setPlacesReady(true);
+      return;
+    }
+
+    window.initNewJobPlaces = () => setPlacesReady(true);
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src*="maps.googleapis.com/maps/api/js"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => setPlacesReady(true), { once: true });
+      return () => {
+        delete window.initNewJobPlaces;
+      };
+    }
+
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initNewJobPlaces`;
     script.async = true;
@@ -300,10 +374,10 @@ export default function NewJobPage() {
     return () => {
       delete window.initNewJobPlaces;
     };
-  }, [jobType, mapsApiKey]);
+  }, [jobType, mapsApiKey, showCustomerDialog]);
 
   useEffect(() => {
-    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
+    if (jobType !== "CALLOUT_REPAIR" || (!placesReady && !window.google?.maps?.places)) {
       return;
     }
 
@@ -329,35 +403,78 @@ export default function NewJobPage() {
       setValue("calloutLatitude", lat, { shouldValidate: true });
       setValue("calloutLongitude", lng, { shouldValidate: true });
       setValue("googlePlaceId", place.place_id, { shouldValidate: true });
-
-      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
-        const service = new window.google.maps.DistanceMatrixService();
-        service.getDistanceMatrix(
-          {
-            origins: [officeLocation],
-            destinations: [{ lat, lng }],
-            travelMode: window.google.maps.TravelMode.DRIVING,
-            drivingOptions: {
-              departureTime: new Date(Date.now() + 5 * 60 * 1000),
-              trafficModel: "bestguess",
-            },
-          },
-          (result: any, status: string) => {
-            if (status !== "OK") {
-              return;
-            }
-            const element = result?.rows?.[0]?.elements?.[0];
-            if (element?.status === "OK") {
-              setValue("distanceFromOfficeKm", element.distance.value / 1000);
-              setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
-            }
-          }
-        );
-      }
+      updateTravelEstimate(lat, lng);
     });
 
     return () => listener.remove();
-  }, [jobType, mapsApiKey, officeLocation, setValue]);
+  }, [jobType, mapsApiKey, officeLocation, placesReady, setValue]);
+
+  useEffect(() => {
+    if (!showCustomerDialog || (!placesReady && !window.google?.maps?.places)) {
+      return;
+    }
+
+    const input = document.getElementById("newCustomerAddress") as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["formatted_address", "address_components"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place?.formatted_address) {
+        return;
+      }
+
+      setCustomerValue("address", place.formatted_address, { shouldValidate: true });
+      setCustomerValue(
+        "city",
+        extractAddressComponent(place, "locality") ||
+          extractAddressComponent(place, "postal_town") ||
+          extractAddressComponent(place, "administrative_area_level_2"),
+        { shouldValidate: true }
+      );
+      setCustomerValue("state", extractAddressComponent(place, "administrative_area_level_1", true), { shouldValidate: true });
+      setCustomerValue("zipCode", extractAddressComponent(place, "postal_code"), { shouldValidate: true });
+    });
+
+    return () => listener.remove();
+  }, [showCustomerDialog, placesReady, setCustomerValue]);
+
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !selectedCustomer) {
+      return;
+    }
+
+    const address = buildCustomerAddress(selectedCustomer);
+    if (!address) {
+      return;
+    }
+
+    setValue("calloutAddress", address, { shouldValidate: true });
+    setValue("calloutLatitude", undefined);
+    setValue("calloutLongitude", undefined);
+    setValue("googlePlaceId", undefined);
+
+    fetch(`/api/public/geocode?address=${encodeURIComponent(address)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result) => {
+        if (!result?.lat || !result?.lng) {
+          return;
+        }
+        setValue("calloutAddress", result.formattedAddress || address, { shouldValidate: true });
+        setValue("calloutLatitude", result.lat, { shouldValidate: true });
+        setValue("calloutLongitude", result.lng, { shouldValidate: true });
+        setValue("googlePlaceId", result.placeId, { shouldValidate: true });
+        updateTravelEstimate(result.lat, result.lng);
+        trigger("calloutAddress");
+      })
+      .catch(() => undefined);
+  }, [jobType, selectedCustomer?.id, customers, setValue, trigger]);
 
   const fetchData = async () => {
     try {
@@ -597,8 +714,15 @@ export default function NewJobPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input id="address" {...registerCustomer("address")} />
+                        <Label htmlFor="newCustomerAddress">Address</Label>
+                        <Input
+                          id="newCustomerAddress"
+                          {...registerCustomer("address")}
+                          placeholder={mapsApiKey ? "Start typing and select a Google address" : "Address"}
+                        />
+                        {!mapsApiKey && (
+                          <p className="text-xs text-amber-700">Add a Google Maps API key in settings to enable address lookup.</p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
