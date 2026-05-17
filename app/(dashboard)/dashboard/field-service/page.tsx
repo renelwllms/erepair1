@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
-  Bell,
-  CalendarDays,
   Camera,
   CheckCircle2,
-  Clock,
   Compass,
   MapPin,
   Navigation,
@@ -19,14 +16,11 @@ import {
   Route,
   Search,
   Send,
-  UserCheck,
-  Users,
-  Wrench,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -246,7 +240,6 @@ export default function FieldServiceDashboardPage() {
   const { toast } = useToast();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeCard, setActiveCard] = useState("all");
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
   const [technicianId, setTechnicianId] = useState("all");
@@ -280,7 +273,7 @@ export default function FieldServiceDashboardPage() {
 
   const fetchDashboard = async () => {
     const params = new URLSearchParams({
-      card: activeCard,
+      card: "all",
       date,
       technicianId,
       status,
@@ -311,7 +304,7 @@ export default function FieldServiceDashboardPage() {
     fetchDashboard();
     const interval = window.setInterval(fetchDashboard, 15000);
     return () => window.clearInterval(interval);
-  }, [activeCard, date, technicianId, status, priority, search, suburb, unassignedOnly, runningLateOnly]);
+  }, [date, technicianId, status, priority, search, suburb, unassignedOnly, runningLateOnly]);
 
   useEffect(() => {
     if (!data?.map.googleApiKey || window.google?.maps) return;
@@ -647,22 +640,10 @@ export default function FieldServiceDashboardPage() {
     }
   };
 
-  const counts = data?.counts || {};
   const jobs = data?.jobs || [];
   useEffect(() => {
     refreshSelectedJob(jobs);
   }, [jobs]);
-
-  const overviewCards = useMemo(() => [
-    { key: "totalToday", label: "Total Callouts Today", value: counts.totalToday || 0, icon: CalendarDays },
-    { key: "scheduled", label: "Scheduled Jobs", value: counts.scheduled || 0, icon: Clock },
-    { key: "inProgress", label: "Jobs In Progress", value: counts.inProgress || 0, icon: Wrench },
-    { key: "onTheWay", label: "Technicians On The Way", value: counts.onTheWay || 0, icon: Navigation },
-    { key: "completedToday", label: "Completed Today", value: counts.completedToday || 0, icon: CheckCircle2 },
-    { key: "urgent", label: "Urgent Jobs", value: counts.urgent || 0, icon: AlertTriangle },
-    { key: "unassigned", label: "Unassigned Jobs", value: counts.unassigned || 0, icon: Users },
-    { key: "runningLate", label: "Running Late Jobs", value: counts.runningLate || 0, icon: Bell },
-  ], [counts]);
 
   if (loading) {
     return <div className="p-6 text-sm text-gray-600">Loading field service dashboard...</div>;
@@ -691,100 +672,88 @@ export default function FieldServiceDashboardPage() {
         </div>
       )}
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {overviewCards.map((card) => {
-          const Icon = card.icon;
-          const active = activeCard === card.key;
-          return (
-            <button
-              key={card.key}
-              type="button"
-              onClick={() => setActiveCard(active ? "all" : card.key)}
-              className={`rounded-lg border bg-white p-4 text-left shadow-sm transition ${active ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200 hover:border-slate-300"}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">{card.label}</span>
-                <Icon className="h-5 w-5 text-slate-500" />
-              </div>
-              <div className="mt-3 text-3xl font-bold text-slate-950">{card.value}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
-          <div className="xl:col-span-2">
-            <Label htmlFor="search">Search</Label>
-            <div className="relative mt-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 pl-9 xl:h-10" placeholder="Job, customer, phone, address" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Callout Job List</CardTitle>
+          <CardDescription>View and manage field service callout jobs</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_180px_180px_150px_180px_180px] lg:items-center">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                id="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="h-11 pl-10 lg:h-10"
+                placeholder="Search jobs..."
+              />
             </div>
-          </div>
-          <div>
-            <Label htmlFor="date">Date</Label>
-            <div className="mt-1 flex gap-2">
-              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11 xl:h-10" />
-              {date && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setDate("")}>
-                  All
-                </Button>
-              )}
-            </div>
-          </div>
-          <div>
-            <Label>Technician</Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              className="h-11 lg:h-10"
+            />
             <Select value={technicianId} onValueChange={setTechnicianId}>
-              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Technician" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All technicians</SelectItem>
+                <SelectItem value="all">All Technicians</SelectItem>
                 {data?.technicians.map((tech) => (
                   <SelectItem key={tech.id} value={tech.id}>{tech.firstName} {tech.lastName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 {FIELD_SERVICE_STATUSES.map((item) => (
                   <SelectItem key={item} value={item}>{formatFieldStatus(item)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Priority</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="all">All Priority</SelectItem>
                 <SelectItem value="LOW">Low</SelectItem>
-                <SelectItem value="MEDIUM">Normal</SelectItem>
+                <SelectItem value="MEDIUM">Medium</SelectItem>
                 <SelectItem value="HIGH">High</SelectItem>
                 <SelectItem value="URGENT">Urgent</SelectItem>
               </SelectContent>
             </Select>
+            <Input
+              id="suburb"
+              value={suburb}
+              onChange={(event) => setSuburb(event.target.value)}
+              className="h-11 lg:h-10"
+              placeholder="Address contains"
+            />
+            <Select
+              value={unassignedOnly ? "unassigned" : runningLateOnly ? "late" : "all"}
+              onValueChange={(value) => {
+                setUnassignedOnly(value === "unassigned");
+                setRunningLateOnly(value === "late");
+              }}
+            >
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Callouts</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="late">Running Late</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <Label htmlFor="suburb">Suburb</Label>
-            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1 h-11 xl:h-10" placeholder="Address contains" />
-          </div>
-          <div className="flex items-end gap-2">
-            <Button variant={unassignedOnly ? "default" : "outline"} onClick={() => setUnassignedOnly(!unassignedOnly)} className="flex-1">
-              <UserCheck className="mr-2 h-4 w-4" />
-              Unassigned
-            </Button>
-            <Button variant={runningLateOnly ? "default" : "outline"} onClick={() => setRunningLateOnly(!runningLateOnly)} className="flex-1">
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Late
-            </Button>
-          </div>
-        </div>
-      </div>
 
       <Tabs value={dashboardTab} onValueChange={(value) => setDashboardTab(value as "jobs" | "map")} className="space-y-4">
         <TabsList className="grid h-auto w-full grid-cols-2 p-1 sm:w-[360px]">
