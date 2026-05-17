@@ -875,7 +875,6 @@ export default function FieldServiceDashboardPage() {
                       Maps
                     </a>
                   </Button>
-                  <JobActionsMenu job={job} buttonClassName="col-span-2 h-11" />
                 </div>
               </div>
             ))}
