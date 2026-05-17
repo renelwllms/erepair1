@@ -875,6 +875,16 @@ export default function FieldServiceDashboardPage() {
                       Maps
                     </a>
                   </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <a href={`tel:${job.customer.phone}`}>
+                      <Phone className="mr-2 h-4 w-4" />
+                      Call
+                    </a>
+                  </Button>
+                  <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
+                  <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
+                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
+                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
                 </div>
               </div>
             ))}
