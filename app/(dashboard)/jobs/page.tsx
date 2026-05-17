@@ -590,7 +590,7 @@ export default function JobsPage() {
                           onValueChange={(value) => handleStatusChange(job.id, value, job)}
                         >
                           <SelectTrigger
-                            className={`h-10 w-[240px] max-w-full rounded-md border px-3 text-left text-sm font-medium shadow-none [&>span]:truncate ${getStatusFieldClass(job.status)}`}
+                            className={`h-9 w-[190px] max-w-full rounded-md border px-3 text-left text-xs font-medium shadow-none [&>span]:truncate ${getStatusFieldClass(job.status)}`}
                           >
                             <SelectValue>
                               <span className="block w-full truncate">
