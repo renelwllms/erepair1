@@ -649,7 +649,7 @@ export default function FieldServiceDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 lg:p-6">
+    <div className="min-h-screen overflow-x-hidden bg-slate-50 p-4 lg:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-950">Field Service Dashboard</h1>
@@ -671,13 +671,13 @@ export default function FieldServiceDashboardPage() {
         </div>
       )}
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Callout Job List</CardTitle>
           <CardDescription>View and manage field service callout jobs</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_180px_180px_150px_180px_180px] lg:items-center">
+        <CardContent className="min-w-0">
+          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(220px,1fr)_180px_180px_180px_150px_180px_180px] 2xl:items-center">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
@@ -754,7 +754,7 @@ export default function FieldServiceDashboardPage() {
             </Select>
           </div>
 
-      <Tabs value={dashboardTab} onValueChange={(value) => setDashboardTab(value as "jobs" | "map")} className="space-y-4">
+      <Tabs value={dashboardTab} onValueChange={(value) => setDashboardTab(value as "jobs" | "map")} className="min-w-0 space-y-4">
         <TabsList className="grid h-auto w-full grid-cols-2 p-1 sm:w-[360px]">
           <TabsTrigger value="jobs" className="h-10">Callout Jobs</TabsTrigger>
           <TabsTrigger value="map" className="h-10">Map View</TabsTrigger>
@@ -794,8 +794,8 @@ export default function FieldServiceDashboardPage() {
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto md:block">
-            <Table>
+          <div className="hidden min-w-0 overflow-x-auto rounded-md border border-slate-200 md:block">
+            <Table className="min-w-[1500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Job ID</TableHead>
