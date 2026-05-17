@@ -150,6 +150,7 @@ export default function InvoiceDetailPage() {
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [showRefundTools, setShowRefundTools] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -737,65 +738,76 @@ export default function InvoiceDetailPage() {
         </Card>
       </div>
 
-      {/* Refund Section - Hide on print */}
-      <Card className="no-print">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RotateCcw className="h-5 w-5" />
-            Refund
-          </CardTitle>
-          <CardDescription>
-            Refunds exclude earned diagnostic and callout fees.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-gray-500">Total Paid</div>
-              <div className="text-lg font-semibold">
-                {formatCurrency(refundSummary.totalPaidDisplay)}
+      <div className="no-print">
+        <Button
+          variant="outline"
+          onClick={() => setShowRefundTools((current) => !current)}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          {showRefundTools ? "Hide Refund Options" : "Refund Options"}
+        </Button>
+      </div>
+
+      {showRefundTools && (
+        <Card className="no-print">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Refund
+            </CardTitle>
+            <CardDescription>
+              Refunds exclude earned diagnostic and callout fees.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Total Paid</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.totalPaidDisplay)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Non-refundable Diagnostic Fee</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.nonRefundableDiagnosticFee)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Non-refundable Callout Fee</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.nonRefundableCalloutFee)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Refunded</div>
+                <div className="text-lg font-semibold text-red-600">
+                  {formatCurrency(refundSummary.totalRefunded)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Net Paid</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.netPaid)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Maximum Refundable Amount</div>
+                <div className="text-lg font-semibold text-green-700">
+                  {formatCurrency(refundSummary.maximumRefundableAmount)}
+                </div>
               </div>
             </div>
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-gray-500">Non-refundable Diagnostic Fee</div>
-              <div className="text-lg font-semibold">
-                {formatCurrency(refundSummary.nonRefundableDiagnosticFee)}
-              </div>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-gray-500">Non-refundable Callout Fee</div>
-              <div className="text-lg font-semibold">
-                {formatCurrency(refundSummary.nonRefundableCalloutFee)}
-              </div>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-gray-500">Refunded</div>
-              <div className="text-lg font-semibold text-red-600">
-                {formatCurrency(refundSummary.totalRefunded)}
-              </div>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-gray-500">Net Paid</div>
-              <div className="text-lg font-semibold">
-                {formatCurrency(refundSummary.netPaid)}
-              </div>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="text-xs text-gray-500">Maximum Refundable Amount</div>
-              <div className="text-lg font-semibold text-green-700">
-                {formatCurrency(refundSummary.maximumRefundableAmount)}
-              </div>
-            </div>
-          </div>
-          <Button onClick={openRefundDialog} disabled={!canProcessRefund}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Process Refund
-          </Button>
-          {!canProcessRefund && refundUnavailableReason && (
-            <p className="text-sm text-gray-600">{refundUnavailableReason}</p>
-          )}
-        </CardContent>
-      </Card>
+            <Button onClick={openRefundDialog} disabled={!canProcessRefund}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Process Refund
+            </Button>
+            {!canProcessRefund && refundUnavailableReason && (
+              <p className="text-sm text-gray-600">{refundUnavailableReason}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Invoice Details */}
       <Card className="print-section print-card">
