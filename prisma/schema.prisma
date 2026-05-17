@@ -78,6 +78,11 @@ enum RefundMethod {
   OTHER
 }
 
+enum RefundPayoutStatus {
+  PENDING
+  COMPLETED
+}
+
 enum NotificationType {
   JOB_CREATED
   JOB_STATUS_CHANGED
@@ -500,6 +505,8 @@ model Refund {
   refundMethod RefundMethod
   refundDate   DateTime     @default(now())
   reason       String       @db.Text
+  referenceNumber String?
+  payoutStatus RefundPayoutStatus @default(COMPLETED)
   createdById  String?
   createdAt    DateTime     @default(now())
 

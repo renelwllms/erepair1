@@ -73,6 +73,8 @@ interface Refund {
   refundMethod: string;
   refundDate: string;
   reason: string;
+  referenceNumber?: string | null;
+  payoutStatus?: string;
 }
 
 interface Invoice {
@@ -165,6 +167,8 @@ export default function InvoiceDetailPage() {
   const [refundReason, setRefundReason] = useState("");
   const [refundMethod, setRefundMethod] = useState("CASH");
   const [refundDate, setRefundDate] = useState(new Date().toISOString().split("T")[0]);
+  const [refundReferenceNumber, setRefundReferenceNumber] = useState("");
+  const [refundPayoutStatus, setRefundPayoutStatus] = useState("COMPLETED");
 
   const fetchInvoice = async () => {
     setLoading(true);
@@ -397,6 +401,8 @@ export default function InvoiceDetailPage() {
     setRefundReason("");
     setRefundMethod("CASH");
     setRefundDate(new Date().toISOString().split("T")[0]);
+    setRefundReferenceNumber("");
+    setRefundPayoutStatus("COMPLETED");
     setIsRefundDialogOpen(true);
   };
 
@@ -443,6 +449,8 @@ export default function InvoiceDetailPage() {
           refundMethod,
           refundDate: new Date(refundDate).toISOString(),
           reason: refundReason.trim(),
+          referenceNumber: refundReferenceNumber || undefined,
+          payoutStatus: refundPayoutStatus,
         }),
       });
 
@@ -1028,6 +1036,8 @@ export default function InvoiceDetailPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Method</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reference</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
@@ -1042,6 +1052,14 @@ export default function InvoiceDetailPage() {
                       <Badge variant="outline">
                         {formatStatus(refund.refundMethod)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={refund.payoutStatus === "PENDING" ? "destructive" : "secondary"}>
+                        {formatStatus(refund.payoutStatus || "COMPLETED")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {refund.referenceNumber || "-"}
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
                       {refund.reason}
@@ -1172,13 +1190,19 @@ export default function InvoiceDetailPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="refundReason">Refund Reason *</Label>
-              <Textarea
-                id="refundReason"
-                value={refundReason}
-                onChange={(e) => setRefundReason(e.target.value)}
-                placeholder="Reason for refund..."
-                rows={3}
-              />
+              <Select value={refundReason} onValueChange={setRefundReason}>
+                <SelectTrigger id="refundReason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Part unavailable">Part unavailable</SelectItem>
+                  <SelectItem value="Customer cancelled">Customer cancelled</SelectItem>
+                  <SelectItem value="Warranty issue">Warranty issue</SelectItem>
+                  <SelectItem value="Duplicate charge">Duplicate charge</SelectItem>
+                  <SelectItem value="Goodwill refund">Goodwill refund</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="refundMethod">Refund Method *</Label>
@@ -1203,6 +1227,32 @@ export default function InvoiceDetailPage() {
                 onChange={(e) => setRefundDate(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundReference">Manual Payout Reference</Label>
+              <Input
+                id="refundReference"
+                value={refundReferenceNumber}
+                onChange={(e) => setRefundReferenceNumber(e.target.value)}
+                placeholder="Bank ref, receipt number, card terminal ref..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundPayoutStatus">Manual Payout Status *</Label>
+              <Select value={refundPayoutStatus} onValueChange={setRefundPayoutStatus}>
+                <SelectTrigger id="refundPayoutStatus">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {refundPayoutStatus === "PENDING" && (
+              <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+                This records the refund and deducts it from revenue. The manual payout still needs to be completed.
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button

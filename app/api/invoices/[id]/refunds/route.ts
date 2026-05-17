@@ -11,6 +11,8 @@ const refundCreateSchema = z.object({
   refundMethod: z.enum(["CASH", "BANK_TRANSFER", "CARD", "OTHER"]),
   refundDate: z.string().datetime().optional(),
   reason: z.string().min(1, "Refund reason is required"),
+  referenceNumber: z.string().optional(),
+  payoutStatus: z.enum(["PENDING", "COMPLETED"]).default("COMPLETED"),
 });
 
 function calculateRefundSummary(invoice: any) {
@@ -156,6 +158,8 @@ export async function POST(
           ? new Date(validatedData.refundDate)
           : new Date(),
         reason: validatedData.reason,
+        referenceNumber: validatedData.referenceNumber || null,
+        payoutStatus: validatedData.payoutStatus,
         createdById: session.user.id,
       },
     });
