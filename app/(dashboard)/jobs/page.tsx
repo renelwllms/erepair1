@@ -125,6 +125,47 @@ export default function JobsPage() {
     return daysSinceLastNotification >= settings.notificationReminderDays;
   };
 
+  const getAttentionMessage = (job: Job) => {
+    if (job.status === "CLOSED" || job.status === "CANCELLED") {
+      return "This job does not currently need attention.";
+    }
+
+    if (!job.lastNotificationSent) {
+      return "No customer notification has been sent for this job yet.";
+    }
+
+    const daysSinceLastNotification = differenceInDays(
+      new Date(),
+      new Date(job.lastNotificationSent)
+    );
+
+    if (daysSinceLastNotification >= settings.notificationReminderDays) {
+      return `Last customer notification was sent ${daysSinceLastNotification} day${daysSinceLastNotification === 1 ? "" : "s"} ago. Reminder threshold is ${settings.notificationReminderDays} day${settings.notificationReminderDays === 1 ? "" : "s"}.`;
+    }
+
+    return "This job is within the current notification reminder window.";
+  };
+
+  const AttentionBell = ({ job }: { job: Job }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-yellow-700 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-1"
+          aria-label={`Why ${job.jobNumber} needs attention`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Bell className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72 p-3" onClick={(event) => event.stopPropagation()}>
+        <DropdownMenuLabel className="px-0 pt-0 text-sm">Needs Attention</DropdownMenuLabel>
+        <p className="text-sm text-gray-700">{getAttentionMessage(job)}</p>
+        <p className="mt-2 text-xs text-gray-500">Job status: {formatStatus(job.status)}</p>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const fetchJobs = async () => {
     setLoading(true);
     try {
@@ -434,7 +475,7 @@ export default function JobsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          {needsAttention(job) && <Bell className="h-4 w-4 shrink-0 text-yellow-600" />}
+                          {needsAttention(job) && <AttentionBell job={job} />}
                           <Link
                             href={`/jobs/${job.id}`}
                             className="font-semibold text-blue-700 hover:underline"
@@ -558,9 +599,7 @@ export default function JobsPage() {
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {needsAttention(job) && (
-                            <Bell className="h-4 w-4 text-yellow-600" />
-                          )}
+                          {needsAttention(job) && <AttentionBell job={job} />}
                           <Link
                             href={`/jobs/${job.id}`}
                             onClick={(event) => event.stopPropagation()}
