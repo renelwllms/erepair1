@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -433,6 +434,12 @@ export default function NewInvoicePage() {
 
           {selectedJob && (
             <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Job:</span>
+                <Link href={`/jobs/${selectedJob.id}`} className="font-medium text-blue-700 hover:underline">
+                  {selectedJob.jobNumber}
+                </Link>
+              </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Customer:</span>
                 <span className="font-medium">
