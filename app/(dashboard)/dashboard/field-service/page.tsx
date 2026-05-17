@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Compass,
   MapPin,
+  MoreHorizontal,
   Navigation,
   Phone,
   Plus,
@@ -22,6 +23,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -445,6 +454,43 @@ export default function FieldServiceDashboardPage() {
     if (fresh) setSelectedJob(fresh);
   };
 
+  const JobActionsMenu = ({ job, buttonClassName = "" }: { job: FieldJob; buttonClassName?: string }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className={buttonClassName}>
+          <MoreHorizontal className="mr-2 h-4 w-4" />
+          More
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel>Job Actions</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <a href={`tel:${job.customer.phone}`}>
+            <Phone className="mr-2 h-4 w-4" />
+            Call Customer
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>
+          <Send className="mr-2 h-4 w-4" />
+          Start Travel
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>
+          <CheckCircle2 className="mr-2 h-4 w-4" />
+          Mark Arrived
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => openJobDialog(job, "notes")}>
+          Add Note
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openJobDialog(job, "photos")}>
+          <Camera className="mr-2 h-4 w-4" />
+          Upload Photos
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const mutateJob = async (jobId: string, payload: Record<string, unknown>, method: "PATCH" | "POST" = "PATCH") => {
     const response = await fetch(`/api/field-service/jobs/${jobId}`, {
       method,
@@ -820,25 +866,16 @@ export default function FieldServiceDashboardPage() {
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
-                  <Button className="h-11" onClick={() => openJobDialog(job)}>Open</Button>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button className="h-11" onClick={() => openJobDialog(job)}>Open</Button>
                   <Button size="lg" variant="outline" asChild>
                     <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`} target="_blank" rel="noreferrer">
                       <Compass className="mr-2 h-4 w-4" />
                       Maps
                     </a>
                   </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <a href={`tel:${job.customer.phone}`}>
-                      <Phone className="mr-2 h-4 w-4" />
-                      Call
-                    </a>
-                  </Button>
-                  <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
-                  <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
-                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
-                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
+                  <JobActionsMenu job={job} buttonClassName="col-span-2 h-11" />
                 </div>
               </div>
             ))}
@@ -856,7 +893,7 @@ export default function FieldServiceDashboardPage() {
                   <TableHead>Technician</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead className="min-w-[360px] text-right">Actions</TableHead>
+                  <TableHead className="min-w-[220px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -906,16 +943,7 @@ export default function FieldServiceDashboardPage() {
                             Maps
                           </a>
                         </Button>
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={`tel:${job.customer.phone}`}>
-                            <Phone className="mr-1 h-3.5 w-3.5" />
-                            Call
-                          </a>
-                        </Button>
-                        <Button size="sm" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start</Button>
-                        <Button size="sm" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
-                        <Button variant="outline" size="sm" onClick={() => openJobDialog(job, "notes")}>Note</Button>
-                        <Button variant="outline" size="sm" onClick={() => openJobDialog(job, "photos")}>Photos</Button>
+                        <JobActionsMenu job={job} />
                       </div>
                     </TableCell>
                   </TableRow>
