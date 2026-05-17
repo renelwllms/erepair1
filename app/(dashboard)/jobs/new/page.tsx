@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Check, Plus } from "lucide-react";
+import { ArrowLeft, Check, Plus, Search, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { TermsSummary } from "@/components/legal/terms-summary";
 import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
@@ -190,6 +190,7 @@ interface Customer {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -209,6 +210,8 @@ export default function NewJobPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -266,6 +269,23 @@ export default function NewJobPage() {
   const preferredCalloutDate = watch("preferredCalloutDate");
   const preferredCalloutDateField = register("preferredCalloutDate");
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
+  const selectedCustomerLabel = selectedCustomer
+    ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+    : "";
+  const displayedCustomerResults = customerSearchTerm.trim().length >= 2 && customerSearchTerm !== selectedCustomerLabel
+    ? customers.filter((customer) => {
+        const haystack = `${customer.firstName} ${customer.lastName} ${customer.email} ${customer.phone}`.toLowerCase();
+        return haystack.includes(customerSearchTerm.trim().toLowerCase());
+      }).slice(0, 8)
+    : [];
+
+  const mergeCustomers = (incoming: Customer[]) => {
+    setCustomers((current) => {
+      const byId = new Map(current.map((customer) => [customer.id, customer]));
+      incoming.forEach((customer) => byId.set(customer.id, customer));
+      return Array.from(byId.values());
+    });
+  };
 
   const extractAddressComponent = (place: any, type: string, useShortName = false) => {
     const component = (place.address_components || []).find((item: any) => item.types.includes(type));
@@ -330,6 +350,31 @@ export default function NewJobPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const query = customerSearchTerm.trim();
+
+    if (query.length < 2) {
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setSearchingCustomers(true);
+      try {
+        const response = await fetch(`/api/customers?search=${encodeURIComponent(query)}&limit=8`);
+        if (response.ok) {
+          const data = await response.json();
+          mergeCustomers(data.customers || []);
+        }
+      } catch (error) {
+        console.error("Failed to search customers:", error);
+      } finally {
+        setSearchingCustomers(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [customerSearchTerm]);
 
   useEffect(() => {
     if (!applianceType || diagnosticFeeTouched) {
@@ -479,7 +524,7 @@ export default function NewJobPage() {
   const fetchData = async () => {
     try {
       const [customersRes, techniciansRes, settingsRes] = await Promise.all([
-        fetch("/api/customers?limit=1000"),
+        fetch("/api/customers?limit=8"),
         fetch("/api/users/technicians"),
         fetch("/api/settings"),
       ]);
@@ -487,6 +532,15 @@ export default function NewJobPage() {
       if (customersRes.ok) {
         const data = await customersRes.json();
         setCustomers(data.customers);
+      }
+
+      if (preselectedCustomerId) {
+        const selectedRes = await fetch(`/api/customers/${preselectedCustomerId}`);
+        if (selectedRes.ok) {
+          const selected = await selectedRes.json();
+          mergeCustomers([selected]);
+          setCustomerSearchTerm(`${selected.firstName} ${selected.lastName}`);
+        }
       }
 
       if (techniciansRes.ok) {
@@ -540,8 +594,9 @@ export default function NewJobPage() {
       });
 
       // Add new customer to list and select it
-      setCustomers([...customers, newCustomer]);
+      mergeCustomers([newCustomer]);
       setValue("customerId", newCustomer.id);
+      setCustomerSearchTerm(`${newCustomer.firstName} ${newCustomer.lastName}`);
       setShowCustomerDialog(false);
       resetCustomer();
     } catch (error: any) {
@@ -642,19 +697,74 @@ export default function NewJobPage() {
                 Customer <span className="text-red-500">*</span>
               </Label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="flex-1">
-                  <Select value={customerId} onValueChange={(value) => setValue("customerId", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.firstName} {customer.lastName} - {customer.email}
-                        </SelectItem>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="customerId"
+                      value={customerSearchTerm}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setCustomerSearchTerm(value);
+                        if (customerId && value !== selectedCustomerLabel) {
+                          setValue("customerId", "", { shouldValidate: true });
+                        }
+                      }}
+                      className="h-11 pl-10 pr-10"
+                      placeholder="Search customer name, email, or phone"
+                    />
+                    {customerSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerSearchTerm("");
+                          setValue("customerId", "", { shouldValidate: true });
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded text-gray-400 hover:text-gray-700"
+                        aria-label="Clear customer search"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {selectedCustomer && (
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                      Selected: <span className="font-medium">{selectedCustomer.firstName} {selectedCustomer.lastName}</span>
+                      <span className="text-emerald-700"> - {selectedCustomer.email}</span>
+                    </div>
+                  )}
+
+                  {customerSearchTerm.trim().length > 0 && customerSearchTerm.trim().length < 2 && (
+                    <p className="text-xs text-gray-500">Type at least 2 characters to search customers.</p>
+                  )}
+
+                  {searchingCustomers && (
+                    <p className="text-xs text-gray-500">Searching customers...</p>
+                  )}
+
+                  {displayedCustomerResults.length > 0 && (
+                    <div className="max-h-64 overflow-y-auto rounded-md border bg-white shadow-sm">
+                      {displayedCustomerResults.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => {
+                            setValue("customerId", customer.id, { shouldValidate: true });
+                            setCustomerSearchTerm(`${customer.firstName} ${customer.lastName}`);
+                          }}
+                          className="flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        >
+                          <span className="font-medium text-gray-900">{customer.firstName} {customer.lastName}</span>
+                          <span className="text-xs text-gray-500">{customer.email} · {customer.phone}</span>
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
+
+                  {customerSearchTerm.trim().length >= 2 && !searchingCustomers && displayedCustomerResults.length === 0 && (
+                    <p className="text-xs text-gray-500">No customers found. Create a new customer if needed.</p>
+                  )}
                 </div>
                 <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
                   <DialogTrigger asChild>
