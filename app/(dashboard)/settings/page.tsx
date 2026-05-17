@@ -1884,9 +1884,9 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="pt-4 border-t">
-                      <h4 className="font-medium mb-3">Gmail Authorization</h4>
+                      <h4 className="font-medium mb-3">Google Authorization</h4>
                       <p className="text-sm text-gray-600 mb-3">
-                        After saving your Client ID and Secret above, authorize Gmail to send emails.
+                        After saving your Client ID and Secret above, authorize Google Workspace to send emails and read the primary calendar.
                       </p>
                       <Button
                         type="button"
@@ -1913,7 +1913,7 @@ export default function SettingsPage() {
                         }}
                       >
                         <Mail className="mr-2 h-4 w-4" />
-                        Authorize Gmail
+                        Authorize Google Workspace
                       </Button>
                     </div>
                   </>
