@@ -15,6 +15,7 @@ import {
   Route,
   Search,
   Send,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -260,6 +261,7 @@ export default function FieldServiceDashboardPage() {
   const [calloutAddressValue, setCalloutAddressValue] = useState("");
   const [pendingDialogSection, setPendingDialogSection] = useState<"notes" | "photos" | null>(null);
   const [dashboardTab, setDashboardTab] = useState<"jobs" | "map">("jobs");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mapLoadError, setMapLoadError] = useState("");
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -640,6 +642,17 @@ export default function FieldServiceDashboardPage() {
   };
 
   const jobs = data?.jobs || [];
+  const activeFilterCount = [
+    search,
+    date,
+    technicianId !== "all",
+    status !== "all",
+    priority !== "all",
+    suburb,
+    unassignedOnly,
+    runningLateOnly,
+  ].filter(Boolean).length;
+
   useEffect(() => {
     refreshSelectedJob(jobs);
   }, [jobs]);
@@ -677,7 +690,26 @@ export default function FieldServiceDashboardPage() {
           <CardDescription>View and manage field service callout jobs</CardDescription>
         </CardHeader>
         <CardContent className="min-w-0">
-          <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(220px,1fr)_180px_180px_180px_150px_180px_180px] 2xl:items-center">
+          <div className="mb-4 flex items-center justify-between gap-2 sm:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => setShowMobileFilters((open) => !open)}
+            >
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              Search & Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
+            <span className="text-xs text-slate-500">{jobs.length} jobs</span>
+          </div>
+
+          <div className={`${showMobileFilters ? "grid" : "hidden"} mb-6 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(220px,1fr)_180px_180px_180px_150px_180px_180px] 2xl:items-center`}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
