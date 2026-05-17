@@ -240,9 +240,6 @@ export default function InvoiceDetailPage() {
       (sum, refund) => sum + refund.amount,
       0
     );
-    const refundableLineItems = currentInvoice.invoiceItems
-      .filter((item) => item.itemType === "PART" || item.itemType === "LABOR")
-      .reduce((sum, item) => sum + item.totalPrice, 0);
     const nonRefundableDiagnosticFee =
       currentInvoice.job.diagnosticFeePaid && currentInvoice.job.diagnosticFeeAmount
         ? currentInvoice.job.diagnosticFeeAmount
@@ -250,11 +247,17 @@ export default function InvoiceDetailPage() {
     const nonRefundableCalloutFee = currentInvoice.job.isCallout
       ? currentInvoice.job.calloutFee || 0
       : 0;
+    const refundableInvoiceAmount = Math.max(
+      0,
+      currentInvoice.totalAmount -
+        nonRefundableDiagnosticFee -
+        nonRefundableCalloutFee
+    );
     const maximumRefundableAmount = Math.max(
       0,
       Math.min(
         currentInvoice.paidAmount - totalRefunded,
-        refundableLineItems - totalRefunded
+        refundableInvoiceAmount - totalRefunded
       )
     );
     const totalPaidDisplay =
@@ -267,8 +270,35 @@ export default function InvoiceDetailPage() {
       netPaid,
       nonRefundableDiagnosticFee,
       nonRefundableCalloutFee,
+      refundableInvoiceAmount,
       maximumRefundableAmount,
     };
+  };
+
+  const getRefundUnavailableReason = (currentInvoice: Invoice) => {
+    const summary = calculateRefundSummary(currentInvoice);
+
+    if (!(sessionInfo?.user?.role === "ADMIN" || sessionInfo?.user?.role === "TECHNICIAN")) {
+      return "Only admins and technicians can record refunds.";
+    }
+
+    if (currentInvoice.status === "CANCELLED") {
+      return "Cancelled invoices cannot be refunded.";
+    }
+
+    if (summary.netPaid <= 0) {
+      return "There is no paid amount left to refund.";
+    }
+
+    if (summary.refundableInvoiceAmount <= summary.totalRefunded) {
+      return "All refundable invoice value has already been refunded. Diagnostic and callout fees remain non-refundable.";
+    }
+
+    if (summary.maximumRefundableAmount <= 0) {
+      return "No refundable amount is available for this invoice.";
+    }
+
+    return "";
   };
 
   const handleDownloadPDF = async () => {
@@ -544,6 +574,7 @@ export default function InvoiceDetailPage() {
     invoice.status !== "CANCELLED" &&
     calculateRefundSummary(invoice).maximumRefundableAmount > 0;
   const refundSummary = calculateRefundSummary(invoice);
+  const refundUnavailableReason = getRefundUnavailableReason(invoice);
 
   return (
     <>
@@ -760,6 +791,9 @@ export default function InvoiceDetailPage() {
             <RotateCcw className="h-4 w-4 mr-2" />
             Process Refund
           </Button>
+          {!canProcessRefund && refundUnavailableReason && (
+            <p className="text-sm text-gray-600">{refundUnavailableReason}</p>
+          )}
         </CardContent>
       </Card>
 

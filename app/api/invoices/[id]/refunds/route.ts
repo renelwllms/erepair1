@@ -21,10 +21,6 @@ function calculateRefundSummary(invoice: any) {
     (sum: number, refund: any) => sum + Number(refund.amount || 0),
     0
   );
-  const refundableLineItems = invoice.invoiceItems
-    .filter((item: any) => item.itemType === "PART" || item.itemType === "LABOR")
-    .reduce((sum: number, item: any) => sum + Number(item.totalPrice || 0), 0);
-
   const nonRefundableDiagnosticFee =
     invoice.job?.diagnosticFeePaid && invoice.job?.diagnosticFeeAmount
       ? Number(invoice.job.diagnosticFeeAmount)
@@ -32,10 +28,16 @@ function calculateRefundSummary(invoice: any) {
   const nonRefundableCalloutFee = invoice.job?.isCallout
     ? Number(invoice.job.calloutFee || 0)
     : 0;
+  const refundableInvoiceAmount = Math.max(
+    0,
+    Number(invoice.totalAmount || 0) -
+      nonRefundableDiagnosticFee -
+      nonRefundableCalloutFee
+  );
 
   const maximumRefundableAmount = Math.max(
     0,
-    Math.min(totalPaid - totalRefunded, refundableLineItems - totalRefunded)
+    Math.min(totalPaid - totalRefunded, refundableInvoiceAmount - totalRefunded)
   );
 
   return {
@@ -43,6 +45,7 @@ function calculateRefundSummary(invoice: any) {
     totalRefunded,
     nonRefundableDiagnosticFee,
     nonRefundableCalloutFee,
+    refundableInvoiceAmount,
     maximumRefundableAmount,
   };
 }
@@ -50,9 +53,9 @@ function calculateRefundSummary(invoice: any) {
 async function getInvoiceForRefund(invoiceId: string) {
   return (db as any).invoice.findUnique({
     where: { id: invoiceId },
-    include: {
-      invoiceItems: true,
-      refunds: true,
+      include: {
+        invoiceItems: true,
+        refunds: true,
       job: {
         select: {
           id: true,
