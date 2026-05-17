@@ -25,25 +25,32 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get("error");
     const state = searchParams.get("state");
     const expectedState = request.cookies.get("gmail_oauth_state")?.value;
+    const returnToCookie = request.cookies.get("gmail_oauth_return_to")?.value;
+    const returnTo = returnToCookie?.startsWith("/") ? returnToCookie : "/settings";
 
     // Handle OAuth errors
     if (error) {
-      return NextResponse.redirect(
-        new URL(`/settings?gmail_error=${encodeURIComponent(error)}`, baseUrl)
+      const response = NextResponse.redirect(
+        new URL(`${returnTo}?gmail_error=${encodeURIComponent(error)}`, baseUrl)
       );
+      response.cookies.delete("gmail_oauth_return_to");
+      return response;
     }
 
     if (!code) {
-      return NextResponse.redirect(
-        new URL("/settings?gmail_error=no_code", baseUrl)
+      const response = NextResponse.redirect(
+        new URL(`${returnTo}?gmail_error=no_code`, baseUrl)
       );
+      response.cookies.delete("gmail_oauth_return_to");
+      return response;
     }
 
     if (!state || !expectedState || state !== expectedState) {
       const response = NextResponse.redirect(
-        new URL("/settings?gmail_error=invalid_state", baseUrl)
+        new URL(`${returnTo}?gmail_error=invalid_state`, baseUrl)
       );
       response.cookies.delete("gmail_oauth_state");
+      response.cookies.delete("gmail_oauth_return_to");
       return response;
     }
 
@@ -55,22 +62,26 @@ export async function GET(request: NextRequest) {
     // Exchange code for tokens
     await exchangeGmailCode(code, redirectUri);
 
-    // Redirect back to settings with success message
+    // Redirect back to the page that initiated authorization.
     const response = NextResponse.redirect(
-      new URL("/settings?gmail_success=true", baseUrl)
+      new URL(`${returnTo}?gmail_success=true`, baseUrl)
     );
     response.cookies.delete("gmail_oauth_state");
+    response.cookies.delete("gmail_oauth_return_to");
     return response;
   } catch (error: any) {
     console.error("Error in Gmail OAuth callback:", error);
     const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
+    const returnToCookie = request.cookies.get("gmail_oauth_return_to")?.value;
+    const returnTo = returnToCookie?.startsWith("/") ? returnToCookie : "/settings";
     const response = NextResponse.redirect(
       new URL(
-        `/settings?gmail_error=${encodeURIComponent(error.message || "Authentication failed")}`,
+        `${returnTo}?gmail_error=${encodeURIComponent(error.message || "Authentication failed")}`,
         baseUrl
       )
     );
     response.cookies.delete("gmail_oauth_state");
+    response.cookies.delete("gmail_oauth_return_to");
     return response;
   }
 }

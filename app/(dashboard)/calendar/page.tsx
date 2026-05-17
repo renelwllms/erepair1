@@ -88,7 +88,7 @@ export default function CalendarPage() {
 
   const authorizeGoogle = async () => {
     try {
-      const response = await fetch("/api/settings/gmail-auth");
+      const response = await fetch("/api/settings/gmail-auth?returnTo=/calendar");
       const data = await response.json();
 
       if (!response.ok || !data.authUrl) {
