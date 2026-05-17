@@ -649,7 +649,7 @@ export default function NewJobPage() {
 
   if (loadingData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-full items-center justify-center py-16">
         <div className="text-center">
           <p className="text-lg">Loading form...</p>
         </div>
@@ -746,7 +746,7 @@ export default function NewJobPage() {
                   )}
 
                   {displayedCustomerResults.length > 0 && (
-                    <div className="max-h-64 overflow-y-auto rounded-md border bg-white shadow-sm">
+                    <div className="rounded-md border bg-white shadow-sm">
                       {displayedCustomerResults.map((customer) => (
                         <button
                           key={customer.id}
