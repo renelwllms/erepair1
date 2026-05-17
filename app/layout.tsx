@@ -40,7 +40,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className={`${inter.className} pb-16`} suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <DynamicFavicon />
         <Providers>
           {children}
