@@ -305,10 +305,10 @@ export default function JobsPage() {
   };
 
   const formatStatus = (status: string) => {
-    if (status === "AWAITING_CUSTOMER_APPROVAL") {
-      return "Awaiting Customer Approval";
-    }
-    return status.replace(/_/g, " ");
+    return status
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
   // Filter jobs based on attention filter (client-side filtering)
