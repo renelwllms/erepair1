@@ -822,6 +822,24 @@ export default function FieldServiceDashboardPage() {
                   <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
                   <Button className="h-11" onClick={() => openJobDialog(job)}>Open</Button>
                 </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button size="lg" variant="outline" asChild>
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`} target="_blank" rel="noreferrer">
+                      <Compass className="mr-2 h-4 w-4" />
+                      Maps
+                    </a>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <a href={`tel:${job.customer.phone}`}>
+                      <Phone className="mr-2 h-4 w-4" />
+                      Call
+                    </a>
+                  </Button>
+                  <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
+                  <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
+                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
+                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
+                </div>
               </div>
             ))}
           </div>
@@ -838,7 +856,7 @@ export default function FieldServiceDashboardPage() {
                   <TableHead>Technician</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="min-w-[360px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -879,8 +897,26 @@ export default function FieldServiceDashboardPage() {
                       </Select>
                     </TableCell>
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
+                    <TableCell>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`} target="_blank" rel="noreferrer">
+                            <Compass className="mr-1 h-3.5 w-3.5" />
+                            Maps
+                          </a>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={`tel:${job.customer.phone}`}>
+                            <Phone className="mr-1 h-3.5 w-3.5" />
+                            Call
+                          </a>
+                        </Button>
+                        <Button size="sm" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start</Button>
+                        <Button size="sm" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
+                        <Button variant="outline" size="sm" onClick={() => openJobDialog(job, "notes")}>Note</Button>
+                        <Button variant="outline" size="sm" onClick={() => openJobDialog(job, "photos")}>Photos</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -907,33 +943,6 @@ export default function FieldServiceDashboardPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
-            <h2 className="font-semibold text-slate-950">Technician Mobile View</h2>
-            <p className="text-sm text-slate-500">My Jobs Today</p>
-            <div className="mt-3 space-y-3">
-              {jobs.slice(0, 4).map((job) => (
-                <div key={job.id} className="rounded-md border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <Link href={`/jobs/${job.id}`} className="font-medium text-blue-700 hover:underline">
-                        {job.jobNumber}
-                      </Link>
-                      <p className="text-sm text-slate-600">{job.customer.firstName} {job.customer.lastName}</p>
-                    </div>
-                    <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Button size="lg" variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`}><Compass className="mr-2 h-4 w-4" />Maps</a></Button>
-                    <Button size="lg" variant="outline" asChild><a href={`tel:${job.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
-                    <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
-                    <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
-                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
-                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
           </div>
         </TabsContent>
       </Tabs>
