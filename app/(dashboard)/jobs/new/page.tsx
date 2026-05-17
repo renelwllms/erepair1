@@ -216,6 +216,8 @@ export default function NewJobPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [showCustomApplianceType, setShowCustomApplianceType] = useState(false);
+  const [showCustomBrand, setShowCustomBrand] = useState(false);
   const [customApplianceType, setCustomApplianceType] = useState("");
   const [customBrand, setCustomBrand] = useState("");
   const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
@@ -879,12 +881,14 @@ export default function NewJobPage() {
                   Appliance Type <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={applianceType}
+                  value={showCustomApplianceType ? "Other" : applianceType}
                   onValueChange={(value) => {
                     if (value === "Other") {
+                      setShowCustomApplianceType(true);
                       setCustomApplianceType("");
                       setValue("applianceType", "");
                     } else {
+                      setShowCustomApplianceType(false);
                       setValue("applianceType", value);
                     }
                     setApplianceSearchTerm("");
@@ -916,7 +920,7 @@ export default function NewJobPage() {
                     )}
                   </SelectContent>
                 </Select>
-                {applianceType === "Other" || (!applianceType && customApplianceType !== undefined) ? (
+                {showCustomApplianceType ? (
                   <Input
                     placeholder="Enter custom appliance type"
                     value={customApplianceType}
@@ -963,12 +967,14 @@ export default function NewJobPage() {
                   Brand <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={applianceBrand}
+                  value={showCustomBrand ? "Other" : applianceBrand}
                   onValueChange={(value) => {
                     if (value === "Other") {
+                      setShowCustomBrand(true);
                       setCustomBrand("");
                       setValue("applianceBrand", "");
                     } else {
+                      setShowCustomBrand(false);
                       setValue("applianceBrand", value);
                     }
                     setBrandSearchTerm("");
@@ -1000,7 +1006,7 @@ export default function NewJobPage() {
                     )}
                   </SelectContent>
                 </Select>
-                {applianceBrand === "Other" || (!applianceBrand && customBrand !== undefined) ? (
+                {showCustomBrand ? (
                   <Input
                     placeholder="Enter custom brand"
                     value={customBrand}
@@ -1210,18 +1216,6 @@ export default function NewJobPage() {
                 </div>
               </>
             )}
-
-            {/* Additional Information */}
-            <div className="space-y-2">
-              <div className="space-y-2">
-                <Label htmlFor="warrantyStatus">Warranty Status</Label>
-                <Input
-                  id="warrantyStatus"
-                  {...register("warrantyStatus")}
-                  placeholder="e.g., In Warranty, Out of Warranty"
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="estimatedCompletion">Estimated Completion Date</Label>
