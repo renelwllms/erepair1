@@ -828,7 +828,24 @@ export default function FieldServiceDashboardPage() {
                     <TableCell className="min-w-[240px] text-sm">{job.calloutAddress || "Address not selected"}</TableCell>
                     <TableCell>{formatDateTime(job.scheduledAt)}</TableCell>
                     <TableCell>{job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}</TableCell>
-                    <TableCell><Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge></TableCell>
+                    <TableCell>
+                      <Select value={job.status} onValueChange={(value) => updateStatus(job, value)}>
+                        <SelectTrigger
+                          className={`h-9 w-[190px] max-w-full rounded-md border px-3 text-left text-xs font-medium shadow-none [&>span]:truncate ${statusTone[job.status] || "bg-slate-100 text-slate-700"}`}
+                        >
+                          <SelectValue>
+                            <span className="block w-full truncate">{formatFieldStatus(job.status)}</span>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FIELD_SERVICE_STATUSES.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {formatFieldStatus(item)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
