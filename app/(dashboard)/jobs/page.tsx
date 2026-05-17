@@ -518,7 +518,7 @@ export default function JobsPage() {
                 ))}
               </div>
 
-              <div className="hidden overflow-x-auto md:block">
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>

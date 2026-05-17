@@ -649,8 +649,8 @@ export default function FieldServiceDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-slate-50 p-4 lg:p-6">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="space-y-5 overflow-x-hidden">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-950">Field Service Dashboard</h1>
           <p className="mt-1 text-sm text-slate-600">Callout repair operations, scheduling, dispatch, and technician work.</p>
@@ -794,24 +794,19 @@ export default function FieldServiceDashboardPage() {
             ))}
           </div>
 
-          <div className="hidden min-w-0 overflow-x-auto rounded-md border border-slate-200 md:block">
-            <Table className="min-w-[1500px]">
+          <div className="hidden min-w-0 rounded-md border border-slate-200 md:block">
+            <Table className="min-w-[1080px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Job ID</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Phone</TableHead>
                   <TableHead>Appliance</TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>Booking</TableHead>
                   <TableHead>Scheduled</TableHead>
                   <TableHead>Technician</TableHead>
-                  <TableHead>Distance</TableHead>
-                  <TableHead>Travel</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -822,22 +817,20 @@ export default function FieldServiceDashboardPage() {
                         {job.jobNumber}
                       </Link>
                     </TableCell>
-                    <TableCell>{job.customer.firstName} {job.customer.lastName}</TableCell>
-                    <TableCell><a className="text-blue-700 hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a></TableCell>
-                    <TableCell>{job.applianceType}</TableCell>
-                    <TableCell className="min-w-[220px] text-sm">{job.calloutAddress || "Address not selected"}</TableCell>
-                    <TableCell>{formatDateTime(job.createdAt)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{job.customer.firstName} {job.customer.lastName}</div>
+                      <a className="text-sm text-blue-700 hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a>
+                    </TableCell>
+                    <TableCell>
+                      <div>{job.applianceType}</div>
+                      <div className="text-sm text-slate-500">{job.applianceBrand}</div>
+                    </TableCell>
+                    <TableCell className="min-w-[240px] text-sm">{job.calloutAddress || "Address not selected"}</TableCell>
                     <TableCell>{formatDateTime(job.scheduledAt)}</TableCell>
                     <TableCell>{job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}</TableCell>
-                    <TableCell>
-                      {formatDistance(job.distanceFromOfficeKm)}
-                      {job.travelEstimateSource === "STRAIGHT_LINE_ESTIMATE" && <span className="ml-1 text-xs text-slate-500">(est.)</span>}
-                    </TableCell>
-                    <TableCell>{job.estimatedTravelTime || "Not calculated"}</TableCell>
                     <TableCell><Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge></TableCell>
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
-                    <TableCell>{formatDateTime(job.updatedAt)}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
                     </TableCell>
                   </TableRow>
