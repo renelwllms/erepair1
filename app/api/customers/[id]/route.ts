@@ -53,6 +53,7 @@ export async function GET(
           include: {
             job: {
               select: {
+                id: true,
                 jobNumber: true,
                 applianceType: true,
               },

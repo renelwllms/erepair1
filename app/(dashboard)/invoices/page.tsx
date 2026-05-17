@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -273,7 +274,13 @@ export default function InvoicesPage() {
                         <p className="mt-1 truncate text-sm text-gray-700">
                           {invoice.customer.firstName} {invoice.customer.lastName}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">{invoice.job.jobNumber} · {invoice.job.applianceBrand} {invoice.job.applianceType}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                            {invoice.job.jobNumber}
+                          </Link>
+                          {" · "}
+                          {invoice.job.applianceBrand} {invoice.job.applianceType}
+                        </p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(invoice.status)}>{formatStatus(invoice.status)}</Badge>
                     </div>
@@ -342,7 +349,9 @@ export default function InvoicesPage() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{invoice.job.jobNumber}</p>
+                            <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                              {invoice.job.jobNumber}
+                            </Link>
                             <p className="text-sm text-gray-500">
                               {invoice.job.applianceBrand} {invoice.job.applianceType}
                             </p>

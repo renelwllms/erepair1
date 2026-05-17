@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -434,7 +435,12 @@ export default function JobsPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           {needsAttention(job) && <Bell className="h-4 w-4 shrink-0 text-yellow-600" />}
-                          <p className="font-semibold text-gray-950">{job.jobNumber}</p>
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            className="font-semibold text-blue-700 hover:underline"
+                          >
+                            {job.jobNumber}
+                          </Link>
                           <Badge variant={getPriorityBadgeVariant(job.priority)}>{job.priority}</Badge>
                         </div>
                         <p className="mt-1 truncate text-sm text-gray-700">
@@ -555,7 +561,13 @@ export default function JobsPage() {
                           {needsAttention(job) && (
                             <Bell className="h-4 w-4 text-yellow-600" />
                           )}
-                          {job.jobNumber}
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            onClick={(event) => event.stopPropagation()}
+                            className="text-blue-700 hover:underline"
+                          >
+                            {job.jobNumber}
+                          </Link>
                         </div>
                       </TableCell>
                       <TableCell>

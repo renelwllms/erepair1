@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -802,7 +803,9 @@ export default function FieldServiceDashboardPage() {
               <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-slate-950">{job.jobNumber}</p>
+                    <Link href={`/jobs/${job.id}`} className="font-semibold text-blue-700 hover:underline">
+                      {job.jobNumber}
+                    </Link>
                     <p className="mt-1 truncate text-sm text-slate-700">{job.customer.firstName} {job.customer.lastName}</p>
                     <a className="mt-1 block text-sm text-blue-700" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a>
                   </div>
@@ -850,7 +853,11 @@ export default function FieldServiceDashboardPage() {
               <TableBody>
                 {jobs.map((job) => (
                   <TableRow key={job.id} className={job.runningLate ? "bg-rose-50" : !job.assignedTechnicianId ? "bg-amber-50/50" : ""}>
-                    <TableCell className="font-medium">{job.jobNumber}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/jobs/${job.id}`} className="text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
+                    </TableCell>
                     <TableCell>{job.customer.firstName} {job.customer.lastName}</TableCell>
                     <TableCell><a className="text-blue-700 hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a></TableCell>
                     <TableCell>{job.applianceType}</TableCell>
@@ -903,7 +910,9 @@ export default function FieldServiceDashboardPage() {
                 <div key={job.id} className="rounded-md border border-slate-200 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="font-medium">{job.jobNumber}</p>
+                      <Link href={`/jobs/${job.id}`} className="font-medium text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
                       <p className="text-sm text-slate-600">{job.customer.firstName} {job.customer.lastName}</p>
                     </div>
                     <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
@@ -939,7 +948,9 @@ export default function FieldServiceDashboardPage() {
               <DialogHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <DialogTitle className="flex flex-wrap items-center gap-2">
-                    {selectedJob.jobNumber}
+                    <Link href={`/jobs/${selectedJob.id}`} className="text-blue-700 hover:underline">
+                      {selectedJob.jobNumber}
+                    </Link>
                     <Badge className={statusTone[selectedJob.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(selectedJob.status)}</Badge>
                     {selectedJob.runningLate && <Badge className="bg-rose-100 text-rose-700">Running Late</Badge>}
                   </DialogTitle>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -200,7 +201,11 @@ export default function EditQuotePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Edit Quote</h1>
         <p className="text-gray-600">
-          {quote.quoteNumber} - {quote.customer.firstName} {quote.customer.lastName} (Job: {quote.job.jobNumber})
+          {quote.quoteNumber} - {quote.customer.firstName} {quote.customer.lastName} (Job:{" "}
+          <Link href={`/jobs/${quote.job.id}`} className="text-blue-700 hover:underline">
+            {quote.job.jobNumber}
+          </Link>
+          )
         </p>
       </div>
 

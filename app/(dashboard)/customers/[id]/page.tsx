@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ interface Invoice {
   issueDate: string;
   refunds?: { amount: number }[];
   job: {
+    id: string;
     jobNumber: string;
     applianceType: string;
   };
@@ -347,7 +349,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <div key={job.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold">{job.jobNumber}</p>
+                      <Link href={`/jobs/${job.id}`} className="font-semibold text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
                       <p className="mt-1 text-sm text-gray-600">{job.applianceBrand} {job.applianceType}</p>
                     </div>
                     <Badge variant={job.priority === "URGENT" ? "destructive" : "secondary"}>
@@ -377,7 +381,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <TableBody>
                 {customer.jobs.map((job) => (
                   <TableRow key={job.id}>
-                    <TableCell className="font-medium">{job.jobNumber}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/jobs/${job.id}`} className="text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{job.applianceType}</div>
@@ -440,7 +448,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold">{invoice.invoiceNumber}</p>
-                      <p className="mt-1 text-sm text-gray-600">{invoice.job.jobNumber} · {invoice.job.applianceType}</p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                          {invoice.job.jobNumber}
+                        </Link>
+                        {" · "}
+                        {invoice.job.applianceType}
+                      </p>
                     </div>
                     <Badge variant={invoice.status === "PAID" ? "secondary" : "default"}>{invoice.status}</Badge>
                   </div>
@@ -482,7 +496,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{invoice.job.jobNumber}</div>
+                        <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                          {invoice.job.jobNumber}
+                        </Link>
                         <div className="text-sm text-gray-500">{invoice.job.applianceType}</div>
                       </div>
                     </TableCell>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -654,7 +655,12 @@ export default function InvoiceDetailPage() {
               Invoice {invoice.invoiceNumber}
             </h1>
             <p className="text-gray-600 mt-1">
-              Job #{invoice.job.jobNumber} - {invoice.customer.firstName}{" "}
+              Job #{" "}
+              <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                {invoice.job.jobNumber}
+              </Link>
+              {" - "}
+              {invoice.customer.firstName}{" "}
               {invoice.customer.lastName}
             </p>
           </div>
@@ -891,7 +897,9 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Job Number:</span>
-                  <span className="font-medium">{invoice.job.jobNumber}</span>
+                  <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                    {invoice.job.jobNumber}
+                  </Link>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Issued By:</span>
