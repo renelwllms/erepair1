@@ -57,6 +57,11 @@ export async function GET(
                 applianceType: true,
               },
             },
+            refunds: {
+              select: {
+                amount: true,
+              },
+            },
           },
           orderBy: {
             issueDate: "desc",
@@ -83,7 +88,13 @@ export async function GET(
         job.status === "OPEN" || job.status === "IN_PROGRESS" || job.status === "AWAITING_PARTS"
       ).length,
       completedJobs: customer.jobs.filter((job: any) => job.status === "CLOSED").length,
-      totalRevenue: customer.invoices.reduce((sum: number, inv: any) => sum + inv.paidAmount, 0),
+      totalRevenue: customer.invoices.reduce((sum: number, inv: any) => {
+        const refunded = inv.refunds.reduce(
+          (refundSum: number, refund: any) => refundSum + refund.amount,
+          0
+        );
+        return sum + inv.paidAmount - refunded;
+      }, 0),
       totalOwed: customer.invoices.reduce((sum: number, inv: any) => sum + inv.balanceAmount, 0),
     };
 

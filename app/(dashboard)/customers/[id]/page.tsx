@@ -54,6 +54,7 @@ interface Invoice {
   balanceAmount: number;
   status: string;
   issueDate: string;
+  refunds?: { amount: number }[];
   job: {
     jobNumber: string;
     applianceType: string;
@@ -152,6 +153,12 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     return null;
   }
 
+  const getRefundedAmount = (invoice: Invoice) =>
+    (invoice.refunds || []).reduce((sum, refund) => sum + refund.amount, 0);
+
+  const getNetPaidAmount = (invoice: Invoice) =>
+    Math.max(0, invoice.paidAmount - getRefundedAmount(invoice));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -204,13 +211,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Net Revenue</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               ${customer.stats.totalRevenue.toFixed(2)}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Lifetime value</p>
+            <p className="text-xs text-gray-500 mt-1">Lifetime value after refunds</p>
           </CardContent>
         </Card>
 
@@ -443,8 +450,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                       <p className="font-semibold">${invoice.totalAmount.toFixed(0)}</p>
                     </div>
                     <div className="rounded-lg bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Paid</p>
-                      <p className="font-semibold text-green-600">${invoice.paidAmount.toFixed(0)}</p>
+                      <p className="text-xs text-gray-500">Net Paid</p>
+                      <p className="font-semibold text-green-600">${getNetPaidAmount(invoice).toFixed(0)}</p>
                     </div>
                     <div className="rounded-lg bg-gray-50 p-3">
                       <p className="text-xs text-gray-500">Balance</p>
@@ -463,7 +470,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <TableHead>Job</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
+                  <TableHead>Net Paid</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -485,7 +492,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                       </Badge>
                     </TableCell>
                     <TableCell>${invoice.totalAmount.toFixed(2)}</TableCell>
-                    <TableCell className="text-green-600">${invoice.paidAmount.toFixed(2)}</TableCell>
+                    <TableCell className="text-green-600">${getNetPaidAmount(invoice).toFixed(2)}</TableCell>
                     <TableCell className={invoice.balanceAmount > 0 ? "text-orange-600" : ""}>
                       ${invoice.balanceAmount.toFixed(2)}
                     </TableCell>

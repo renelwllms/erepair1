@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
           },
           invoiceItems: true,
           payments: true,
+          refunds: true,
           issuedBy: {
             select: {
               id: true,

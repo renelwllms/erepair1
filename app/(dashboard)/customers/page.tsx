@@ -206,7 +206,7 @@ export default function CustomersPage() {
       csv: (customer) => `${customer.totalJobs} total${customer.openJobs > 0 ? ` (${customer.openJobs} open)` : ""}`,
     },
     revenue: {
-      label: "Revenue",
+      label: "Net Revenue",
       render: (customer) => `$${customer.totalRevenue.toFixed(2)}`,
       csv: (customer) => customer.totalRevenue.toFixed(2),
     },
@@ -443,7 +443,7 @@ export default function CustomersPage() {
                         <p className="font-semibold text-orange-600">{customer.openJobs}</p>
                       </div>
                       <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs text-gray-500">Revenue</p>
+                        <p className="text-xs text-gray-500">Net Revenue</p>
                         <p className="font-semibold">${customer.totalRevenue.toFixed(0)}</p>
                       </div>
                     </div>

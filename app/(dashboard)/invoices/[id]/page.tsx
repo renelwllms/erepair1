@@ -259,10 +259,12 @@ export default function InvoiceDetailPage() {
     );
     const totalPaidDisplay =
       currentInvoice.paidAmount + nonRefundableDiagnosticFee;
+    const netPaid = Math.max(0, currentInvoice.paidAmount - totalRefunded);
 
     return {
       totalPaidDisplay,
       totalRefunded,
+      netPaid,
       nonRefundableDiagnosticFee,
       nonRefundableCalloutFee,
       maximumRefundableAmount,
@@ -716,7 +718,7 @@ export default function InvoiceDetailPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-md border p-3">
               <div className="text-xs text-gray-500">Total Paid</div>
               <div className="text-lg font-semibold">
@@ -736,17 +738,24 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
             <div className="rounded-md border p-3">
+              <div className="text-xs text-gray-500">Refunded</div>
+              <div className="text-lg font-semibold text-red-600">
+                {formatCurrency(refundSummary.totalRefunded)}
+              </div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-xs text-gray-500">Net Paid</div>
+              <div className="text-lg font-semibold">
+                {formatCurrency(refundSummary.netPaid)}
+              </div>
+            </div>
+            <div className="rounded-md border p-3">
               <div className="text-xs text-gray-500">Maximum Refundable Amount</div>
               <div className="text-lg font-semibold text-green-700">
                 {formatCurrency(refundSummary.maximumRefundableAmount)}
               </div>
             </div>
           </div>
-          {refundSummary.totalRefunded > 0 && (
-            <div className="text-sm text-gray-600">
-              Previous refunds: {formatCurrency(refundSummary.totalRefunded)}
-            </div>
-          )}
           <Button onClick={openRefundDialog} disabled={!canProcessRefund}>
             <RotateCcw className="h-4 w-4 mr-2" />
             Process Refund
@@ -934,6 +943,22 @@ export default function InvoiceDetailPage() {
                   {formatCurrency(invoice.paidAmount)}
                 </span>
               </div>
+              {refundSummary.totalRefunded > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-red-600">Refunded:</span>
+                    <span className="font-medium text-red-600">
+                      -{formatCurrency(refundSummary.totalRefunded)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Net Paid:</span>
+                    <span className="font-medium">
+                      {formatCurrency(refundSummary.netPaid)}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-lg font-bold">
                 <span className="text-orange-600">Balance Due:</span>
                 <span className="text-orange-600">

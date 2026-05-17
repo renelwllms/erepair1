@@ -1424,7 +1424,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           <DialogHeader>
             <DialogTitle>Warranty Return</DialogTitle>
             <DialogDescription>
-              Choose whether to reopen this job or create a linked warranty follow-up job. Refunds remain manual outside the system.
+              Choose whether to reopen this job or create a linked warranty follow-up job. Manual refund payouts can be tracked from the invoice.
             </DialogDescription>
           </DialogHeader>
 
@@ -1464,7 +1464,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 id="warrantyNotes"
                 value={warrantyNotes}
                 onChange={(event) => setWarrantyNotes(event.target.value)}
-                placeholder="Optional internal notes. Any refund handling remains manual outside the system."
+                placeholder="Optional internal notes. Manual refund payouts can be tracked from the invoice."
               />
             </div>
           </div>

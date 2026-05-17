@@ -64,8 +64,11 @@ export default function ReportsPage() {
     lines.push(`Reports (${rangeLabel})`);
     lines.push("");
     lines.push("Financial Summary");
-    lines.push(`Total Revenue,${reportData.financial.totalRevenue}`);
-    lines.push(`Total Paid,${reportData.financial.totalPaid}`);
+    lines.push(`Gross Revenue,${reportData.financial.grossRevenue}`);
+    lines.push(`Refunds,${reportData.financial.totalRefunds}`);
+    lines.push(`Net Revenue,${reportData.financial.netRevenue}`);
+    lines.push(`Gross Paid,${reportData.financial.grossPaid}`);
+    lines.push(`Net Paid,${reportData.financial.netPaid}`);
     lines.push(`Outstanding Balance,${reportData.financial.totalOutstanding}`);
     lines.push(`Invoice Count,${reportData.financial.invoiceCount}`);
     lines.push(`Average Invoice,${reportData.financial.avgInvoice}`);
@@ -85,7 +88,7 @@ export default function ReportsPage() {
     });
     lines.push("");
     lines.push("Customer Analytics");
-    lines.push("Customer,Email,Total Revenue,Job Count,Avg Invoice");
+    lines.push("Customer,Email,Net Revenue,Job Count,Avg Invoice");
     reportData.customers.forEach((cust: any) => {
       lines.push(
         `${cust.name},${cust.email},${cust.totalRevenue},${cust.jobCount},${cust.avgInvoice}`
@@ -113,9 +116,13 @@ export default function ReportsPage() {
     let y = 30;
     doc.text("Financial Summary", 14, y);
     y += 6;
-    doc.text(`Total Revenue: ${formatCurrency(reportData.financial.totalRevenue)}`, 14, y);
+    doc.text(`Gross Revenue: ${formatCurrency(reportData.financial.grossRevenue)}`, 14, y);
     y += 5;
-    doc.text(`Total Paid: ${formatCurrency(reportData.financial.totalPaid)}`, 14, y);
+    doc.text(`Refunds: ${formatCurrency(reportData.financial.totalRefunds)}`, 14, y);
+    y += 5;
+    doc.text(`Net Revenue: ${formatCurrency(reportData.financial.netRevenue)}`, 14, y);
+    y += 5;
+    doc.text(`Net Paid: ${formatCurrency(reportData.financial.netPaid)}`, 14, y);
     y += 5;
     doc.text(`Outstanding: ${formatCurrency(reportData.financial.totalOutstanding)}`, 14, y);
     y += 5;
@@ -215,20 +222,20 @@ export default function ReportsPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardHeader>
-                <CardTitle>Total Revenue</CardTitle>
+                <CardTitle>Net Revenue</CardTitle>
                 <CardDescription>{rangeLabel}</CardDescription>
               </CardHeader>
               <CardContent className="text-2xl font-bold">
-                {formatCurrency(reportData.financial.totalRevenue)}
+                {formatCurrency(reportData.financial.netRevenue)}
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Total Paid</CardTitle>
-                <CardDescription>Invoices received</CardDescription>
+                <CardTitle>Refunds</CardTitle>
+                <CardDescription>Deducted from revenue</CardDescription>
               </CardHeader>
-              <CardContent className="text-2xl font-bold">
-                {formatCurrency(reportData.financial.totalPaid)}
+              <CardContent className="text-2xl font-bold text-red-600">
+                {formatCurrency(reportData.financial.totalRefunds)}
               </CardContent>
             </Card>
             <Card>
@@ -243,7 +250,7 @@ export default function ReportsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Invoices Issued</CardTitle>
-                <CardDescription>Average invoice value</CardDescription>
+                <CardDescription>Gross total: {formatCurrency(reportData.financial.grossRevenue)}</CardDescription>
               </CardHeader>
               <CardContent className="text-2xl font-bold">
                 {reportData.financial.invoiceCount}{" "}
@@ -328,7 +335,7 @@ export default function ReportsPage() {
                   <TableRow>
                     <TableHead>Customer</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Net Revenue</TableHead>
                     <TableHead className="text-right">Jobs</TableHead>
                     <TableHead className="text-right">Avg Invoice</TableHead>
                   </TableRow>

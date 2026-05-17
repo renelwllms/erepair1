@@ -75,6 +75,11 @@ export async function GET(request: NextRequest) {
             id: true,
             totalAmount: true,
             paidAmount: true,
+            refunds: {
+              select: {
+                amount: true,
+              },
+            },
           },
         },
       },
@@ -89,7 +94,13 @@ export async function GET(request: NextRequest) {
     const customersWithStats = customers.map((customer: any) => ({
       ...customer,
       totalJobs: customer.jobs.length,
-      totalRevenue: customer.invoices.reduce((sum: number, inv: any) => sum + inv.paidAmount, 0),
+      totalRevenue: customer.invoices.reduce((sum: number, inv: any) => {
+        const refunded = inv.refunds.reduce(
+          (refundSum: number, refund: any) => refundSum + refund.amount,
+          0
+        );
+        return sum + inv.paidAmount - refunded;
+      }, 0),
       openJobs: customer.jobs.filter((job: any) =>
         job.status === "OPEN" || job.status === "IN_PROGRESS" || job.status === "AWAITING_PARTS"
       ).length,

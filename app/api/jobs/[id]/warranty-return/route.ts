@@ -113,7 +113,7 @@ export async function POST(
         `Warranty return: reopened existing job ${sourceJob.jobNumber}.`,
         validatedData.issueDescription ? `Reported issue: ${validatedData.issueDescription}` : null,
         validatedData.notes ? `Internal notes: ${validatedData.notes}` : null,
-        sourceJob.invoice ? `Refunds remain manual outside the system for invoice ${sourceJob.invoice.invoiceNumber}.` : "Refunds remain manual outside the system.",
+        sourceJob.invoice ? `Manual refund payouts can be tracked on invoice ${sourceJob.invoice.invoiceNumber}.` : "Manual refund payouts can be tracked from the related invoice when available.",
       ].filter(Boolean);
 
       await db.jobStatusHistory.create({
@@ -129,7 +129,7 @@ export async function POST(
         success: true,
         action: "REOPEN",
         job: reopenedJob,
-        message: "Job reopened under warranty. Refunds remain a manual process outside the system.",
+        message: "Job reopened under warranty. Manual refund payouts can be tracked from the invoice.",
       });
     }
 
@@ -186,7 +186,7 @@ export async function POST(
           `Warranty return job created from ${sourceJob.jobNumber}.`,
           sourceJob.invoice ? `Original invoice: ${sourceJob.invoice.invoiceNumber}.` : null,
           validatedData.notes ? `Internal notes: ${validatedData.notes}` : null,
-          "Refunds remain a manual process outside the system.",
+          "Manual refund payouts can be tracked from the original invoice.",
         ]
           .filter(Boolean)
           .join(" "),
@@ -199,7 +199,7 @@ export async function POST(
         success: true,
         action: "CREATE_LINKED",
         job: createdJob,
-        message: "Linked warranty return job created. Refunds remain a manual process outside the system.",
+        message: "Linked warranty return job created. Manual refund payouts can be tracked from the original invoice.",
       },
       { status: 201 }
     );

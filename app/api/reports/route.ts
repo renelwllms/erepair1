@@ -55,6 +55,32 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const refunds = await (db as any).refund.findMany({
+      where: {
+        refundDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            customerId: true,
+            customer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
     const jobsInRange = await db.job.findMany({
       where: {
         createdAt: {
@@ -102,11 +128,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const totalRevenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const totalPaid = invoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
+    const grossRevenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const grossPaid = invoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
+    const totalRefunds = refunds.reduce(
+      (sum: number, refund: any) => sum + Number(refund.amount || 0),
+      0
+    );
+    const totalRevenue = grossRevenue - totalRefunds;
+    const totalPaid = grossPaid - totalRefunds;
     const totalOutstanding = invoices.reduce((sum, inv) => sum + inv.balanceAmount, 0);
     const invoiceCount = invoices.length;
-    const avgInvoice = invoiceCount ? totalRevenue / invoiceCount : 0;
+    const avgInvoice = invoiceCount ? grossRevenue / invoiceCount : 0;
 
     const totalJobs = jobsInRange.length;
     const completedCount = completedJobs.length;
@@ -185,6 +217,24 @@ export async function GET(request: NextRequest) {
       entry.invoiceCount += 1;
     });
 
+    refunds.forEach((refund: any) => {
+      const customer = refund.invoice?.customer;
+      if (!customer) return;
+      const id = refund.invoice.customerId;
+      if (!customerMap.has(id)) {
+        customerMap.set(id, {
+          id,
+          name: `${customer.firstName} ${customer.lastName}`,
+          email: customer.email,
+          totalRevenue: 0,
+          invoiceCount: 0,
+          jobCount: 0,
+        });
+      }
+      const entry = customerMap.get(id)!;
+      entry.totalRevenue -= Number(refund.amount || 0);
+    });
+
     jobsInRange.forEach((job) => {
       const entry = customerMap.get(job.customerId);
       if (entry) {
@@ -210,6 +260,11 @@ export async function GET(request: NextRequest) {
         endDate,
       },
       financial: {
+        grossRevenue,
+        grossPaid,
+        totalRefunds,
+        netRevenue: totalRevenue,
+        netPaid: totalPaid,
         totalRevenue,
         totalPaid,
         totalOutstanding,
