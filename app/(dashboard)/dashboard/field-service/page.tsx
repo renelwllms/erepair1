@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
   ArrowLeft,
   Camera,
   CheckCircle2,
@@ -762,12 +761,8 @@ export default function FieldServiceDashboardPage() {
         </TabsList>
 
         <TabsContent value="jobs" className="mt-0" forceMount hidden={dashboardTab !== "jobs"}>
-          <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
-            <p className="text-sm text-slate-500">{jobs.length} callout jobs shown</p>
-          </div>
-          <div className="space-y-3 p-4 md:hidden">
+          <div className="mb-4 text-sm text-slate-500">{jobs.length} callout jobs shown</div>
+          <div className="space-y-3 md:hidden">
             {jobs.map((job) => (
               <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
@@ -850,7 +845,6 @@ export default function FieldServiceDashboardPage() {
               </TableBody>
             </Table>
           </div>
-          </div>
         </TabsContent>
 
         <TabsContent value="map" className="mt-0" forceMount hidden={dashboardTab !== "map"}>
@@ -901,6 +895,8 @@ export default function FieldServiceDashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
+        </CardContent>
+      </Card>
 
       <Dialog open={Boolean(selectedJob)} onOpenChange={(open) => !open && setSelectedJob(null)}>
         <DialogContent
