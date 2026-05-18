@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Camera,
   CheckCircle2,
+  ChevronDown,
   Compass,
   MapPin,
   MoreHorizontal,
@@ -272,6 +273,7 @@ export default function FieldServiceDashboardPage() {
   const [dashboardTab, setDashboardTab] = useState<"jobs" | "map">("jobs");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mapLoadError, setMapLoadError] = useState("");
+  const [expandedDialogSections, setExpandedDialogSections] = useState<Record<string, boolean>>({});
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -446,6 +448,9 @@ export default function FieldServiceDashboardPage() {
   const openJobDialog = (job: FieldJob, section?: "notes" | "photos") => {
     setSelectedJob(job);
     setPendingDialogSection(section || null);
+    if (section === "photos") {
+      setExpandedDialogSections((current) => ({ ...current, photos: true }));
+    }
   };
 
   const refreshSelectedJob = (jobs: FieldJob[]) => {
@@ -455,6 +460,23 @@ export default function FieldServiceDashboardPage() {
   };
 
   const isStartTravelDisabled = (job: FieldJob) => job.status === "ARRIVED_ON_SITE";
+
+  const setDialogSectionExpanded = (section: string, open: boolean) => {
+    setExpandedDialogSections((current) => ({ ...current, [section]: open }));
+  };
+
+  const CollapsibleSummary = ({ section, title }: { section: string; title: string }) => {
+    const open = Boolean(expandedDialogSections[section]);
+    return (
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 text-base font-semibold">
+        <span>{title}</span>
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-blue-700">
+          {open ? "Hide details" : "Show details"}
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </span>
+      </summary>
+    );
+  };
 
   const JobActionsMenu = ({ job, buttonClassName = "" }: { job: FieldJob; buttonClassName?: string }) => (
     <DropdownMenu>
@@ -1079,10 +1101,12 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <details className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
-                      Callout Details
-                    </summary>
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.callout)}
+                    onToggle={(event) => setDialogSectionExpanded("callout", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="callout" title="Callout Details" />
                     <div className="space-y-4 px-6 pb-6">
                       <div className="grid gap-3 md:grid-cols-2">
 	                        <div className="md:col-span-2">
@@ -1194,9 +1218,13 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card ref={photosSectionRef}>
-                    <CardHeader><CardTitle className="text-base">Photos</CardTitle></CardHeader>
-                    <CardContent className="space-y-3">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.photos)}
+                    onToggle={(event) => setDialogSectionExpanded("photos", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="photos" title={`Photos (${selectedJob.fieldPhotos.length})`} />
+                    <div ref={photosSectionRef} className="space-y-3 px-6 pb-6">
                       <div className="grid gap-3 md:grid-cols-3">
                         <Select value={photoCategory} onValueChange={setPhotoCategory}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1220,14 +1248,18 @@ export default function FieldServiceDashboardPage() {
                           </div>
                         ))}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
                 </div>
 
                 <div className="space-y-4">
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Dispatch</CardTitle></CardHeader>
-                    <CardContent className="space-y-3">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.dispatch)}
+                    onToggle={(event) => setDialogSectionExpanded("dispatch", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="dispatch" title="Dispatch Options" />
+                    <div className="space-y-3 px-6 pb-6">
                       <div>
                         <Label>Assigned Technician</Label>
                         <Select value={selectedJob.assignedTechnicianId || "unassigned"} onValueChange={(value) => assignTechnician(selectedJob.id, value)}>
@@ -1264,13 +1296,15 @@ export default function FieldServiceDashboardPage() {
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
                       </Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
 
-                  <details className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
-                      Status History
-                    </summary>
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.history)}
+                    onToggle={(event) => setDialogSectionExpanded("history", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="history" title="Status History" />
                     <div className="space-y-2 px-6 pb-6">
                       {selectedJob.statusHistory.map((entry) => (
                         <div key={entry.id} className="rounded-md border border-slate-200 p-2 text-sm">
@@ -1282,10 +1316,12 @@ export default function FieldServiceDashboardPage() {
                     </div>
                   </details>
 
-                  <details className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
-                      Customer Notifications
-                    </summary>
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.notifications)}
+                    onToggle={(event) => setDialogSectionExpanded("notifications", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="notifications" title="Customer Notifications" />
                     <div className="space-y-2 px-6 pb-6">
                       {selectedJob.customerNotifications.length === 0 && <p className="text-sm text-slate-500">No customer notifications yet.</p>}
                       {selectedJob.customerNotifications.map((notification) => (
