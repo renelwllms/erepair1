@@ -356,47 +356,62 @@ export default function DashboardPage() {
         >
           <Card className="hover:shadow-lg transition-shadow duration-300">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl leading-tight">
+              <CardTitle className="flex items-center gap-2">
                 <div className="h-2 w-2 bg-amber-600 rounded-full animate-pulse"></div>
                 Job Status Overview
               </CardTitle>
               <CardDescription>Current status distribution</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {data.charts.statusDistribution.map((item, index) => {
-                  const total = data.charts.statusDistribution.reduce((sum, s) => sum + s.count, 0);
-                  const percentage = total > 0 ? ((item.count / total) * 100).toFixed(1) : "0.0";
-
-                  return (
-                    <div
-                      key={item.status}
-                      className="space-y-2"
-                      style={{
-                        animation: `slideIn 0.5s ease-out ${index * 100}ms both`
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-gray-700">
-                          {item.status.replace(/_/g, " ")}
-                        </span>
-                        <span className="text-gray-600">
-                          {item.count} ({percentage}%)
-                        </span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full bg-gradient-to-r ${COLORS[index % COLORS.length] === "#3b82f6" ? "from-blue-500 to-blue-600" : "from-purple-500 to-purple-600"}`}
-                          style={{
-                            width: `${percentage}%`,
-                            animation: `expandWidth 1s ease-out ${index * 100 + 800}ms both`
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={data.charts.statusDistribution}
+                    cx="34%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={74}
+                    fill="#8884d8"
+                    dataKey="count"
+                    nameKey="status"
+                    animationBegin={800}
+                    animationDuration={1500}
+                  >
+                    {data.charts.statusDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => [value, "Jobs"]}
+                    labelFormatter={(value) => String(value).replace(/_/g, " ")}
+                    contentStyle={{
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
+                    }}
+                  />
+                  <Legend
+                    layout="vertical"
+                    align="right"
+                    verticalAlign="middle"
+                    iconType="circle"
+                    iconSize={7}
+                    wrapperStyle={{
+                      right: 0,
+                      maxWidth: 150,
+                      fontSize: "10px",
+                      lineHeight: "14px",
+                      color: "#4b5563",
+                    }}
+                    formatter={(value) => (
+                      <span className="inline-block max-w-[118px] truncate align-middle text-[10px] text-gray-600">
+                        {String(value).replace(/_/g, " ")}
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
@@ -407,23 +422,6 @@ export default function DashboardPage() {
         .animate-in {
           opacity: 1 !important;
           transform: translateY(0) !important;
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        @keyframes expandWidth {
-          from {
-            width: 0;
-          }
         }
       `}</style>
     </div>
