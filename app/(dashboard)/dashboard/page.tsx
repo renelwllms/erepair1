@@ -303,11 +303,10 @@ export default function DashboardPage() {
                 <PieChart>
                   <Pie
                     data={data.charts.topBrands}
-                    cx="50%"
+                    cx="34%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={80}
+                    outerRadius={74}
                     fill="#8884d8"
                     dataKey="value"
                     animationBegin={600}
@@ -324,6 +323,25 @@ export default function DashboardPage() {
                       borderRadius: "8px",
                       boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)"
                     }}
+                  />
+                  <Legend
+                    layout="vertical"
+                    align="right"
+                    verticalAlign="middle"
+                    iconType="circle"
+                    iconSize={7}
+                    wrapperStyle={{
+                      right: 0,
+                      maxWidth: 150,
+                      fontSize: "10px",
+                      lineHeight: "14px",
+                      color: "#4b5563",
+                    }}
+                    formatter={(value) => (
+                      <span className="inline-block max-w-[118px] truncate align-middle text-[10px] text-gray-600">
+                        {value}
+                      </span>
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>
