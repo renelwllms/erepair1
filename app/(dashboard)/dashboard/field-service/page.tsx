@@ -454,6 +454,8 @@ export default function FieldServiceDashboardPage() {
     if (fresh) setSelectedJob(fresh);
   };
 
+  const isStartTravelDisabled = (job: FieldJob) => job.status === "ARRIVED_ON_SITE";
+
   const JobActionsMenu = ({ job, buttonClassName = "" }: { job: FieldJob; buttonClassName?: string }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -471,7 +473,14 @@ export default function FieldServiceDashboardPage() {
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>
+        <DropdownMenuItem
+          disabled={isStartTravelDisabled(job)}
+          onClick={() => {
+            if (!isStartTravelDisabled(job)) {
+              updateStatus(job, "TECHNICIAN_ON_THE_WAY");
+            }
+          }}
+        >
           <Send className="mr-2 h-4 w-4" />
           Start Travel
         </DropdownMenuItem>
@@ -688,6 +697,7 @@ export default function FieldServiceDashboardPage() {
   };
 
   const jobs = data?.jobs || [];
+  const mobileJobs = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activeFilterCount = [
     search,
     date,
@@ -841,7 +851,7 @@ export default function FieldServiceDashboardPage() {
         <TabsContent value="jobs" className="mt-0" forceMount hidden={dashboardTab !== "jobs"}>
           <div className="mb-4 text-sm text-slate-500">{jobs.length} callout jobs shown</div>
           <div className="space-y-3 md:hidden">
-            {jobs.map((job) => (
+            {mobileJobs.map((job) => (
               <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -881,7 +891,13 @@ export default function FieldServiceDashboardPage() {
                       Call
                     </a>
                   </Button>
-                  <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
+                  <Button
+                    size="lg"
+                    onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}
+                    disabled={isStartTravelDisabled(job)}
+                  >
+                    Start Travel
+                  </Button>
                   <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
                   <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
                   <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
@@ -1014,6 +1030,42 @@ export default function FieldServiceDashboardPage() {
                 </div>
               </DialogHeader>
 
+              <Card className="border-blue-200 bg-blue-50/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Quick Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Select value={selectedJob.status} onValueChange={(value) => updateStatus(selectedJob, value)}>
+                    <SelectTrigger className={`h-11 ${statusTone[selectedJob.status] || "bg-white text-slate-700"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FIELD_SERVICE_STATUSES.map((item) => (
+                        <SelectItem key={item} value={item}>{formatFieldStatus(item)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}
+                      disabled={isStartTravelDisabled(selectedJob)}
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Start Travel
+                    </Button>
+                    <Button variant="outline" onClick={() => updateStatus(selectedJob, "ARRIVED_ON_SITE")}>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Arrived
+                    </Button>
+                  </div>
+                  {isStartTravelDisabled(selectedJob) && (
+                    <p className="text-xs text-slate-600">
+                      Start Travel is disabled while this job is marked Arrived On Site. Change the status above to enable it again.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
                 <div className="space-y-5">
                   <Card>
@@ -1027,9 +1079,11 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Callout Details</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                  <details className="rounded-lg border bg-card text-card-foreground shadow-sm">
+                    <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
+                      Callout Details
+                    </summary>
+                    <div className="space-y-4 px-6 pb-6">
                       <div className="grid gap-3 md:grid-cols-2">
 	                        <div className="md:col-span-2">
 	                          <Label htmlFor="calloutAddress">Google Places Address</Label>
@@ -1076,8 +1130,8 @@ export default function FieldServiceDashboardPage() {
                         </div>
                       </div>
                       <Button onClick={saveCalloutDetails}><Route className="mr-2 h-4 w-4" />Save Schedule and Route</Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
 
                   <Card ref={notesSectionRef}>
                     <CardHeader>
@@ -1198,7 +1252,14 @@ export default function FieldServiceDashboardPage() {
                         <Button variant="outline" asChild><a href={`tel:${selectedJob.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
                         <Button variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedJob.calloutAddress || "")}`} target="_blank" rel="noreferrer"><Navigation className="mr-2 h-4 w-4" />Maps</a></Button>
                       </div>
-                      <Button className="w-full" onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}><Send className="mr-2 h-4 w-4" />Technician On The Way</Button>
+                      <Button
+                        className="w-full"
+                        onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}
+                        disabled={isStartTravelDisabled(selectedJob)}
+                      >
+                        <Send className="mr-2 h-4 w-4" />
+                        Technician On The Way
+                      </Button>
                       <Button variant="outline" className="w-full" onClick={() => setSelectedJob(null)}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
@@ -1206,9 +1267,11 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Status History</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
+                  <details className="rounded-lg border bg-card text-card-foreground shadow-sm">
+                    <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
+                      Status History
+                    </summary>
+                    <div className="space-y-2 px-6 pb-6">
                       {selectedJob.statusHistory.map((entry) => (
                         <div key={entry.id} className="rounded-md border border-slate-200 p-2 text-sm">
                           <p className="font-medium">{formatFieldStatus(entry.newStatus || entry.status)}</p>
@@ -1216,12 +1279,14 @@ export default function FieldServiceDashboardPage() {
                           <p className="text-xs text-slate-500">{formatDateTime(entry.changedAt || entry.createdAt)}</p>
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Customer Notifications</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
+                  <details className="rounded-lg border bg-card text-card-foreground shadow-sm">
+                    <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
+                      Customer Notifications
+                    </summary>
+                    <div className="space-y-2 px-6 pb-6">
                       {selectedJob.customerNotifications.length === 0 && <p className="text-sm text-slate-500">No customer notifications yet.</p>}
                       {selectedJob.customerNotifications.map((notification) => (
                         <div key={notification.id} className="rounded-md border border-slate-200 p-2 text-sm">
@@ -1245,8 +1310,8 @@ export default function FieldServiceDashboardPage() {
                           )}
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
                 </div>
               </div>
             </>

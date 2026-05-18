@@ -356,6 +356,7 @@ export default function JobsPage() {
   const filteredJobs = attentionFilter === "needs_attention"
     ? jobs.filter(job => needsAttention(job))
     : jobs;
+  const mobileJobs = [...filteredJobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const attentionJobsCount = jobs.filter(job => needsAttention(job)).length;
 
@@ -467,7 +468,7 @@ export default function JobsPage() {
           ) : (
             <>
               <div className="space-y-3 md:hidden">
-                {filteredJobs.map((job) => (
+                {mobileJobs.map((job) => (
                   <div
                     key={job.id}
                     className={`rounded-2xl border bg-white p-4 shadow-sm ${needsAttention(job) ? "border-yellow-200 bg-yellow-50" : "border-gray-200"}`}
