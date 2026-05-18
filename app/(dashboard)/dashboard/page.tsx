@@ -338,7 +338,7 @@ export default function DashboardPage() {
         >
           <Card className="hover:shadow-lg transition-shadow duration-300">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-xl leading-tight">
                 <div className="h-2 w-2 bg-amber-600 rounded-full animate-pulse"></div>
                 Job Status Overview
               </CardTitle>
