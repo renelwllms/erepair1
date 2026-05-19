@@ -102,6 +102,14 @@ enum QuoteStatus {
   CONVERTED_TO_INVOICE
 }
 
+enum ShopProductStatus {
+  DRAFT
+  PUBLISHED
+  RESERVED
+  SOLD
+  ARCHIVED
+}
+
 // 1. User Model (Authentication & Authorization)
 model User {
   id        String    @id @default(cuid())
@@ -691,4 +699,32 @@ model PushSubscription {
 
   @@index([userId])
   @@index([endpoint])
+}
+
+// 17. Shop Product Model (Refurbished stock catalogue)
+model ShopProduct {
+  id            String            @id @default(cuid())
+  title         String
+  slug          String            @unique
+  brand         String?
+  deviceType    String?
+  modelNumber   String?
+  condition     String?
+  price         Float
+  description   String            @db.Text
+  warrantyNotes String?           @db.Text
+  status        ShopProductStatus @default(DRAFT)
+  featured      Boolean           @default(false)
+  images        String[]          @default([])
+  internalNotes String?           @db.Text
+  publishedAt   DateTime?
+  reservedAt    DateTime?
+  soldAt        DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@index([featured])
+  @@index([createdAt])
 }
