@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
             brand: true,
             deviceType: true,
             modelNumber: true,
+            capacityKg: true,
             condition: true,
             price: true,
             description: true,

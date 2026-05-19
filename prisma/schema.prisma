@@ -709,6 +709,7 @@ model ShopProduct {
   brand         String?
   deviceType    String?
   modelNumber   String?
+  capacityKg    Float?
   condition     String?
   price         Float
   description   String            @db.Text

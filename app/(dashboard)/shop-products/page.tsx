@@ -36,6 +36,7 @@ type ShopProduct = {
   brand?: string | null;
   deviceType?: string | null;
   modelNumber?: string | null;
+  capacityKg?: number | null;
   condition?: string | null;
   price: number;
   description: string;
@@ -53,6 +54,7 @@ type ProductForm = {
   brand: string;
   deviceType: string;
   modelNumber: string;
+  capacityKg: string;
   condition: string;
   price: string;
   description: string;
@@ -69,6 +71,7 @@ const emptyForm: ProductForm = {
   brand: "",
   deviceType: "",
   modelNumber: "",
+  capacityKg: "",
   condition: "",
   price: "",
   description: "",
@@ -118,6 +121,11 @@ export default function ShopProductsPage() {
   const filteredBrands = COMMON_BRANDS.filter((brand) =>
     brand.toLowerCase().includes(brandSearchTerm.toLowerCase())
   );
+  const isWashingMachine = form.deviceType.toLowerCase() === "washing machine";
+  const capacityLabel =
+    form.capacityKg.trim() !== ""
+      ? `${Number(form.capacityKg)}kg`
+      : "";
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -169,6 +177,7 @@ export default function ShopProductsPage() {
       brand: product.brand || "",
       deviceType: product.deviceType || "",
       modelNumber: product.modelNumber || "",
+      capacityKg: typeof product.capacityKg === "number" ? String(product.capacityKg) : "",
       condition: product.condition || "",
       price: String(product.price),
       description: product.description,
@@ -229,6 +238,10 @@ export default function ShopProductsPage() {
       const payload = {
         ...form,
         price: Number(form.price),
+        capacityKg:
+          form.deviceType.toLowerCase() === "washing machine" && form.capacityKg.trim() !== ""
+            ? Number(form.capacityKg)
+            : null,
       };
       const response = await fetch(
         editingProduct ? `/api/shop-products/${editingProduct.id}` : "/api/shop-products",
@@ -381,7 +394,11 @@ export default function ShopProductsPage() {
                             <div>
                               <p className="font-medium text-gray-900">{product.title}</p>
                               <p className="text-sm text-gray-500">
-                                {[product.brand, product.deviceType, product.modelNumber].filter(Boolean).join(" / ") || product.slug}
+                                {[
+                                  product.brand,
+                                  product.deviceType,
+                                  typeof product.capacityKg === "number" ? `${product.capacityKg}kg` : product.modelNumber,
+                                ].filter(Boolean).join(" / ") || product.slug}
                               </p>
                             </div>
                           </div>
@@ -479,9 +496,13 @@ export default function ShopProductsPage() {
                       if (value === "Other") {
                         setShowCustomDeviceType(true);
                         updateForm("deviceType", "");
+                        updateForm("capacityKg", "");
                       } else {
                         setShowCustomDeviceType(false);
                         updateForm("deviceType", value);
+                        if (value !== "Washing Machine") {
+                          updateForm("capacityKg", "");
+                        }
                       }
                       setDeviceSearchTerm("");
                     }}
@@ -527,6 +548,23 @@ export default function ShopProductsPage() {
                   <Label htmlFor="modelNumber">Model</Label>
                   <Input id="modelNumber" value={form.modelNumber} onChange={(event) => updateForm("modelNumber", event.target.value)} />
                 </div>
+                {isWashingMachine ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="capacityKg">Capacity (kg)</Label>
+                    <Input
+                      id="capacityKg"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={form.capacityKg}
+                      onChange={(event) => updateForm("capacityKg", event.target.value)}
+                      placeholder="8"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Shown publicly as {capacityLabel || "capacity"} in the listing breadcrumbs.
+                    </p>
+                  </div>
+                ) : null}
                 <div className="space-y-2">
                   <Label htmlFor="condition">Condition</Label>
                   <Input id="condition" value={form.condition} onChange={(event) => updateForm("condition", event.target.value)} placeholder="Excellent, Good, Fair" />
