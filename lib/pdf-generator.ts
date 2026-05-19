@@ -76,6 +76,9 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
   // Company Header Section - Two Column Layout
   const leftColumnX = margin;
   const rightColumnX = pageWidth - margin;
+  const rightLabelX = pageWidth - 82;
+  const rightValueX = pageWidth - margin;
+  const rightValueWidth = 48;
   let leftYPosition = yPosition;
   let rightYPosition = yPosition;
 
@@ -204,28 +207,22 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Invoice #:", rightColumnX - 35, rightYPosition);
-  doc.setFont("helvetica", "normal");
-  doc.text(invoiceData.invoiceNumber, rightColumnX, rightYPosition, { align: "right" });
-  rightYPosition += 5;
+  const addHeaderRow = (label: string, value: string) => {
+    const valueLines = doc.splitTextToSize(value, rightValueWidth);
+    doc.setFont("helvetica", "bold");
+    doc.text(label, rightLabelX, rightYPosition);
+    doc.setFont("helvetica", "normal");
+    doc.text(valueLines, rightValueX, rightYPosition, { align: "right" });
+    rightYPosition += Math.max(valueLines.length * 3.8, 4.5) + 1.2;
+  };
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Issue Date:", rightColumnX - 35, rightYPosition);
-  doc.setFont("helvetica", "normal");
-  doc.text(format(new Date(invoiceData.issueDate), "MMM dd, yyyy"), rightColumnX, rightYPosition, { align: "right" });
-  rightYPosition += 5;
-
-  doc.setFont("helvetica", "bold");
-  doc.text(normalizedPaymentTerms ? "Payment:" : "Due Date:", rightColumnX - 35, rightYPosition);
-  doc.setFont("helvetica", "normal");
-  doc.text(normalizedPaymentTerms || format(new Date(invoiceData.dueDate), "MMM dd, yyyy"), rightColumnX, rightYPosition, { align: "right", maxWidth: 62 });
-  rightYPosition += 5;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Job #:", rightColumnX - 35, rightYPosition);
-  doc.setFont("helvetica", "normal");
-  doc.text(invoiceData.job.jobNumber, rightColumnX, rightYPosition, { align: "right" });
+  addHeaderRow("Invoice #:", invoiceData.invoiceNumber);
+  addHeaderRow("Issue Date:", format(new Date(invoiceData.issueDate), "MMM dd, yyyy"));
+  addHeaderRow(
+    normalizedPaymentTerms ? "Payment:" : "Due Date:",
+    normalizedPaymentTerms || format(new Date(invoiceData.dueDate), "MMM dd, yyyy")
+  );
+  addHeaderRow("Job #:", invoiceData.job.jobNumber);
 
   // Set yPosition to the lower of the two columns
   yPosition = Math.max(leftYPosition, rightYPosition) + 6;

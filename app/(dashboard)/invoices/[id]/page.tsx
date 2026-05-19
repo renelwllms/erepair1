@@ -672,9 +672,38 @@ export default function InvoiceDetailPage() {
             padding-bottom: 6px !important;
           }
 
+          #invoice-content .print-company-header-row {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) 210px !important;
+            column-gap: 18px !important;
+            align-items: start !important;
+          }
+
+          #invoice-content .print-company-contact,
+          #invoice-content .print-invoice-meta {
+            min-width: 0 !important;
+            overflow-wrap: anywhere !important;
+          }
+
           #invoice-content .print-company-logo {
             height: 38px !important;
             margin-bottom: 4px !important;
+          }
+
+          #invoice-content .print-invoice-meta h1 {
+            margin: 0 0 4px !important;
+          }
+
+          #invoice-content .print-meta-row {
+            display: grid !important;
+            grid-template-columns: 58px minmax(0, 1fr) !important;
+            gap: 6px !important;
+            margin-bottom: 2px !important;
+            text-align: right !important;
+          }
+
+          #invoice-content .print-meta-row span:first-child {
+            text-align: left !important;
           }
 
           #invoice-content .print-metadata-duplicate,
@@ -918,8 +947,8 @@ export default function InvoiceDetailPage() {
           {/* Company Header - Only visible when printing */}
           {companySettings && (
             <div className="print-company-header hidden print:block mb-6 pb-4 border-b-2">
-              <div className="flex justify-between items-start">
-                <div>
+              <div className="print-company-header-row flex justify-between items-start">
+                <div className="print-company-contact">
                   {companySettings.companyLogo && (
                     <img
                       src={`${companySettings.companyLogo}?t=${new Date().getTime()}`}
@@ -942,13 +971,25 @@ export default function InvoiceDetailPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="print-invoice-meta text-right">
                   <h1 className="text-3xl font-bold">INVOICE</h1>
                   <div className="text-sm mt-2 space-y-1">
-                    <div><span className="font-semibold">Invoice #:</span> {invoice.invoiceNumber}</div>
-                    <div><span className="font-semibold">Issue Date:</span> {format(new Date(invoice.issueDate), "MMM dd, yyyy")}</div>
-                    <div><span className="font-semibold">Due Date:</span> Payment due upon collection of the device</div>
-                    <div><span className="font-semibold">Job #:</span> {invoice.job.jobNumber}</div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Invoice #:</span>
+                      <span>{invoice.invoiceNumber}</span>
+                    </div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Issue Date:</span>
+                      <span>{format(new Date(invoice.issueDate), "MMM dd, yyyy")}</span>
+                    </div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Payment:</span>
+                      <span>Payment due upon collection of the device</span>
+                    </div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Job #:</span>
+                      <span>{invoice.job.jobNumber}</span>
+                    </div>
                   </div>
                 </div>
               </div>
