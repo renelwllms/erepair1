@@ -134,6 +134,10 @@ interface FieldJob {
     queuedUntil?: string | null;
     createdAt: string;
   }>;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+  } | null;
 }
 
 interface DashboardResponse {
@@ -550,10 +554,14 @@ export default function FieldServiceDashboardPage() {
 
   const updateStatus = async (job: FieldJob, nextStatus: string) => {
     try {
-      await mutateJob(job.id, { action: "status", status: nextStatus });
+      const updatedJob = await mutateJob(job.id, { action: "status", status: nextStatus });
       toast({ title: "Status updated", description: `${job.jobNumber} is now ${formatFieldStatus(nextStatus)}.` });
       if (nextStatus === "TECHNICIAN_ON_THE_WAY") {
         prepareOnTheWayNotification(job);
+      }
+      if (nextStatus === "COMPLETED") {
+        const invoiceId = updatedJob?.invoice?.id || job.invoice?.id;
+        router.push(invoiceId ? `/invoices/${invoiceId}` : `/invoices/new?jobId=${job.id}`);
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
