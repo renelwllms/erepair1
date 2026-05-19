@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             take: 10,
           },
         },
-        orderBy: [{ scheduledTime: "asc" }, { preferredCalloutDate: "asc" }, { createdAt: "desc" }],
+        orderBy: { createdAt: "desc" },
         take: 500,
       }),
       db.user.findMany({

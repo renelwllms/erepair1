@@ -719,7 +719,7 @@ export default function FieldServiceDashboardPage() {
   };
 
   const jobs = data?.jobs || [];
-  const mobileJobs = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const newestJobs = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activeFilterCount = [
     search,
     date,
@@ -873,7 +873,7 @@ export default function FieldServiceDashboardPage() {
         <TabsContent value="jobs" className="mt-0" forceMount hidden={dashboardTab !== "jobs"}>
           <div className="mb-4 text-sm text-slate-500">{jobs.length} callout jobs shown</div>
           <div className="space-y-3 md:hidden">
-            {mobileJobs.map((job) => (
+            {newestJobs.map((job) => (
               <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -944,7 +944,7 @@ export default function FieldServiceDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {jobs.map((job) => (
+                {newestJobs.map((job) => (
                   <TableRow key={job.id} className={job.runningLate ? "bg-rose-50" : !job.assignedTechnicianId ? "bg-amber-50/50" : ""}>
                     <TableCell className="font-medium">
                       <Link href={`/jobs/${job.id}`} className="text-blue-700 hover:underline">
