@@ -597,6 +597,9 @@ model Settings {
   geocodingApiKey   String? // Google Maps or alternative
   geocodingProvider String  @default("GOOGLE") // GOOGLE, OPENCAGE, MAPBOX
 
+  // Public shop settings
+  shopMaintenanceMode Boolean @default(true)
+
   updatedAt DateTime @updatedAt
 }
 
