@@ -708,10 +708,15 @@ export default function InvoiceDetailPage() {
             text-align: left !important;
           }
 
+          #invoice-content .screen-invoice-metadata,
+          #invoice-content .screen-invoice-metadata *,
           #invoice-content .print-metadata-duplicate,
+          #invoice-content .print-metadata-duplicate *,
           #invoice-content .print-hide,
+          #invoice-content .print-hide *,
           #invoice-content [data-radix-separator] {
             display: none !important;
+            visibility: hidden !important;
           }
 
           #invoice-content .print-job-details {
@@ -1000,7 +1005,7 @@ export default function InvoiceDetailPage() {
 
           {/* Header Info */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            <div className="print-metadata-duplicate no-print">
+            <div className="screen-invoice-metadata print:hidden">
               <h3 className="font-semibold text-sm text-gray-500 mb-2">BILL TO</h3>
               <p className="font-medium">
                 {invoice.customer.firstName} {invoice.customer.lastName}
