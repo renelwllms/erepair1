@@ -1000,7 +1000,7 @@ export default function InvoiceDetailPage() {
 
           {/* Header Info */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            <div className="print-metadata-duplicate">
+            <div className="print-metadata-duplicate no-print">
               <h3 className="font-semibold text-sm text-gray-500 mb-2">BILL TO</h3>
               <p className="font-medium">
                 {invoice.customer.firstName} {invoice.customer.lastName}

@@ -437,26 +437,34 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
   }
 
   // Footer
-  const footerY = pageHeight - 15;
+  const footerY = pageHeight - 12;
   const termsUrl = process.env.NEXT_PUBLIC_APP_URL
     ? `${process.env.NEXT_PUBLIC_APP_URL}/terms-and-conditions`
     : "/terms-and-conditions";
   const configuredTerms = invoiceData.termsAndConditions?.trim();
   const termsSummary = configuredTerms
-    ? `Terms and Conditions: ${configuredTerms}`
+    ? configuredTerms
     : "Terms Summary: Inspection fees are non-refundable if repair is declined. Customer data must be backed up. " +
       "3-month warranty excludes liquid/physical damage and glass replacements. No warranty on liquid damage repairs. " +
       "Devices must be collected within 4 weeks. NZ Consumer Guarantees Act applies.";
 
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
-  const summaryLines = doc.splitTextToSize(termsSummary, pageWidth - 2 * margin).slice(0, 4);
-  if (configuredTerms && doc.splitTextToSize(termsSummary, pageWidth - 2 * margin).length > 4) {
-    summaryLines[3] = `${summaryLines[3].replace(/\s*$/, "")}...`;
+  doc.setFont("helvetica", "bold");
+  doc.text(configuredTerms ? "Terms and Conditions" : "Terms Summary", margin, footerY - 38);
+  doc.setFont("helvetica", "normal");
+
+  const allSummaryLines = doc.splitTextToSize(termsSummary, pageWidth - 2 * margin);
+  const maxSummaryLines = configuredTerms ? 9 : 4;
+  const summaryLines = allSummaryLines.slice(0, maxSummaryLines);
+  if (allSummaryLines.length > maxSummaryLines) {
+    summaryLines[summaryLines.length - 1] = `${summaryLines[summaryLines.length - 1].replace(/\s*$/, "")}...`;
   }
-  const summaryStartY = footerY - 6 - summaryLines.length * 3.5;
+  const summaryStartY = footerY - 34;
   doc.text(summaryLines, margin, summaryStartY);
-  doc.text(`Full Terms: ${termsUrl}`, margin, footerY - 4);
+  if (!configuredTerms) {
+    doc.text(`Full Terms: ${termsUrl}`, margin, footerY - 4);
+  }
 
   doc.setFontSize(8);
   doc.setTextColor(128, 128, 128);
