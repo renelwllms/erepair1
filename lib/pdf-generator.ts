@@ -441,14 +441,19 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
   const termsUrl = process.env.NEXT_PUBLIC_APP_URL
     ? `${process.env.NEXT_PUBLIC_APP_URL}/terms-and-conditions`
     : "/terms-and-conditions";
-  const termsSummary =
-    "Terms Summary: Inspection fees are non-refundable if repair is declined. Customer data must be backed up. " +
-    "3-month warranty excludes liquid/physical damage and glass replacements. No warranty on liquid damage repairs. " +
-    "Devices must be collected within 4 weeks. NZ Consumer Guarantees Act applies.";
+  const configuredTerms = invoiceData.termsAndConditions?.trim();
+  const termsSummary = configuredTerms
+    ? `Terms and Conditions: ${configuredTerms}`
+    : "Terms Summary: Inspection fees are non-refundable if repair is declined. Customer data must be backed up. " +
+      "3-month warranty excludes liquid/physical damage and glass replacements. No warranty on liquid damage repairs. " +
+      "Devices must be collected within 4 weeks. NZ Consumer Guarantees Act applies.";
 
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
-  const summaryLines = doc.splitTextToSize(termsSummary, pageWidth - 2 * margin);
+  const summaryLines = doc.splitTextToSize(termsSummary, pageWidth - 2 * margin).slice(0, 4);
+  if (configuredTerms && doc.splitTextToSize(termsSummary, pageWidth - 2 * margin).length > 4) {
+    summaryLines[3] = `${summaryLines[3].replace(/\s*$/, "")}...`;
+  }
   const summaryStartY = footerY - 6 - summaryLines.length * 3.5;
   doc.text(summaryLines, margin, summaryStartY);
   doc.text(`Full Terms: ${termsUrl}`, margin, footerY - 4);

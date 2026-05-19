@@ -133,6 +133,7 @@ interface CompanySettings {
   companyPhone?: string;
   companyAddress?: string;
   companyLogo?: string;
+  termsAndConditions?: string;
 }
 
 interface SessionInfo {
@@ -577,6 +578,7 @@ export default function InvoiceDetailPage() {
     calculateRefundSummary(invoice).maximumRefundableAmount > 0;
   const refundSummary = calculateRefundSummary(invoice);
   const refundUnavailableReason = getRefundUnavailableReason(invoice);
+  const configuredTerms = companySettings?.termsAndConditions?.trim();
 
   return (
     <>
@@ -1181,7 +1183,14 @@ export default function InvoiceDetailPage() {
           )}
 
           <Separator />
-          <TermsSummary className="print-terms-summary" />
+          {configuredTerms ? (
+            <div className="print-terms-summary rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <h4 className="mb-2 font-semibold text-gray-900">Terms and Conditions</h4>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">{configuredTerms}</p>
+            </div>
+          ) : (
+            <TermsSummary className="print-terms-summary" />
+          )}
         </CardContent>
       </Card>
 
