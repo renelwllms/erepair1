@@ -15,6 +15,7 @@ import {
   Calendar,
   Receipt,
   MapPinned,
+  Store,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { useState, useEffect } from "react";
@@ -69,6 +70,12 @@ const navItems = [
     title: "Parts",
     href: "/parts",
     icon: Package,
+    roles: ["ADMIN", "TECHNICIAN"],
+  },
+  {
+    title: "Shop Stock",
+    href: "/shop-products",
+    icon: Store,
     roles: ["ADMIN", "TECHNICIAN"],
   },
   {
