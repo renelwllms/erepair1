@@ -18,6 +18,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Edit, ImagePlus, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { COMMON_APPLIANCES, COMMON_BRANDS } from "@/lib/device-options";
 
 type ShopProductStatus = "DRAFT" | "PUBLISHED" | "RESERVED" | "SOLD" | "ARCHIVED";
 
@@ -96,9 +104,20 @@ export default function ShopProductsPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState("");
+  const [deviceSearchTerm, setDeviceSearchTerm] = useState("");
+  const [brandSearchTerm, setBrandSearchTerm] = useState("");
+  const [showCustomDeviceType, setShowCustomDeviceType] = useState(false);
+  const [showCustomBrand, setShowCustomBrand] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+
+  const filteredDeviceTypes = COMMON_APPLIANCES.filter((deviceType) =>
+    deviceType.toLowerCase().includes(deviceSearchTerm.toLowerCase())
+  );
+  const filteredBrands = COMMON_BRANDS.filter((brand) =>
+    brand.toLowerCase().includes(brandSearchTerm.toLowerCase())
+  );
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -136,6 +155,10 @@ export default function ShopProductsPage() {
   const resetForm = () => {
     setEditingProduct(null);
     setForm(emptyForm);
+    setShowCustomDeviceType(false);
+    setShowCustomBrand(false);
+    setDeviceSearchTerm("");
+    setBrandSearchTerm("");
   };
 
   const editProduct = (product: ShopProduct) => {
@@ -155,6 +178,8 @@ export default function ShopProductsPage() {
       images: product.images || [],
       internalNotes: product.internalNotes || "",
     });
+    setShowCustomDeviceType(Boolean(product.deviceType && !COMMON_APPLIANCES.includes(product.deviceType)));
+    setShowCustomBrand(Boolean(product.brand && !COMMON_BRANDS.includes(product.brand)));
   };
 
   const updateForm = (field: keyof ProductForm, value: string | boolean | string[]) => {
@@ -399,11 +424,101 @@ export default function ShopProductsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="brand">Brand</Label>
-                  <Input id="brand" value={form.brand} onChange={(event) => updateForm("brand", event.target.value)} />
+                  <Select
+                    value={showCustomBrand ? "Other" : form.brand}
+                    onValueChange={(value) => {
+                      if (value === "Other") {
+                        setShowCustomBrand(true);
+                        updateForm("brand", "");
+                      } else {
+                        setShowCustomBrand(false);
+                        updateForm("brand", value);
+                      }
+                      setBrandSearchTerm("");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select or type to search brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="sticky top-0 bg-popover px-2 pb-2">
+                        <Input
+                          placeholder="Type to search..."
+                          value={brandSearchTerm}
+                          onChange={(event) => setBrandSearchTerm(event.target.value)}
+                          onClick={(event) => event.stopPropagation()}
+                          className="h-8"
+                        />
+                      </div>
+                      {filteredBrands.length > 0 ? (
+                        filteredBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          No brands found
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {showCustomBrand ? (
+                    <Input
+                      value={form.brand}
+                      onChange={(event) => updateForm("brand", event.target.value)}
+                      placeholder="Enter custom brand"
+                    />
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="deviceType">Device Type</Label>
-                  <Input id="deviceType" value={form.deviceType} onChange={(event) => updateForm("deviceType", event.target.value)} />
+                  <Select
+                    value={showCustomDeviceType ? "Other" : form.deviceType}
+                    onValueChange={(value) => {
+                      if (value === "Other") {
+                        setShowCustomDeviceType(true);
+                        updateForm("deviceType", "");
+                      } else {
+                        setShowCustomDeviceType(false);
+                        updateForm("deviceType", value);
+                      }
+                      setDeviceSearchTerm("");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select or type to search device type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="sticky top-0 bg-popover px-2 pb-2">
+                        <Input
+                          placeholder="Type to search..."
+                          value={deviceSearchTerm}
+                          onChange={(event) => setDeviceSearchTerm(event.target.value)}
+                          onClick={(event) => event.stopPropagation()}
+                          className="h-8"
+                        />
+                      </div>
+                      {filteredDeviceTypes.length > 0 ? (
+                        filteredDeviceTypes.map((deviceType) => (
+                          <SelectItem key={deviceType} value={deviceType}>
+                            {deviceType}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                          No device types found
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {showCustomDeviceType ? (
+                    <Input
+                      value={form.deviceType}
+                      onChange={(event) => updateForm("deviceType", event.target.value)}
+                      placeholder="Enter custom device type"
+                    />
+                  ) : null}
                 </div>
               </div>
 
@@ -420,8 +535,11 @@ export default function ShopProductsPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price</Label>
+                  <Label htmlFor="price">Price including GST</Label>
                   <Input id="price" type="number" min="0" step="0.01" value={form.price} onChange={(event) => updateForm("price", event.target.value)} required />
+                  <p className="text-xs text-gray-500">
+                    This price is displayed publicly as GST inclusive.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
