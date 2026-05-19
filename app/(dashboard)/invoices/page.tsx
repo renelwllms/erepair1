@@ -270,7 +270,9 @@ export default function InvoicesPage() {
                   <div key={invoice.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-950">{invoice.invoiceNumber}</p>
+                        <Link href={`/invoices/${invoice.id}`} className="font-semibold text-blue-700 hover:underline">
+                          {invoice.invoiceNumber}
+                        </Link>
                         <p className="mt-1 truncate text-sm text-gray-700">
                           {invoice.customer.firstName} {invoice.customer.lastName}
                         </p>
@@ -335,7 +337,9 @@ export default function InvoicesPage() {
                         onDoubleClick={() => router.push(`/invoices/${invoice.id}`)}
                       >
                         <TableCell className="font-medium">
-                          {invoice.invoiceNumber}
+                          <Link href={`/invoices/${invoice.id}`} className="text-blue-700 hover:underline">
+                            {invoice.invoiceNumber}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <div>

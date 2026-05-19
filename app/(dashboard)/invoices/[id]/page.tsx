@@ -607,12 +607,106 @@ export default function InvoiceDetailPage() {
             left: 0;
             top: 0;
             width: 100%;
-            padding: 20px;
+            padding: 8px 12px;
+            font-size: 10px;
+            line-height: 1.25;
+            color: #111827;
           }
 
           /* Remove max-width for printing */
           #invoice-content > div {
             max-width: none !important;
+          }
+
+          #invoice-content,
+          #invoice-content .space-y-6,
+          #invoice-content .space-y-3,
+          #invoice-content .space-y-2 {
+            gap: 0 !important;
+          }
+
+          #invoice-content .print-section {
+            margin: 0 !important;
+          }
+
+          #invoice-content .print-card > div {
+            padding: 8px 10px !important;
+          }
+
+          #invoice-content .print-card > div:first-child {
+            display: none !important;
+          }
+
+          #invoice-content h1 {
+            font-size: 18px !important;
+            line-height: 1.1 !important;
+          }
+
+          #invoice-content h2 {
+            font-size: 15px !important;
+            margin-bottom: 4px !important;
+          }
+
+          #invoice-content h3,
+          #invoice-content h4 {
+            font-size: 10px !important;
+            margin: 0 0 4px !important;
+          }
+
+          #invoice-content p,
+          #invoice-content span,
+          #invoice-content div,
+          #invoice-content td,
+          #invoice-content th {
+            font-size: 10px !important;
+            line-height: 1.25 !important;
+          }
+
+          #invoice-content table th,
+          #invoice-content table td {
+            padding: 3px 5px !important;
+          }
+
+          #invoice-content .print-company-header {
+            margin-bottom: 8px !important;
+            padding-bottom: 6px !important;
+          }
+
+          #invoice-content .print-company-logo {
+            height: 38px !important;
+            margin-bottom: 4px !important;
+          }
+
+          #invoice-content .print-metadata-duplicate,
+          #invoice-content .print-hide,
+          #invoice-content [data-radix-separator] {
+            display: none !important;
+          }
+
+          #invoice-content .print-job-details {
+            padding: 6px !important;
+          }
+
+          #invoice-content .print-totals {
+            width: 230px !important;
+          }
+
+          #invoice-content .print-terms-summary {
+            border: 0 !important;
+            padding: 4px 0 0 !important;
+            background: transparent !important;
+          }
+
+          #invoice-content .print-terms-summary ul {
+            columns: 2;
+            gap: 16px;
+            margin: 0 !important;
+          }
+
+          #invoice-content .print-terms-summary li,
+          #invoice-content .print-terms-summary p {
+            font-size: 8px !important;
+            line-height: 1.2 !important;
           }
 
           /* Ensure proper page breaks */
@@ -823,14 +917,14 @@ export default function InvoiceDetailPage() {
         <CardContent className="space-y-6">
           {/* Company Header - Only visible when printing */}
           {companySettings && (
-            <div className="hidden print:block mb-6 pb-4 border-b-2">
+            <div className="print-company-header hidden print:block mb-6 pb-4 border-b-2">
               <div className="flex justify-between items-start">
                 <div>
                   {companySettings.companyLogo && (
                     <img
                       src={`${companySettings.companyLogo}?t=${new Date().getTime()}`}
                       alt={companySettings.companyName}
-                      className="h-16 w-auto mb-3"
+                      className="print-company-logo h-16 w-auto mb-3"
                     />
                   )}
                   {!companySettings.companyLogo && (
@@ -863,7 +957,7 @@ export default function InvoiceDetailPage() {
 
           {/* Header Info */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            <div>
+            <div className="print-metadata-duplicate">
               <h3 className="font-semibold text-sm text-gray-500 mb-2">BILL TO</h3>
               <p className="font-medium">
                 {invoice.customer.firstName} {invoice.customer.lastName}
@@ -916,7 +1010,7 @@ export default function InvoiceDetailPage() {
           {/* Job Information */}
           <div>
             <h3 className="font-semibold mb-2">Job Details</h3>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="print-job-details bg-gray-50 p-4 rounded-lg space-y-2">
               <p className="text-sm">
                 <span className="font-medium">Appliance:</span>{" "}
                 {invoice.job.applianceBrand} {invoice.job.applianceType}
@@ -969,7 +1063,7 @@ export default function InvoiceDetailPage() {
 
           {/* Totals */}
           <div className="flex justify-start md:justify-end">
-            <div className="w-full space-y-2 md:w-80">
+            <div className="print-totals w-full space-y-2 md:w-80">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal:</span>
                 <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
@@ -1028,7 +1122,7 @@ export default function InvoiceDetailPage() {
               <Separator />
               <div className="space-y-3">
                 {normalizePaymentTerms(invoice.paymentTerms) && (
-                  <div>
+                  <div className="print-hide">
                     <h3 className="font-semibold text-sm mb-1">Payment Terms</h3>
                     <p className="text-sm text-gray-600">
                       {normalizePaymentTerms(invoice.paymentTerms)}
@@ -1046,13 +1140,13 @@ export default function InvoiceDetailPage() {
           )}
 
           <Separator />
-          <TermsSummary />
+          <TermsSummary className="print-terms-summary" />
         </CardContent>
       </Card>
 
       {/* Payment History */}
       {invoice.payments.length > 0 && (
-        <Card className="print-section print-card">
+        <Card className="print-hide print-section print-card">
           <CardHeader>
             <CardTitle>Payment History</CardTitle>
             <CardDescription>
@@ -1101,7 +1195,7 @@ export default function InvoiceDetailPage() {
       )}
 
       {invoice.refunds && invoice.refunds.length > 0 && (
-        <Card className="print-section print-card">
+        <Card className="print-hide print-section print-card">
           <CardHeader>
             <CardTitle>Refund History</CardTitle>
             <CardDescription>
