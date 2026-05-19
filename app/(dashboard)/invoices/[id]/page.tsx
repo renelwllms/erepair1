@@ -332,6 +332,41 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const handlePrintPDF = async () => {
+    try {
+      const response = await fetch(`/api/invoices/${params.id}/pdf`);
+      if (!response.ok) throw new Error("Failed to generate PDF");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        window.setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+          iframe.remove();
+        }, 60000);
+      };
+
+      document.body.appendChild(iframe);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to prepare invoice for printing",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleEmailInvoice = async () => {
     setIsSendingEmail(true);
     try {
@@ -825,7 +860,7 @@ export default function InvoiceDetailPage() {
               </>
             )}
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={handlePrintPDF}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
