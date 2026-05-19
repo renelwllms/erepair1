@@ -15,11 +15,15 @@ export async function GET(request: NextRequest) {
     });
 
     const maintenanceMode = settings?.shopMaintenanceMode ?? true;
-    const origin = new URL(request.url).origin;
+    const requestOrigin = new URL(request.url).origin;
+    const publicOrigin =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      requestOrigin;
     const toAbsoluteUrl = (path: string) =>
       path.startsWith("http://") || path.startsWith("https://")
         ? path
-        : `${origin}${path}`;
+        : `${publicOrigin.replace(/\/$/, "")}${path}`;
 
     const products = maintenanceMode
       ? []
