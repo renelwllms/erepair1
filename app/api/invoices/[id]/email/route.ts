@@ -8,6 +8,14 @@ import { normalizePaymentTerms } from "@/lib/payment-terms";
 import { format } from "date-fns";
 import { emailLayout, termsSummaryHtml } from "@/lib/email-templates";
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 // POST /api/invoices/[id]/email - Email invoice to customer
 export async function POST(
   request: NextRequest,
@@ -87,6 +95,7 @@ export async function POST(
       balanceAmount: invoice.balanceAmount,
       notes: invoice.notes || undefined,
       paymentTerms: normalizePaymentTerms(invoice.paymentTerms),
+      termsAndConditions: settings?.termsAndConditions || undefined,
       companyName: settings?.companyName,
       companyEmail: settings?.companyEmail || undefined,
       companyPhone: settings?.companyPhone || undefined,
@@ -109,7 +118,15 @@ export async function POST(
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const dueDateText = "Payment due upon collection of the device";
     const termsUrl = `${baseUrl}/terms-and-conditions`;
-    const termsHtml = termsSummaryHtml(termsUrl);
+    const configuredTerms = settings?.termsAndConditions?.trim();
+    const termsHtml = configuredTerms
+      ? `
+        <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin: 20px 0 0 0;">
+          <h3 style="color: #1f2937; margin: 0 0 8px 0; font-size: 14px;">Terms and Conditions</h3>
+          <p style="color: #374151; font-size: 12px; line-height: 1.5; margin: 0; white-space: pre-wrap;">${escapeHtml(configuredTerms)}</p>
+        </div>
+      `
+      : termsSummaryHtml(termsUrl);
 
     const content = `
       <h2 style="color: #1f2937; margin: 0 0 20px 0;">

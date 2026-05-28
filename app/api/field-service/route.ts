@@ -95,8 +95,14 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: "desc" },
             take: 10,
           },
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+            },
+          },
         },
-        orderBy: [{ scheduledTime: "asc" }, { preferredCalloutDate: "asc" }, { createdAt: "desc" }],
+        orderBy: { createdAt: "desc" },
         take: 500,
       }),
       db.user.findMany({

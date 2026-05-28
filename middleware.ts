@@ -1,5 +1,8 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import { authConfig } from "@/auth.config";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -7,8 +10,35 @@ export default auth((req) => {
   const userRole = req.auth?.user?.role;
 
   // Public routes
-  const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/error", "/submit-job", "/track-job", "/qr-code", "/qr-print"];
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+  const publicRoutePrefixes = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/error",
+    "/auth/unauthorized",
+    "/submit-job",
+    "/track-job",
+    "/qr-code",
+    "/qr-print",
+    "/book-callout",
+    "/terms-and-conditions",
+    "/quote/accept",
+    "/quote/reject",
+  ];
+  const publicAssetPrefixes = [
+    "/apple-touch-icon.png",
+    "/branding",
+    "/favicon.png",
+    "/icons",
+    "/images",
+    "/manifest.json",
+    "/sw.js",
+    "/uploads",
+    "/workbox-",
+  ];
+  const isPublicRoute =
+    pathname === "/" ||
+    publicRoutePrefixes.some((route) => pathname.startsWith(route)) ||
+    publicAssetPrefixes.some((route) => pathname.startsWith(route));
 
   // Customer portal routes (accessible via QR code)
   const isCustomerPortal = pathname.startsWith("/portal");
@@ -24,7 +54,7 @@ export default auth((req) => {
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     const loginUrl = new URL("/auth/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

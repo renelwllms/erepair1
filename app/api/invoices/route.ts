@@ -44,6 +44,21 @@ const invoiceCreateSchema = z.object({
   paymentTerms: z.string().optional(),
 });
 
+async function resolveActiveStaffUser(session: any) {
+  return (
+    (await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, isActive: true },
+    })) ||
+    (session.user.email
+      ? await db.user.findUnique({
+          where: { email: session.user.email },
+          select: { id: true, isActive: true },
+        })
+      : null)
+  );
+}
+
 // GET /api/invoices - List invoices with filters
 export async function GET(request: NextRequest) {
   try {
@@ -114,6 +129,7 @@ export async function GET(request: NextRequest) {
           },
           invoiceItems: true,
           payments: true,
+          refunds: true,
           issuedBy: {
             select: {
               id: true,
@@ -159,6 +175,14 @@ export async function POST(request: NextRequest) {
     // Only ADMIN and TECHNICIAN can create invoices
     if (session.user.role === "CUSTOMER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const actor = await resolveActiveStaffUser(session);
+    if (!actor || !actor.isActive) {
+      return NextResponse.json(
+        { error: "Your login session is out of sync with the user record. Please sign out and sign in again." },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -257,7 +281,7 @@ export async function POST(request: NextRequest) {
           invoiceNumber,
           jobId: validatedData.jobId,
           customerId: existingJob.customerId,
-          issuedById: session.user.id,
+          issuedById: actor.id,
           status: "DRAFT",
           issueDate: new Date(),
           dueDate: new Date(validatedData.dueDate),

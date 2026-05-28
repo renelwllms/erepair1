@@ -71,6 +71,18 @@ enum PaymentMethod {
   OTHER
 }
 
+enum RefundMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum RefundPayoutStatus {
+  PENDING
+  COMPLETED
+}
+
 enum NotificationType {
   JOB_CREATED
   JOB_STATUS_CHANGED
@@ -90,32 +102,40 @@ enum QuoteStatus {
   CONVERTED_TO_INVOICE
 }
 
+enum ShopProductStatus {
+  DRAFT
+  PUBLISHED
+  RESERVED
+  SOLD
+  ARCHIVED
+}
+
 // 1. User Model (Authentication & Authorization)
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  firstName     String
-  lastName      String
-  role          UserRole  @default(CUSTOMER)
-  phone         String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  lastLogin     DateTime?
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole  @default(CUSTOMER)
+  phone     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastLogin DateTime?
 
   // Relations
-  customer          Customer?
-  assignedJobs      Job[]         @relation("AssignedTechnician")
-  createdJobs       Job[]         @relation("CreatedByUser")
-  quotes            Quote[]
-  invoices          Invoice[]
-  sentEmails        EmailLog[]
-  notifications     Notification[]
-  activityLogs      ActivityLog[]
-  pushSubscriptions PushSubscription[]
-  jobNotes          JobNote[]               @relation("JobNoteTechnician")
-  uploadedJobPhotos JobPhoto[]              @relation("JobPhotoUploader")
+  customer                     Customer?
+  assignedJobs                 Job[]                  @relation("AssignedTechnician")
+  createdJobs                  Job[]                  @relation("CreatedByUser")
+  quotes                       Quote[]
+  invoices                     Invoice[]
+  sentEmails                   EmailLog[]
+  notifications                Notification[]
+  activityLogs                 ActivityLog[]
+  pushSubscriptions            PushSubscription[]
+  jobNotes                     JobNote[]              @relation("JobNoteTechnician")
+  uploadedJobPhotos            JobPhoto[]             @relation("JobPhotoUploader")
   createdCustomerNotifications CustomerNotification[] @relation("CustomerNotificationCreator")
 
   @@index([email])
@@ -124,27 +144,27 @@ model User {
 
 // 2. Customer Model (CRM)
 model Customer {
-  id              String       @id @default(cuid())
-  userId          String?      @unique
-  firstName       String
-  lastName        String
-  email           String       @unique
-  phone           String
-  address         String?
-  city            String?
-  state           String?
-  zipCode         String?
-  customerType    CustomerType @default(RESIDENTIAL)
-  notes           String?      @db.Text
-  customerSince   DateTime     @default(now())
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  userId        String?      @unique
+  firstName     String
+  lastName      String
+  email         String       @unique
+  phone         String
+  address       String?
+  city          String?
+  state         String?
+  zipCode       String?
+  customerType  CustomerType @default(RESIDENTIAL)
+  notes         String?      @db.Text
+  customerSince DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   // Relations
-  user            User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jobs            Job[]
-  quotes          Quote[]
-  invoices        Invoice[]
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs     Job[]
+  quotes   Quote[]
+  invoices Invoice[]
 
   @@index([email])
   @@index([lastName])
@@ -152,72 +172,72 @@ model Customer {
 
 // 3. Job Model (Job Management)
 model Job {
-  id                    String       @id @default(cuid())
-  jobNumber             String       @unique
-  jobType               JobType      @default(WORKSHOP_REPAIR)
-  customerId            String
-  warrantyParentJobId   String?
-  applianceBrand        String
-  applianceType         String
-  modelNumber           String?
-  serialNumber          String?
-  issueDescription      String       @db.Text
-  priority              JobPriority  @default(MEDIUM)
-  status                JobStatus    @default(OPEN)
-  estimatedCompletion   DateTime?
-  actualCompletion      DateTime?
-  assignedTechnicianId  String?
-  createdById           String
-  warrantyStatus        String?
-  serviceLocation       String?
-  laborHours            Float        @default(0)
-  diagnosticResults     String?      @db.Text
-  technicianNotes       String?      @db.Text
-  customerNotes         String?      @db.Text
-  beforePhotos          String[]     @default([])
-  afterPhotos           String[]     @default([])
-  lastNotificationSent  DateTime?
-  quoteSentAt           DateTime?
+  id                   String      @id @default(cuid())
+  jobNumber            String      @unique
+  jobType              JobType     @default(WORKSHOP_REPAIR)
+  customerId           String
+  warrantyParentJobId  String?
+  applianceBrand       String
+  applianceType        String
+  modelNumber          String?
+  serialNumber         String?
+  issueDescription     String      @db.Text
+  priority             JobPriority @default(MEDIUM)
+  status               JobStatus   @default(OPEN)
+  estimatedCompletion  DateTime?
+  actualCompletion     DateTime?
+  assignedTechnicianId String?
+  createdById          String
+  warrantyStatus       String?
+  serviceLocation      String?
+  laborHours           Float       @default(0)
+  diagnosticResults    String?     @db.Text
+  technicianNotes      String?     @db.Text
+  customerNotes        String?     @db.Text
+  beforePhotos         String[]    @default([])
+  afterPhotos          String[]    @default([])
+  lastNotificationSent DateTime?
+  quoteSentAt          DateTime?
 
   // Callout-specific fields
-  isCallout             Boolean      @default(false)
-  calloutLocation       String?
-  calloutFee            Float?
-  calloutAddress        String?      @db.Text
-  calloutLatitude       Float?
-  calloutLongitude      Float?
-  googlePlaceId         String?
-  distanceFromOfficeKm  Float?
-  estimatedTravelTime   String?
-  scheduledDate         DateTime?
-  scheduledTime         DateTime?
-  assignedAt            DateTime?
-  assignedBy            String?
-  assignmentNotes       String?      @db.Text
-  statusUpdatedAt       DateTime?
+  isCallout                  Boolean   @default(false)
+  calloutLocation            String?
+  calloutFee                 Float?
+  calloutAddress             String?   @db.Text
+  calloutLatitude            Float?
+  calloutLongitude           Float?
+  googlePlaceId              String?
+  distanceFromOfficeKm       Float?
+  estimatedTravelTime        String?
+  scheduledDate              DateTime?
+  scheduledTime              DateTime?
+  assignedAt                 DateTime?
+  assignedBy                 String?
+  assignmentNotes            String?   @db.Text
+  statusUpdatedAt            DateTime?
   customerNotificationSentAt DateTime?
-  preferredCalloutDate  DateTime?
-  calloutAccessInstructions String?  @db.Text
-  calloutParkingNotes   String?      @db.Text
-  calloutApplianceLocation String?   @db.Text
+  preferredCalloutDate       DateTime?
+  calloutAccessInstructions  String?   @db.Text
+  calloutParkingNotes        String?   @db.Text
+  calloutApplianceLocation   String?   @db.Text
 
-  diagnosticFeeAmount       Float        @default(0)
-  diagnosticFeePaid         Boolean      @default(false)
-  diagnosticFeePaidAt       DateTime?
-  diagnosticFeePaymentMethod PaymentMethod?
-  diagnosticFeeAppliedToInvoice Boolean  @default(false)
-  repairApproved            Boolean      @default(false)
-  isWarrantyReturn          Boolean      @default(false)
+  diagnosticFeeAmount           Float          @default(0)
+  diagnosticFeePaid             Boolean        @default(false)
+  diagnosticFeePaidAt           DateTime?
+  diagnosticFeePaymentMethod    PaymentMethod?
+  diagnosticFeeAppliedToInvoice Boolean        @default(false)
+  repairApproved                Boolean        @default(false)
+  isWarrantyReturn              Boolean        @default(false)
 
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  customer              Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  warrantyParentJob     Job?              @relation("WarrantyJobLink", fields: [warrantyParentJobId], references: [id], onDelete: SetNull)
-  warrantyFollowUpJobs  Job[]             @relation("WarrantyJobLink")
-  assignedTechnician    User?             @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
-  createdBy             User              @relation("CreatedByUser", fields: [createdById], references: [id])
+  customer              Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  warrantyParentJob     Job?                   @relation("WarrantyJobLink", fields: [warrantyParentJobId], references: [id], onDelete: SetNull)
+  warrantyFollowUpJobs  Job[]                  @relation("WarrantyJobLink")
+  assignedTechnician    User?                  @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  createdBy             User                   @relation("CreatedByUser", fields: [createdById], references: [id])
   statusHistory         JobStatusHistory[]
   fieldNotes            JobNote[]
   fieldPhotos           JobPhoto[]
@@ -240,34 +260,34 @@ model Job {
 
 // 4. Job Status History Model (Timeline tracking)
 model JobStatusHistory {
-  id          String    @id @default(cuid())
-  jobId       String
-  status      JobStatus
+  id             String    @id @default(cuid())
+  jobId          String
+  status         JobStatus
   previousStatus String?
-  newStatus   String?
-  notes       String?   @db.Text
-  changedBy   String?
-  changedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  newStatus      String?
+  notes          String?   @db.Text
+  changedBy      String?
+  changedAt      DateTime?
+  createdAt      DateTime  @default(now())
 
   // Relations
-  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
   @@index([createdAt])
 }
 
 model JobNote {
-  id            String   @id @default(cuid())
-  jobId         String
+  id           String   @id @default(cuid())
+  jobId        String
   technicianId String?
-  noteType      String
-  noteText      String   @db.Text
-  visibility    String   @default("Internal")
-  createdAt     DateTime @default(now())
+  noteType     String
+  noteText     String   @db.Text
+  visibility   String   @default("Internal")
+  createdAt    DateTime @default(now())
 
-  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  technician    User?    @relation("JobNoteTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  job        Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  technician User? @relation("JobNoteTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
 
   @@index([jobId])
   @@index([technicianId])
@@ -283,8 +303,8 @@ model JobPhoto {
   caption       String?
   createdAt     DateTime @default(now())
 
-  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  uploader      User?    @relation("JobPhotoUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+  job      Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  uploader User? @relation("JobPhotoUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
 
   @@index([jobId])
   @@index([uploadedBy])
@@ -303,8 +323,8 @@ model CustomerNotification {
   createdBy        String?
   createdAt        DateTime  @default(now())
 
-  job              Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  creator          User?     @relation("CustomerNotificationCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  job     Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  creator User? @relation("CustomerNotificationCreator", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([jobId])
   @@index([status])
@@ -314,21 +334,21 @@ model CustomerNotification {
 
 // 5. Part Model (Parts Inventory)
 model Part {
-  id              String    @id @default(cuid())
-  partNumber      String    @unique
+  id              String   @id @default(cuid())
+  partNumber      String   @unique
   partName        String
-  description     String?   @db.Text
+  description     String?  @db.Text
   supplier        String?
   costPrice       Float
   sellingPrice    Float
-  quantityInStock Int       @default(0)
-  reorderLevel    Int       @default(10)
-  reorderQuantity Int       @default(50)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  quantityInStock Int      @default(0)
+  reorderLevel    Int      @default(10)
+  reorderQuantity Int      @default(50)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  jobParts        JobPart[]
+  jobParts JobPart[]
 
   @@index([partNumber])
   @@index([partName])
@@ -336,17 +356,17 @@ model Part {
 
 // 6. Job Parts Model (Junction table for parts used in jobs)
 model JobPart {
-  id          String   @id @default(cuid())
-  jobId       String
-  partId      String
-  quantity    Int      @default(1)
-  unitPrice   Float
-  totalPrice  Float
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  jobId      String
+  partId     String
+  quantity   Int      @default(1)
+  unitPrice  Float
+  totalPrice Float
+  createdAt  DateTime @default(now())
 
   // Relations
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  part        Part     @relation(fields: [partId], references: [id], onDelete: Restrict)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  part Part @relation(fields: [partId], references: [id], onDelete: Restrict)
 
   @@index([jobId])
   @@index([partId])
@@ -354,41 +374,41 @@ model JobPart {
 
 // 7. Quote Model (Quotes sent to customers)
 model Quote {
-  id              String      @id @default(cuid())
-  quoteNumber     String      @unique
-  jobId           String
-  customerId      String
-  issuedById      String
-  status          QuoteStatus @default(DRAFT)
-  issueDate       DateTime    @default(now())
-  validUntil      DateTime
-  subtotal        Float
-  taxRate         Float       @default(0)
-  taxAmount       Float
-  discountAmount  Float       @default(0)
-  totalAmount     Float
-  notes           String?     @db.Text
-  quoteData       String      @db.Text // JSON string containing full quote details
+  id             String      @id @default(cuid())
+  quoteNumber    String      @unique
+  jobId          String
+  customerId     String
+  issuedById     String
+  status         QuoteStatus @default(DRAFT)
+  issueDate      DateTime    @default(now())
+  validUntil     DateTime
+  subtotal       Float
+  taxRate        Float       @default(0)
+  taxAmount      Float
+  discountAmount Float       @default(0)
+  totalAmount    Float
+  notes          String?     @db.Text
+  quoteData      String      @db.Text // JSON string containing full quote details
 
   // Customer response
-  customerResponse     String?   // ACCEPTED or REJECTED
+  customerResponse     String? // ACCEPTED or REJECTED
   customerResponseDate DateTime?
   rejectionReason      String?   @db.Text
   convertedToInvoiceId String?
 
   // Reminder tracking
-  lastReminderSent     DateTime?
-  reminderCount        Int         @default(0)
+  lastReminderSent        DateTime?
+  reminderCount           Int       @default(0)
   adminFollowUpNotifiedAt DateTime?
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  job             Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  issuedBy        User        @relation(fields: [issuedById], references: [id])
-  quoteItems      QuoteItem[]
+  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  issuedBy   User        @relation(fields: [issuedById], references: [id])
+  quoteItems QuoteItem[]
 
   @@index([quoteNumber])
   @@index([jobId])
@@ -405,43 +425,44 @@ model QuoteItem {
   quantity    Float
   unitPrice   Float
   totalPrice  Float
-  itemType    String   // PART, LABOR, SERVICE_FEE, TAX, DISCOUNT
+  itemType    String // PART, LABOR, SERVICE_FEE, TAX, DISCOUNT
   createdAt   DateTime @default(now())
 
   // Relations
-  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
   @@index([quoteId])
 }
 
 // 8. Invoice Model (Invoice Header)
 model Invoice {
-  id              String        @id @default(cuid())
-  invoiceNumber   String        @unique
-  jobId           String        @unique
-  customerId      String
-  issuedById      String
-  status          InvoiceStatus @default(DRAFT)
-  issueDate       DateTime      @default(now())
-  dueDate         DateTime
-  subtotal        Float
-  taxRate         Float         @default(0)
-  taxAmount       Float
-  discountAmount  Float         @default(0)
-  totalAmount     Float
-  paidAmount      Float         @default(0)
-  balanceAmount   Float
-  notes           String?       @db.Text
-  paymentTerms    String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  jobId          String        @unique
+  customerId     String
+  issuedById     String
+  status         InvoiceStatus @default(DRAFT)
+  issueDate      DateTime      @default(now())
+  dueDate        DateTime
+  subtotal       Float
+  taxRate        Float         @default(0)
+  taxAmount      Float
+  discountAmount Float         @default(0)
+  totalAmount    Float
+  paidAmount     Float         @default(0)
+  balanceAmount  Float
+  notes          String?       @db.Text
+  paymentTerms   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   // Relations
-  job             Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  issuedBy        User          @relation(fields: [issuedById], references: [id])
-  invoiceItems    InvoiceItem[]
-  payments        Payment[]
+  job          Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  issuedBy     User          @relation(fields: [issuedById], references: [id])
+  invoiceItems InvoiceItem[]
+  payments     Payment[]
+  refunds      Refund[]
 
   @@index([invoiceNumber])
   @@index([customerId])
@@ -457,11 +478,11 @@ model InvoiceItem {
   quantity    Float
   unitPrice   Float
   totalPrice  Float
-  itemType    String   // PART, LABOR, SERVICE_FEE, TAX, DISCOUNT
+  itemType    String // PART, LABOR, SERVICE_FEE, TAX, DISCOUNT
   createdAt   DateTime @default(now())
 
   // Relations
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
 }
@@ -478,27 +499,47 @@ model Payment {
   createdAt       DateTime      @default(now())
 
   // Relations
-  invoice         Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
   @@index([paymentDate])
 }
 
-// 10. Email Log Model (Email Notification History)
-model EmailLog {
-  id          String   @id @default(cuid())
-  sentById    String?
-  recipient   String
-  subject     String
-  body        String   @db.Text
-  status      String   // SENT, FAILED, PENDING
-  errorMsg    String?  @db.Text
-  emailType   String   // JOB_CONFIRMATION, STATUS_UPDATE, INVOICE, REMINDER, CUSTOM
-  relatedId   String?  // Job ID, Invoice ID, etc.
-  sentAt      DateTime @default(now())
+// 9a. Refund Model (Refund Tracking)
+model Refund {
+  id              String             @id @default(cuid())
+  invoiceId       String
+  amount          Float
+  refundMethod    RefundMethod
+  refundDate      DateTime           @default(now())
+  reason          String             @db.Text
+  referenceNumber String?
+  payoutStatus    RefundPayoutStatus @default(COMPLETED)
+  createdById     String?
+  createdAt       DateTime           @default(now())
 
   // Relations
-  sentBy      User?    @relation(fields: [sentById], references: [id], onDelete: SetNull)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([refundDate])
+}
+
+// 10. Email Log Model (Email Notification History)
+model EmailLog {
+  id        String   @id @default(cuid())
+  sentById  String?
+  recipient String
+  subject   String
+  body      String   @db.Text
+  status    String // SENT, FAILED, PENDING
+  errorMsg  String?  @db.Text
+  emailType String // JOB_CONFIRMATION, STATUS_UPDATE, INVOICE, REMINDER, CUSTOM
+  relatedId String? // Job ID, Invoice ID, etc.
+  sentAt    DateTime @default(now())
+
+  // Relations
+  sentBy User? @relation(fields: [sentById], references: [id], onDelete: SetNull)
 
   @@index([recipient])
   @@index([sentAt])
@@ -507,79 +548,82 @@ model EmailLog {
 
 // 11. Settings Model (System Configuration)
 model Settings {
-  id                        String   @id @default(cuid())
-  companyName               String   @default("E-Repair Shop")
+  id                        String  @id @default(cuid())
+  companyName               String  @default("E-Repair Shop")
   companyEmail              String?
   companyPhone              String?
   companyAddress            String?
   companyLogo               String?
   companyFavicon            String?
   companyWebsite            String?
-  diagnosticFees            String?  @db.Text
+  diagnosticFees            String? @db.Text
   diagnosticFeeDefaultOther Float?
-  taxRate                   Float    @default(15)
-  currency                  String   @default("USD")
-  laborHourlyRate           Float    @default(50)
-  jobNumberPrefix           String   @default("JOB-")
-  invoiceNumberPrefix       String   @default("INV-")
-  reminderDays              Int      @default(7)
-  notificationReminderDays  Int      @default(3)
-  quoteReminderDays         Int      @default(3)  // Days after quote sent to send first reminder
-  quoteReminderFrequency    Int      @default(3)  // Days between subsequent reminders
-  quoteMaxReminders         Int      @default(3)  // Maximum number of reminders to send
-  termsAndConditions        String?  @db.Text
+  taxRate                   Float   @default(15)
+  currency                  String  @default("USD")
+  laborHourlyRate           Float   @default(50)
+  jobNumberPrefix           String  @default("JOB-")
+  invoiceNumberPrefix       String  @default("INV-")
+  reminderDays              Int     @default(7)
+  notificationReminderDays  Int     @default(3)
+  quoteReminderDays         Int     @default(3) // Days after quote sent to send first reminder
+  quoteReminderFrequency    Int     @default(3) // Days between subsequent reminders
+  quoteMaxReminders         Int     @default(3) // Maximum number of reminders to send
+  termsAndConditions        String? @db.Text
 
   // Theme Settings
-  primaryColor              String   @default("#2563eb")
-  secondaryColor            String   @default("#64748b")
-  accentColor               String   @default("#0ea5e9")
+  primaryColor   String @default("#2563eb")
+  secondaryColor String @default("#64748b")
+  accentColor    String @default("#0ea5e9")
 
   // Email Settings
-  emailProvider             String   @default("GOOGLE_WORKSPACE") // SMTP, OFFICE365, GOOGLE_WORKSPACE
-  smtpHost                  String?
-  smtpPort                  Int?
-  smtpUser                  String?
-  smtpPassword              String?
-  smtpFromEmail             String?
-  smtpFromName              String?
+  emailProvider String  @default("GOOGLE_WORKSPACE") // SMTP, OFFICE365, GOOGLE_WORKSPACE
+  smtpHost      String?
+  smtpPort      Int?
+  smtpUser      String?
+  smtpPassword  String?
+  smtpFromEmail String?
+  smtpFromName  String?
 
   // Office 365 OAuth Settings
-  office365ClientId         String?
-  office365ClientSecret     String?
-  office365TenantId         String?
-  office365RefreshToken     String?
+  office365ClientId     String?
+  office365ClientSecret String?
+  office365TenantId     String?
+  office365RefreshToken String?
 
   // Google Workspace OAuth Settings
-  googleClientId            String?
-  googleClientSecret        String?
-  googleRefreshToken        String?
-  googleAccessToken         String?
+  googleClientId     String?
+  googleClientSecret String?
+  googleRefreshToken String?
+  googleAccessToken  String?
 
   // Callout Settings
-  calloutLocations          String?      @db.Text  // JSON: [{name, fee, bounds: {north, south, east, west}}]
-  calloutTerms              String?      @db.Text
-  officeAddress             String?
-  officeLatitude            Float?
-  officeLongitude           Float?
-  geocodingApiKey           String?      // Google Maps or alternative
-  geocodingProvider         String       @default("GOOGLE")  // GOOGLE, OPENCAGE, MAPBOX
+  calloutLocations  String? @db.Text // JSON: [{name, fee, bounds: {north, south, east, west}}]
+  calloutTerms      String? @db.Text
+  officeAddress     String?
+  officeLatitude    Float?
+  officeLongitude   Float?
+  geocodingApiKey   String? // Google Maps or alternative
+  geocodingProvider String  @default("GOOGLE") // GOOGLE, OPENCAGE, MAPBOX
 
-  updatedAt                 DateTime @updatedAt
+  // Public shop settings
+  shopMaintenanceMode Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
 }
 
 // 12. Notification Model (In-app notifications)
 model Notification {
-  id          String           @id @default(cuid())
-  userId      String
-  type        NotificationType
-  title       String
-  message     String           @db.Text
-  relatedId   String?
-  isRead      Boolean          @default(false)
-  createdAt   DateTime         @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  relatedId String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
 
   // Relations
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
@@ -588,17 +632,17 @@ model Notification {
 
 // 13. Communication Model (Customer communication log)
 model Communication {
-  id          String   @id @default(cuid())
-  jobId       String
-  direction   String   // INBOUND, OUTBOUND
-  channel     String   // EMAIL, SMS, PHONE, IN_PERSON
-  subject     String?
-  message     String   @db.Text
-  createdBy   String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  jobId     String
+  direction String // INBOUND, OUTBOUND
+  channel   String // EMAIL, SMS, PHONE, IN_PERSON
+  subject   String?
+  message   String   @db.Text
+  createdBy String?
+  createdAt DateTime @default(now())
 
   // Relations
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
   @@index([createdAt])
@@ -608,8 +652,8 @@ model Communication {
 model ActivityLog {
   id          String   @id @default(cuid())
   userId      String
-  action      String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT
-  entity      String   // USER, JOB, INVOICE, CUSTOMER, etc.
+  action      String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+  entity      String // USER, JOB, INVOICE, CUSTOMER, etc.
   entityId    String?
   description String   @db.Text
   metadata    String?  @db.Text // JSON string for additional data
@@ -618,7 +662,7 @@ model ActivityLog {
   createdAt   DateTime @default(now())
 
   // Relations
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([entity])
@@ -627,14 +671,14 @@ model ActivityLog {
 
 // 15. Email Template Model (Email templates for automated notifications)
 model EmailTemplate {
-  id            String   @id @default(cuid())
-  name          String   @unique // e.g., "JOB_OPEN", "JOB_IN_PROGRESS", "QUOTE_SENT", etc.
-  subject       String
-  body          String   @db.Text // HTML email body with template variables like {{customerName}}, {{jobNumber}}
-  description   String?  // Human readable description
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "JOB_OPEN", "JOB_IN_PROGRESS", "QUOTE_SENT", etc.
+  subject     String
+  body        String   @db.Text // HTML email body with template variables like {{customerName}}, {{jobNumber}}
+  description String? // Human readable description
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([name])
   @@index([isActive])
@@ -642,17 +686,46 @@ model EmailTemplate {
 
 // 16. Push Subscription Model (Web Push Notifications)
 model PushSubscription {
-  id            String   @id @default(cuid())
-  userId        String?
-  endpoint      String   @unique
-  p256dh        String
-  auth          String
-  userAgent     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String?
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([endpoint])
+}
+
+// 17. Shop Product Model (Refurbished stock catalogue)
+model ShopProduct {
+  id            String            @id @default(cuid())
+  title         String
+  slug          String            @unique
+  brand         String?
+  deviceType    String?
+  modelNumber   String?
+  capacityKg    Float?
+  condition     String?
+  price         Float
+  description   String            @db.Text
+  warrantyNotes String?           @db.Text
+  status        ShopProductStatus @default(DRAFT)
+  featured      Boolean           @default(false)
+  images        String[]          @default([])
+  internalNotes String?           @db.Text
+  publishedAt   DateTime?
+  reservedAt    DateTime?
+  soldAt        DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@index([featured])
+  @@index([createdAt])
 }

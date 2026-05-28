@@ -56,6 +56,9 @@ const settingsSchema = z.object({
   officeLongitude: z.number().optional(),
   geocodingApiKey: z.string().optional(),
   geocodingProvider: z.string().optional(),
+
+  // Shop settings
+  shopMaintenanceMode: z.boolean().optional(),
 });
 
 // GET /api/settings - Get system settings
@@ -192,6 +195,9 @@ export async function PUT(request: NextRequest) {
         typeof validatedData.officeLongitude === "number" ? validatedData.officeLongitude : null,
       geocodingApiKey: validatedData.geocodingApiKey || null,
       geocodingProvider: validatedData.geocodingProvider || "GOOGLE",
+
+      // Shop settings
+      shopMaintenanceMode: validatedData.shopMaintenanceMode ?? true,
     };
 
     // Only update passwords and secrets if provided (not empty)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Plus, Trash2, FileText, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -272,7 +273,12 @@ export default function NewQuotePage() {
             <div className="border rounded-md p-4 bg-gray-50">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium text-gray-900">Job: {selectedJob.jobNumber}</p>
+                  <p className="font-medium text-gray-900">
+                    Job:{" "}
+                    <Link href={`/jobs/${selectedJob.id}`} className="text-blue-700 hover:underline">
+                      {selectedJob.jobNumber}
+                    </Link>
+                  </p>
                   <p className="text-sm text-gray-600">
                     {selectedJob.applianceBrand} {selectedJob.applianceType}
                     {selectedJob.modelNumber && ` (${selectedJob.modelNumber})`}

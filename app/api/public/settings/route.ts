@@ -11,7 +11,11 @@ export async function GET() {
       select: {
         companyName: true,
         companyLogo: true,
+        companyFavicon: true,
+        companyEmail: true,
         companyPhone: true,
+        companyAddress: true,
+        termsAndConditions: true,
         diagnosticFees: true,
         diagnosticFeeDefaultOther: true,
         primaryColor: true,
@@ -23,7 +27,11 @@ export async function GET() {
         {
           companyName: "",
           companyLogo: null,
+          companyFavicon: null,
+          companyEmail: null,
           companyPhone: null,
+          companyAddress: null,
+          termsAndConditions: null,
           diagnosticFees: {},
           diagnosticFeeDefaultOther: null,
           primaryColor: "#2563eb",
@@ -42,7 +50,11 @@ export async function GET() {
       {
         companyName: settings.companyName || "",
         companyLogo: settings.companyLogo || null,
+        companyFavicon: settings.companyFavicon || "/favicon.png",
+        companyEmail: settings.companyEmail || null,
         companyPhone: settings.companyPhone || null,
+        companyAddress: settings.companyAddress || null,
+        termsAndConditions: settings.termsAndConditions || null,
         diagnosticFees: parseDiagnosticFees(settings.diagnosticFees),
         diagnosticFeeDefaultOther:
           typeof settings.diagnosticFeeDefaultOther === "number"

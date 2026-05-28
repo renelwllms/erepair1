@@ -75,6 +75,12 @@ const getCalloutJob = async (id: string) => {
     include: {
       customer: true,
       assignedTechnician: true,
+      invoice: {
+        select: {
+          id: true,
+          invoiceNumber: true,
+        },
+      },
     },
   });
 };
@@ -109,7 +115,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           status: data.assignedTechnicianId ? "TECHNICIAN_ASSIGNED" : job.status,
           statusUpdatedAt: data.assignedTechnicianId ? new Date() : job.statusUpdatedAt,
         },
-        include: { customer: true, assignedTechnician: true },
+        include: {
+          customer: true,
+          assignedTechnician: true,
+          invoice: { select: { id: true, invoiceNumber: true } },
+        },
       });
 
       if (data.assignedTechnicianId) {

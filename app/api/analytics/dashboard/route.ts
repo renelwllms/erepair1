@@ -127,10 +127,28 @@ export async function GET(request: NextRequest) {
     // Calculate metrics
     const totalJobs = await db.job.count();
     const openJobs = await db.job.count({
-      where: { status: { in: ["OPEN", "IN_PROGRESS", "AWAITING_PARTS", "AWAITING_CUSTOMER_APPROVAL"] } },
+      where: {
+        status: {
+          in: [
+            "OPEN",
+            "IN_PROGRESS",
+            "AWAITING_PARTS",
+            "AWAITING_CUSTOMER_APPROVAL",
+            "READY_FOR_PICKUP",
+            "NEW_CALLOUT",
+            "SCHEDULED",
+            "TECHNICIAN_ASSIGNED",
+            "TECHNICIAN_ON_THE_WAY",
+            "ARRIVED_ON_SITE",
+            "WORK_IN_PROGRESS",
+            "WAITING_FOR_PARTS",
+            "WAITING_FOR_CUSTOMER",
+          ],
+        },
+      },
     });
     const completedJobs = await db.job.count({
-      where: { status: "CLOSED" },
+      where: { status: { in: ["COMPLETED", "CLOSED"] } },
     });
 
     // Calculate growth

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,11 @@ interface Job {
   diagnosticFeeAmount: number;
   diagnosticFeePaid: boolean;
   diagnosticFeeAppliedToInvoice: boolean;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+  } | null;
 }
 
 interface InvoiceItem {
@@ -72,8 +78,44 @@ export default function NewInvoicePage() {
     unitPrice: 0,
     itemType: "PART",
   });
+  const [focusedAmountField, setFocusedAmountField] = useState<string | null>(null);
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const invoiceableStatuses = ["READY_FOR_PICKUP", "COMPLETED", "CLOSED"];
+  const parseNumberInput = (value: string, fallback = 0) => {
+    if (value.trim() === "") return fallback;
+    const nextValue = Number(value);
+    return Number.isFinite(nextValue) ? nextValue : fallback;
+  };
+  const sanitizeAmountInput = (value: string, allowNegative = false) => {
+    const isNegative = allowNegative && value.trim().startsWith("-");
+    const unsignedValue = value.replace(/-/g, "");
+    const [rawInteger = "", ...decimalParts] = unsignedValue.replace(/[^\d.]/g, "").split(".");
+    const integerPart = rawInteger.replace(/^0+(?=\d)/, "") || (rawInteger ? "0" : "");
+    const decimalPart = decimalParts.length > 0 ? `.${decimalParts.join("").slice(0, 2)}` : "";
+    return `${isNegative ? "-" : ""}${integerPart}${decimalPart}`;
+  };
+  const getAmountInputValue = (key: string, value: number) => {
+    if (focusedAmountField === key && amountDrafts[key] !== undefined) {
+      return amountDrafts[key];
+    }
+    return value === 0 ? "" : String(value);
+  };
+  const focusAmountInput = (key: string, value: number) => {
+    setFocusedAmountField(key);
+    setAmountDrafts((drafts) => ({
+      ...drafts,
+      [key]: value === 0 ? "" : String(value),
+    }));
+  };
+  const blurAmountInput = (key: string) => {
+    setFocusedAmountField(null);
+    setAmountDrafts((drafts) => {
+      const { [key]: _removed, ...nextDrafts } = drafts;
+      return nextDrafts;
+    });
+  };
 
   useEffect(() => {
     fetchJobs();
@@ -84,7 +126,7 @@ export default function NewInvoicePage() {
     setLoadingJobs(true);
     try {
       // Fetch jobs that don't have invoices yet
-      const response = await fetch("/api/jobs?limit=100");
+      const response = await fetch("/api/jobs?limit=500");
       if (!response.ok) throw new Error("Failed to fetch jobs");
 
       const data = await response.json();
@@ -97,9 +139,8 @@ export default function NewInvoicePage() {
         const jobResponse = await fetch(`/api/jobs/${jobIdParam}`);
         if (jobResponse.ok) {
           const specificJob = await jobResponse.json();
-          // Include the specific job along with eligible jobs
           const eligibleJobs = data.jobs.filter(
-            (job: Job) => job.status === "READY_FOR_PICKUP"
+            (job: Job) => invoiceableStatuses.includes(job.status) && !job.invoice
           );
 
           // Add the specific job if it's not already in the list
@@ -113,14 +154,14 @@ export default function NewInvoicePage() {
         } else {
           // If can't fetch specific job, just show eligible jobs
           const eligibleJobs = data.jobs.filter(
-            (job: Job) => job.status === "READY_FOR_PICKUP"
+            (job: Job) => invoiceableStatuses.includes(job.status) && !job.invoice
           );
           setJobs(eligibleJobs);
         }
       } else {
         // No jobId param, just show eligible jobs
         const eligibleJobs = data.jobs.filter(
-          (job: Job) => job.status === "READY_FOR_PICKUP"
+          (job: Job) => invoiceableStatuses.includes(job.status) && !job.invoice
         );
         setJobs(eligibleJobs);
       }
@@ -193,10 +234,14 @@ export default function NewInvoicePage() {
   };
 
   const addItem = () => {
-    if (!newItem.description || newItem.unitPrice < 0) {
+    if (
+      !newItem.description ||
+      newItem.quantity <= 0 ||
+      (newItem.itemType === "DISCOUNT" ? newItem.unitPrice > 0 : newItem.unitPrice < 0)
+    ) {
       toast({
         title: "Invalid Item",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields with valid amounts",
         variant: "destructive",
       });
       return;
@@ -350,7 +395,7 @@ export default function NewInvoicePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Create Invoice</h1>
-          <p className="text-gray-600 mt-1">Generate an invoice from a ready-for-pickup job</p>
+          <p className="text-gray-600 mt-1">Generate an invoice from a ready, completed, or closed job</p>
         </div>
       </div>
 
@@ -373,7 +418,7 @@ export default function NewInvoicePage() {
                 <SelectContent>
                   {jobs.length === 0 ? (
                     <div className="p-4 text-center text-sm text-gray-500">
-                      No eligible jobs found. Jobs must be READY_FOR_PICKUP.
+                      No eligible jobs found. Jobs must be ready, completed, or closed and must not already have an invoice.
                     </div>
                   ) : (
                     jobs.map((job) => (
@@ -389,6 +434,12 @@ export default function NewInvoicePage() {
 
           {selectedJob && (
             <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Job:</span>
+                <Link href={`/jobs/${selectedJob.id}`} className="font-medium text-blue-700 hover:underline">
+                  {selectedJob.jobNumber}
+                </Link>
+              </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Customer:</span>
                 <span className="font-medium">
@@ -446,6 +497,7 @@ export default function NewInvoicePage() {
                         <SelectItem value="PART">Part</SelectItem>
                         <SelectItem value="LABOR">Labor</SelectItem>
                         <SelectItem value="SERVICE_FEE">Service Fee</SelectItem>
+                        <SelectItem value="DISCOUNT">Discount</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -456,17 +508,25 @@ export default function NewInvoicePage() {
                       step="0.01"
                       min="0.01"
                       value={item.quantity}
-                      onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value))}
+                      onChange={(e) => updateItem(item.id, "quantity", parseNumberInput(e.target.value, 0))}
                     />
                   </div>
                   <div className="md:col-span-2">
                     <Label className="mb-1 block">Unit Price</Label>
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       step="0.01"
-                      min="0"
-                      value={item.unitPrice}
-                      onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value))}
+                      min={item.itemType === "DISCOUNT" ? undefined : "0"}
+                      placeholder="Price"
+                      value={getAmountInputValue(`item-${item.id}`, item.unitPrice)}
+                      onFocus={() => focusAmountInput(`item-${item.id}`, item.unitPrice)}
+                      onBlur={() => blurAmountInput(`item-${item.id}`)}
+                      onChange={(e) => {
+                        const sanitizedValue = sanitizeAmountInput(e.target.value, item.itemType === "DISCOUNT");
+                        setAmountDrafts((drafts) => ({ ...drafts, [`item-${item.id}`]: sanitizedValue }));
+                        updateItem(item.id, "unitPrice", parseNumberInput(sanitizedValue, 0));
+                      }}
                     />
                   </div>
                   <div className="md:col-span-1">
@@ -516,6 +576,7 @@ export default function NewInvoicePage() {
                     <SelectItem value="PART">Part</SelectItem>
                     <SelectItem value="LABOR">Labor</SelectItem>
                     <SelectItem value="SERVICE_FEE">Service Fee</SelectItem>
+                    <SelectItem value="DISCOUNT">Discount</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -527,18 +588,25 @@ export default function NewInvoicePage() {
                   min="0.01"
                   placeholder="Qty"
                   value={newItem.quantity}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 1 })}
+                  onChange={(e) => setNewItem({ ...newItem, quantity: parseNumberInput(e.target.value, 0) })}
                 />
               </div>
               <div className="md:col-span-2">
                 <Label className="mb-1 block">Unit Price</Label>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   step="0.01"
-                  min="0"
+                  min={newItem.itemType === "DISCOUNT" ? undefined : "0"}
                   placeholder="Price"
-                  value={newItem.unitPrice}
-                  onChange={(e) => setNewItem({ ...newItem, unitPrice: parseFloat(e.target.value) || 0 })}
+                  value={getAmountInputValue("new-item", newItem.unitPrice)}
+                  onFocus={() => focusAmountInput("new-item", newItem.unitPrice)}
+                  onBlur={() => blurAmountInput("new-item")}
+                  onChange={(e) => {
+                    const sanitizedValue = sanitizeAmountInput(e.target.value, newItem.itemType === "DISCOUNT");
+                    setAmountDrafts((drafts) => ({ ...drafts, "new-item": sanitizedValue }));
+                    setNewItem({ ...newItem, unitPrice: parseNumberInput(sanitizedValue, 0) });
+                  }}
                 />
               </div>
               <div className="md:col-span-2 flex items-end">

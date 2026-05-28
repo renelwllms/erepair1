@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Mail, Building, CheckCircle, XCircle, Info, Upload, QrCode, FileText, Image as ImageIcon, Edit, Trash2, Plus, Database, Palette, Bell, MapPin, Users } from "lucide-react";
+import { Loader2, Mail, Building, CheckCircle, XCircle, Info, Upload, QrCode, FileText, Image as ImageIcon, Edit, Trash2, Plus, Database, Palette, Bell, MapPin, Users, Store } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 import ImageCropper from "@/components/image-cropper";
@@ -83,6 +83,9 @@ const settingsSchema = z.object({
   officeLongitude: z.preprocess((value) => Number.isNaN(value) ? undefined : value, z.number().optional()),
   geocodingApiKey: z.string().optional(),
   geocodingProvider: z.string().optional(),
+
+  // Public Shop Settings
+  shopMaintenanceMode: z.boolean().optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -399,6 +402,9 @@ export default function SettingsPage() {
           officeLongitude: typeof data.officeLongitude === "number" ? data.officeLongitude : undefined,
           geocodingApiKey: data.geocodingApiKey || "",
           geocodingProvider: data.geocodingProvider || "GOOGLE",
+
+          // Public shop settings
+          shopMaintenanceMode: data.shopMaintenanceMode ?? true,
         });
 
         // Set previews if exists
@@ -846,6 +852,10 @@ export default function SettingsPage() {
             <TabsTrigger value="callout">
               <MapPin className="h-4 w-4 mr-2" />
               Callout Settings
+            </TabsTrigger>
+            <TabsTrigger value="shop">
+              <Store className="h-4 w-4 mr-2" />
+              Shop
             </TabsTrigger>
             <TabsTrigger value="email">
               <Mail className="h-4 w-4 mr-2" />
@@ -1438,6 +1448,42 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="shop" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Public Shop</CardTitle>
+                <CardDescription>
+                  Control the public refurbished stock page on the marketing website.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    The shop page is being built as a catalog only. Customers will see device details and prices, with no checkout or online payments.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="rounded-lg border p-4">
+                  <label htmlFor="shopMaintenanceMode" className="flex cursor-pointer items-start gap-3">
+                    <input
+                      id="shopMaintenanceMode"
+                      type="checkbox"
+                      {...register("shopMaintenanceMode")}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600"
+                    />
+                    <span>
+                      <span className="block font-medium text-gray-900">Maintenance / Coming Soon Mode</span>
+                      <span className="mt-1 block text-sm text-gray-600">
+                        Keep this enabled while the shop is under development. Turn it off when published stock is ready to show publicly.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="callout" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1884,9 +1930,9 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="pt-4 border-t">
-                      <h4 className="font-medium mb-3">Gmail Authorization</h4>
+                      <h4 className="font-medium mb-3">Google Authorization</h4>
                       <p className="text-sm text-gray-600 mb-3">
-                        After saving your Client ID and Secret above, authorize Gmail to send emails.
+                        After saving your Client ID and Secret above, authorize Google Workspace to send emails and read the primary calendar.
                       </p>
                       <Button
                         type="button"
@@ -1913,7 +1959,7 @@ export default function SettingsPage() {
                         }}
                       >
                         <Mail className="mr-2 h-4 w-4" />
-                        Authorize Gmail
+                        Authorize Google Workspace
                       </Button>
                     </div>
                   </>

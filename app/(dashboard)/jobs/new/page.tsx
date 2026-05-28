@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Check, Plus, Search, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { TermsSummary } from "@/components/legal/terms-summary";
 import { getDiagnosticFeeForAppliance, parseDiagnosticFees } from "@/lib/diagnostic-fees";
@@ -190,6 +190,11 @@ interface Customer {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
 }
 
 interface Technician {
@@ -205,10 +210,14 @@ export default function NewJobPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [showCustomApplianceType, setShowCustomApplianceType] = useState(false);
+  const [showCustomBrand, setShowCustomBrand] = useState(false);
   const [customApplianceType, setCustomApplianceType] = useState("");
   const [customBrand, setCustomBrand] = useState("");
   const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
@@ -217,7 +226,9 @@ export default function NewJobPage() {
   const [diagnosticFeeDefaultOther, setDiagnosticFeeDefaultOther] = useState<number | null>(null);
   const [diagnosticFeeTouched, setDiagnosticFeeTouched] = useState(false);
   const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+  const [placesReady, setPlacesReady] = useState(false);
   const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [confirmedPreferredCalloutDate, setConfirmedPreferredCalloutDate] = useState("");
 
   const preselectedCustomerId = searchParams.get("customerId");
 
@@ -226,6 +237,7 @@ export default function NewJobPage() {
     handleSubmit,
     setValue,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
@@ -241,6 +253,7 @@ export default function NewJobPage() {
     handleSubmit: handleSubmitCustomer,
     formState: { errors: customerErrors },
     reset: resetCustomer,
+    setValue: setCustomerValue,
   } = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
@@ -255,6 +268,77 @@ export default function NewJobPage() {
   const applianceType = watch("applianceType");
   const applianceBrand = watch("applianceBrand");
   const diagnosticFeeAmount = watch("diagnosticFeeAmount");
+  const preferredCalloutDate = watch("preferredCalloutDate");
+  const preferredCalloutDateField = register("preferredCalloutDate");
+  const selectedCustomer = customers.find((customer) => customer.id === customerId);
+  const selectedCustomerLabel = selectedCustomer
+    ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+    : "";
+  const displayedCustomerResults = customerSearchTerm.trim().length >= 2 && customerSearchTerm !== selectedCustomerLabel
+    ? customers.filter((customer) => {
+        const haystack = `${customer.firstName} ${customer.lastName} ${customer.email} ${customer.phone}`.toLowerCase();
+        return haystack.includes(customerSearchTerm.trim().toLowerCase());
+      }).slice(0, 8)
+    : [];
+
+  const mergeCustomers = (incoming: Customer[]) => {
+    setCustomers((current) => {
+      const byId = new Map(current.map((customer) => [customer.id, customer]));
+      incoming.forEach((customer) => byId.set(customer.id, customer));
+      return Array.from(byId.values());
+    });
+  };
+
+  const extractAddressComponent = (place: any, type: string, useShortName = false) => {
+    const component = (place.address_components || []).find((item: any) => item.types.includes(type));
+    return component ? (useShortName ? component.short_name : component.long_name) : "";
+  };
+
+  const buildCustomerAddress = (customer?: Customer) => {
+    if (!customer?.address) {
+      return "";
+    }
+
+    const extraParts = [customer.city, customer.state, customer.zipCode]
+      .filter(Boolean)
+      .map((part) => String(part));
+    const addressIncludesExtraParts = extraParts.some((part) =>
+      customer.address?.toLowerCase().includes(part.toLowerCase())
+    );
+
+    return addressIncludesExtraParts || extraParts.length === 0
+      ? customer.address
+      : [customer.address, ...extraParts].join(", ");
+  };
+
+  const updateTravelEstimate = useCallback((lat: number, lng: number) => {
+    if (!officeLocation || !window.google?.maps?.DistanceMatrixService) {
+      return;
+    }
+
+    const service = new window.google.maps.DistanceMatrixService();
+    service.getDistanceMatrix(
+      {
+        origins: [officeLocation],
+        destinations: [{ lat, lng }],
+        travelMode: window.google.maps.TravelMode.DRIVING,
+        drivingOptions: {
+          departureTime: new Date(Date.now() + 5 * 60 * 1000),
+          trafficModel: "bestguess",
+        },
+      },
+      (result: any, status: string) => {
+        if (status !== "OK") {
+          return;
+        }
+        const element = result?.rows?.[0]?.elements?.[0];
+        if (element?.status === "OK") {
+          setValue("distanceFromOfficeKm", element.distance.value / 1000);
+          setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
+        }
+      }
+    );
+  }, [officeLocation, setValue]);
 
   // Filtered lists for searchable dropdowns
   const filteredAppliances = COMMON_APPLIANCES.filter((appliance) =>
@@ -270,6 +354,31 @@ export default function NewJobPage() {
   }, []);
 
   useEffect(() => {
+    const query = customerSearchTerm.trim();
+
+    if (query.length < 2) {
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setSearchingCustomers(true);
+      try {
+        const response = await fetch(`/api/customers?search=${encodeURIComponent(query)}&limit=8`);
+        if (response.ok) {
+          const data = await response.json();
+          mergeCustomers(data.customers || []);
+        }
+      } catch (error) {
+        console.error("Failed to search customers:", error);
+      } finally {
+        setSearchingCustomers(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [customerSearchTerm]);
+
+  useEffect(() => {
     if (!applianceType || diagnosticFeeTouched) {
       return;
     }
@@ -283,11 +392,27 @@ export default function NewJobPage() {
   }, [applianceType, diagnosticFees, diagnosticFeeDefaultOther, diagnosticFeeTouched, setValue]);
 
   useEffect(() => {
-    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
+    if (!mapsApiKey || (jobType !== "CALLOUT_REPAIR" && !showCustomerDialog)) {
       return;
     }
 
-    window.initNewJobPlaces = () => undefined;
+    if (window.google?.maps?.places) {
+      setPlacesReady(true);
+      return;
+    }
+
+    window.initNewJobPlaces = () => setPlacesReady(true);
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src*="maps.googleapis.com/maps/api/js"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => setPlacesReady(true), { once: true });
+      return () => {
+        delete window.initNewJobPlaces;
+      };
+    }
+
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initNewJobPlaces`;
     script.async = true;
@@ -296,10 +421,10 @@ export default function NewJobPage() {
     return () => {
       delete window.initNewJobPlaces;
     };
-  }, [jobType, mapsApiKey]);
+  }, [jobType, mapsApiKey, showCustomerDialog]);
 
   useEffect(() => {
-    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
+    if (jobType !== "CALLOUT_REPAIR" || (!placesReady && !window.google?.maps?.places)) {
       return;
     }
 
@@ -325,40 +450,83 @@ export default function NewJobPage() {
       setValue("calloutLatitude", lat, { shouldValidate: true });
       setValue("calloutLongitude", lng, { shouldValidate: true });
       setValue("googlePlaceId", place.place_id, { shouldValidate: true });
-
-      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
-        const service = new window.google.maps.DistanceMatrixService();
-        service.getDistanceMatrix(
-          {
-            origins: [officeLocation],
-            destinations: [{ lat, lng }],
-            travelMode: window.google.maps.TravelMode.DRIVING,
-            drivingOptions: {
-              departureTime: new Date(Date.now() + 5 * 60 * 1000),
-              trafficModel: "bestguess",
-            },
-          },
-          (result: any, status: string) => {
-            if (status !== "OK") {
-              return;
-            }
-            const element = result?.rows?.[0]?.elements?.[0];
-            if (element?.status === "OK") {
-              setValue("distanceFromOfficeKm", element.distance.value / 1000);
-              setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
-            }
-          }
-        );
-      }
+      updateTravelEstimate(lat, lng);
     });
 
     return () => listener.remove();
-  }, [jobType, mapsApiKey, officeLocation, setValue]);
+  }, [jobType, mapsApiKey, officeLocation, placesReady, setValue, updateTravelEstimate]);
+
+  useEffect(() => {
+    if (!showCustomerDialog || (!placesReady && !window.google?.maps?.places)) {
+      return;
+    }
+
+    const input = document.getElementById("newCustomerAddress") as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["formatted_address", "address_components"],
+      componentRestrictions: { country: "nz" },
+    });
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place?.formatted_address) {
+        return;
+      }
+
+      setCustomerValue("address", place.formatted_address, { shouldValidate: true });
+      setCustomerValue(
+        "city",
+        extractAddressComponent(place, "locality") ||
+          extractAddressComponent(place, "postal_town") ||
+          extractAddressComponent(place, "administrative_area_level_2"),
+        { shouldValidate: true }
+      );
+      setCustomerValue("state", extractAddressComponent(place, "administrative_area_level_1", true), { shouldValidate: true });
+      setCustomerValue("zipCode", extractAddressComponent(place, "postal_code"), { shouldValidate: true });
+    });
+
+    return () => listener.remove();
+  }, [showCustomerDialog, placesReady, setCustomerValue]);
+
+  useEffect(() => {
+    if (jobType !== "CALLOUT_REPAIR" || !selectedCustomer) {
+      return;
+    }
+
+    const address = buildCustomerAddress(selectedCustomer);
+    if (!address) {
+      return;
+    }
+
+    setValue("calloutAddress", address, { shouldValidate: true });
+    setValue("calloutLatitude", undefined);
+    setValue("calloutLongitude", undefined);
+    setValue("googlePlaceId", undefined);
+
+    fetch(`/api/public/geocode?address=${encodeURIComponent(address)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result) => {
+        if (!result?.lat || !result?.lng) {
+          return;
+        }
+        setValue("calloutAddress", result.formattedAddress || address, { shouldValidate: true });
+        setValue("calloutLatitude", result.lat, { shouldValidate: true });
+        setValue("calloutLongitude", result.lng, { shouldValidate: true });
+        setValue("googlePlaceId", result.placeId, { shouldValidate: true });
+        updateTravelEstimate(result.lat, result.lng);
+        trigger("calloutAddress");
+      })
+      .catch(() => undefined);
+  }, [jobType, selectedCustomer, customers, setValue, trigger, updateTravelEstimate]);
 
   const fetchData = async () => {
     try {
       const [customersRes, techniciansRes, settingsRes] = await Promise.all([
-        fetch("/api/customers?limit=1000"),
+        fetch("/api/customers?limit=8"),
         fetch("/api/users/technicians"),
         fetch("/api/settings"),
       ]);
@@ -366,6 +534,15 @@ export default function NewJobPage() {
       if (customersRes.ok) {
         const data = await customersRes.json();
         setCustomers(data.customers);
+      }
+
+      if (preselectedCustomerId) {
+        const selectedRes = await fetch(`/api/customers/${preselectedCustomerId}`);
+        if (selectedRes.ok) {
+          const selected = await selectedRes.json();
+          mergeCustomers([selected]);
+          setCustomerSearchTerm(`${selected.firstName} ${selected.lastName}`);
+        }
       }
 
       if (techniciansRes.ok) {
@@ -419,8 +596,9 @@ export default function NewJobPage() {
       });
 
       // Add new customer to list and select it
-      setCustomers([...customers, newCustomer]);
+      mergeCustomers([newCustomer]);
       setValue("customerId", newCustomer.id);
+      setCustomerSearchTerm(`${newCustomer.firstName} ${newCustomer.lastName}`);
       setShowCustomerDialog(false);
       resetCustomer();
     } catch (error: any) {
@@ -471,7 +649,7 @@ export default function NewJobPage() {
 
   if (loadingData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-full items-center justify-center py-16">
         <div className="text-center">
           <p className="text-lg">Loading form...</p>
         </div>
@@ -521,19 +699,74 @@ export default function NewJobPage() {
                 Customer <span className="text-red-500">*</span>
               </Label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="flex-1">
-                  <Select value={customerId} onValueChange={(value) => setValue("customerId", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.firstName} {customer.lastName} - {customer.email}
-                        </SelectItem>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="customerId"
+                      value={customerSearchTerm}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setCustomerSearchTerm(value);
+                        if (customerId && value !== selectedCustomerLabel) {
+                          setValue("customerId", "", { shouldValidate: true });
+                        }
+                      }}
+                      className="h-11 pl-10 pr-10"
+                      placeholder="Search customer name, email, or phone"
+                    />
+                    {customerSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerSearchTerm("");
+                          setValue("customerId", "", { shouldValidate: true });
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded text-gray-400 hover:text-gray-700"
+                        aria-label="Clear customer search"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {selectedCustomer && (
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                      Selected: <span className="font-medium">{selectedCustomer.firstName} {selectedCustomer.lastName}</span>
+                      <span className="text-emerald-700"> - {selectedCustomer.email}</span>
+                    </div>
+                  )}
+
+                  {customerSearchTerm.trim().length > 0 && customerSearchTerm.trim().length < 2 && (
+                    <p className="text-xs text-gray-500">Type at least 2 characters to search customers.</p>
+                  )}
+
+                  {searchingCustomers && (
+                    <p className="text-xs text-gray-500">Searching customers...</p>
+                  )}
+
+                  {displayedCustomerResults.length > 0 && (
+                    <div className="rounded-md border bg-white shadow-sm">
+                      {displayedCustomerResults.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => {
+                            setValue("customerId", customer.id, { shouldValidate: true });
+                            setCustomerSearchTerm(`${customer.firstName} ${customer.lastName}`);
+                          }}
+                          className="flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        >
+                          <span className="font-medium text-gray-900">{customer.firstName} {customer.lastName}</span>
+                          <span className="text-xs text-gray-500">{customer.email} · {customer.phone}</span>
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
+
+                  {customerSearchTerm.trim().length >= 2 && !searchingCustomers && displayedCustomerResults.length === 0 && (
+                    <p className="text-xs text-gray-500">No customers found. Create a new customer if needed.</p>
+                  )}
                 </div>
                 <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
                   <DialogTrigger asChild>
@@ -593,8 +826,15 @@ export default function NewJobPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="address">Address</Label>
-                        <Input id="address" {...registerCustomer("address")} />
+                        <Label htmlFor="newCustomerAddress">Address</Label>
+                        <Input
+                          id="newCustomerAddress"
+                          {...registerCustomer("address")}
+                          placeholder={mapsApiKey ? "Start typing and select a Google address" : "Address"}
+                        />
+                        {!mapsApiKey && (
+                          <p className="text-xs text-amber-700">Add a Google Maps API key in settings to enable address lookup.</p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -641,12 +881,14 @@ export default function NewJobPage() {
                   Appliance Type <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={applianceType}
+                  value={showCustomApplianceType ? "Other" : applianceType}
                   onValueChange={(value) => {
                     if (value === "Other") {
+                      setShowCustomApplianceType(true);
                       setCustomApplianceType("");
                       setValue("applianceType", "");
                     } else {
+                      setShowCustomApplianceType(false);
                       setValue("applianceType", value);
                     }
                     setApplianceSearchTerm("");
@@ -678,7 +920,7 @@ export default function NewJobPage() {
                     )}
                   </SelectContent>
                 </Select>
-                {applianceType === "Other" || (!applianceType && customApplianceType !== undefined) ? (
+                {showCustomApplianceType ? (
                   <Input
                     placeholder="Enter custom appliance type"
                     value={customApplianceType}
@@ -725,12 +967,14 @@ export default function NewJobPage() {
                   Brand <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={applianceBrand}
+                  value={showCustomBrand ? "Other" : applianceBrand}
                   onValueChange={(value) => {
                     if (value === "Other") {
+                      setShowCustomBrand(true);
                       setCustomBrand("");
                       setValue("applianceBrand", "");
                     } else {
+                      setShowCustomBrand(false);
                       setValue("applianceBrand", value);
                     }
                     setBrandSearchTerm("");
@@ -762,7 +1006,7 @@ export default function NewJobPage() {
                     )}
                   </SelectContent>
                 </Select>
-                {applianceBrand === "Other" || (!applianceBrand && customBrand !== undefined) ? (
+                {showCustomBrand ? (
                   <Input
                     placeholder="Enter custom brand"
                     value={customBrand}
@@ -888,11 +1132,37 @@ export default function NewJobPage() {
                     <Label htmlFor="preferredCalloutDate">
                       Preferred Date/Time <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="preferredCalloutDate"
-                      type="datetime-local"
-                      {...register("preferredCalloutDate")}
-                    />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="preferredCalloutDate"
+                        type="datetime-local"
+                        {...preferredCalloutDateField}
+                        onChange={(event) => {
+                          preferredCalloutDateField.onChange(event);
+                          setConfirmedPreferredCalloutDate("");
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="shrink-0"
+                        disabled={!preferredCalloutDate}
+                        onClick={async () => {
+                          const isValid = await trigger("preferredCalloutDate");
+                          if (!isValid || !preferredCalloutDate) {
+                            return;
+                          }
+                          setConfirmedPreferredCalloutDate(preferredCalloutDate);
+                          document.getElementById("preferredCalloutDate")?.blur();
+                        }}
+                      >
+                        <Check className="mr-2 h-4 w-4" />
+                        Confirm
+                      </Button>
+                    </div>
+                    {confirmedPreferredCalloutDate === preferredCalloutDate && (
+                      <p className="text-xs text-emerald-700">Date/time confirmed</p>
+                    )}
                     {errors.preferredCalloutDate && (
                       <p className="text-sm text-red-500">{errors.preferredCalloutDate.message}</p>
                     )}
@@ -946,27 +1216,6 @@ export default function NewJobPage() {
                 </div>
               </>
             )}
-
-            {/* Additional Information */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="warrantyStatus">Warranty Status</Label>
-                <Input
-                  id="warrantyStatus"
-                  {...register("warrantyStatus")}
-                  placeholder="e.g., In Warranty, Out of Warranty"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="serviceLocation">Service Location</Label>
-                <Input
-                  id="serviceLocation"
-                  {...register("serviceLocation")}
-                  placeholder={jobType === "CALLOUT_REPAIR" ? "e.g., On-site repair visit" : "e.g., Customer Location, Shop"}
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="estimatedCompletion">Estimated Completion Date</Label>

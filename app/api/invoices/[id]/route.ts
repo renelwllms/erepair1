@@ -40,7 +40,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const invoice = await db.invoice.findUnique({
+    const invoice = await (db as any).invoice.findUnique({
       where: { id: params.id },
       include: {
         customer: true,
@@ -60,6 +60,9 @@ export async function GET(
         },
         payments: {
           orderBy: { paymentDate: "desc" },
+        },
+        refunds: {
+          orderBy: { refundDate: "desc" },
         },
         issuedBy: {
           select: {
@@ -184,7 +187,7 @@ export async function PUT(
     if (validatedData.totalAmount !== undefined) updateData.totalAmount = validatedData.totalAmount;
     if (validatedData.balanceAmount !== undefined) updateData.balanceAmount = validatedData.balanceAmount;
 
-    const invoice = await db.invoice.update({
+    const invoice = await (db as any).invoice.update({
       where: { id: params.id },
       data: updateData,
       include: {
@@ -192,6 +195,9 @@ export async function PUT(
         job: true,
         invoiceItems: true,
         payments: true,
+        refunds: {
+          orderBy: { refundDate: "desc" },
+        },
         issuedBy: {
           select: {
             id: true,

@@ -290,7 +290,13 @@ export default function QuotesPage() {
                       {quote.quoteNumber}
                     </Link>
                     <p className="mt-1 text-sm text-gray-700">{quote.customer.firstName} {quote.customer.lastName}</p>
-                    <p className="mt-1 text-xs text-gray-500">{quote.job.jobNumber} · {quote.job.applianceBrand} {quote.job.applianceType}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      <Link href={`/jobs/${quote.job.id}`} className="text-blue-700 hover:underline">
+                        {quote.job.jobNumber}
+                      </Link>
+                      {" · "}
+                      {quote.job.applianceBrand} {quote.job.applianceType}
+                    </p>
                   </div>
                   {getStatusBadge(quote.status)}
                 </div>

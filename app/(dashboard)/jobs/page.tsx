@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,47 @@ export default function JobsPage() {
     );
     return daysSinceLastNotification >= settings.notificationReminderDays;
   };
+
+  const getAttentionMessage = (job: Job) => {
+    if (job.status === "CLOSED" || job.status === "CANCELLED") {
+      return "This job does not currently need attention.";
+    }
+
+    if (!job.lastNotificationSent) {
+      return "No customer notification has been sent for this job yet.";
+    }
+
+    const daysSinceLastNotification = differenceInDays(
+      new Date(),
+      new Date(job.lastNotificationSent)
+    );
+
+    if (daysSinceLastNotification >= settings.notificationReminderDays) {
+      return `Last customer notification was sent ${daysSinceLastNotification} day${daysSinceLastNotification === 1 ? "" : "s"} ago. Reminder threshold is ${settings.notificationReminderDays} day${settings.notificationReminderDays === 1 ? "" : "s"}.`;
+    }
+
+    return "This job is within the current notification reminder window.";
+  };
+
+  const AttentionBell = ({ job }: { job: Job }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-yellow-700 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-1"
+          aria-label={`Why ${job.jobNumber} needs attention`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Bell className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72 p-3" onClick={(event) => event.stopPropagation()}>
+        <DropdownMenuLabel className="px-0 pt-0 text-sm">Needs Attention</DropdownMenuLabel>
+        <p className="text-sm text-gray-700">{getAttentionMessage(job)}</p>
+        <p className="mt-2 text-xs text-gray-500">Job status: {formatStatus(job.status)}</p>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const fetchJobs = async () => {
     setLoading(true);
@@ -304,16 +346,17 @@ export default function JobsPage() {
   };
 
   const formatStatus = (status: string) => {
-    if (status === "AWAITING_CUSTOMER_APPROVAL") {
-      return "Awaiting Customer Approval";
-    }
-    return status.replace(/_/g, " ");
+    return status
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
   // Filter jobs based on attention filter (client-side filtering)
   const filteredJobs = attentionFilter === "needs_attention"
     ? jobs.filter(job => needsAttention(job))
     : jobs;
+  const mobileJobs = [...filteredJobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const attentionJobsCount = jobs.filter(job => needsAttention(job)).length;
 
@@ -425,7 +468,7 @@ export default function JobsPage() {
           ) : (
             <>
               <div className="space-y-3 md:hidden">
-                {filteredJobs.map((job) => (
+                {mobileJobs.map((job) => (
                   <div
                     key={job.id}
                     className={`rounded-2xl border bg-white p-4 shadow-sm ${needsAttention(job) ? "border-yellow-200 bg-yellow-50" : "border-gray-200"}`}
@@ -433,8 +476,13 @@ export default function JobsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          {needsAttention(job) && <Bell className="h-4 w-4 shrink-0 text-yellow-600" />}
-                          <p className="font-semibold text-gray-950">{job.jobNumber}</p>
+                          {needsAttention(job) && <AttentionBell job={job} />}
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            className="font-semibold text-blue-700 hover:underline"
+                          >
+                            {job.jobNumber}
+                          </Link>
                           <Badge variant={getPriorityBadgeVariant(job.priority)}>{job.priority}</Badge>
                         </div>
                         <p className="mt-1 truncate text-sm text-gray-700">
@@ -512,7 +560,7 @@ export default function JobsPage() {
                 ))}
               </div>
 
-              <div className="hidden overflow-x-auto md:block">
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -552,10 +600,14 @@ export default function JobsPage() {
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {needsAttention(job) && (
-                            <Bell className="h-4 w-4 text-yellow-600" />
-                          )}
-                          {job.jobNumber}
+                          {needsAttention(job) && <AttentionBell job={job} />}
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            onClick={(event) => event.stopPropagation()}
+                            className="text-blue-700 hover:underline"
+                          >
+                            {job.jobNumber}
+                          </Link>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -578,7 +630,7 @@ export default function JobsPage() {
                           onValueChange={(value) => handleStatusChange(job.id, value, job)}
                         >
                           <SelectTrigger
-                            className={`h-10 w-[240px] max-w-full rounded-md border px-3 text-left text-sm font-medium shadow-none [&>span]:truncate ${getStatusFieldClass(job.status)}`}
+                            className={`h-9 w-[190px] max-w-full rounded-md border px-3 text-left text-xs font-medium shadow-none [&>span]:truncate ${getStatusFieldClass(job.status)}`}
                           >
                             <SelectValue>
                               <span className="block w-full truncate">

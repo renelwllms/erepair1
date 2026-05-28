@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,9 @@ interface Invoice {
   balanceAmount: number;
   status: string;
   issueDate: string;
+  refunds?: { amount: number }[];
   job: {
+    id: string;
     jobNumber: string;
     applianceType: string;
   };
@@ -152,6 +155,12 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     return null;
   }
 
+  const getRefundedAmount = (invoice: Invoice) =>
+    (invoice.refunds || []).reduce((sum, refund) => sum + refund.amount, 0);
+
+  const getNetPaidAmount = (invoice: Invoice) =>
+    Math.max(0, invoice.paidAmount - getRefundedAmount(invoice));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -204,13 +213,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Net Revenue</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               ${customer.stats.totalRevenue.toFixed(2)}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Lifetime value</p>
+            <p className="text-xs text-gray-500 mt-1">Lifetime value after refunds</p>
           </CardContent>
         </Card>
 
@@ -340,7 +349,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <div key={job.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold">{job.jobNumber}</p>
+                      <Link href={`/jobs/${job.id}`} className="font-semibold text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
                       <p className="mt-1 text-sm text-gray-600">{job.applianceBrand} {job.applianceType}</p>
                     </div>
                     <Badge variant={job.priority === "URGENT" ? "destructive" : "secondary"}>
@@ -370,7 +381,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <TableBody>
                 {customer.jobs.map((job) => (
                   <TableRow key={job.id}>
-                    <TableCell className="font-medium">{job.jobNumber}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/jobs/${job.id}`} className="text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{job.applianceType}</div>
@@ -433,7 +448,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold">{invoice.invoiceNumber}</p>
-                      <p className="mt-1 text-sm text-gray-600">{invoice.job.jobNumber} · {invoice.job.applianceType}</p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                          {invoice.job.jobNumber}
+                        </Link>
+                        {" · "}
+                        {invoice.job.applianceType}
+                      </p>
                     </div>
                     <Badge variant={invoice.status === "PAID" ? "secondary" : "default"}>{invoice.status}</Badge>
                   </div>
@@ -443,8 +464,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                       <p className="font-semibold">${invoice.totalAmount.toFixed(0)}</p>
                     </div>
                     <div className="rounded-lg bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Paid</p>
-                      <p className="font-semibold text-green-600">${invoice.paidAmount.toFixed(0)}</p>
+                      <p className="text-xs text-gray-500">Net Paid</p>
+                      <p className="font-semibold text-green-600">${getNetPaidAmount(invoice).toFixed(0)}</p>
                     </div>
                     <div className="rounded-lg bg-gray-50 p-3">
                       <p className="text-xs text-gray-500">Balance</p>
@@ -463,7 +484,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <TableHead>Job</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
+                  <TableHead>Net Paid</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -475,7 +496,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{invoice.job.jobNumber}</div>
+                        <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                          {invoice.job.jobNumber}
+                        </Link>
                         <div className="text-sm text-gray-500">{invoice.job.applianceType}</div>
                       </div>
                     </TableCell>
@@ -485,7 +508,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                       </Badge>
                     </TableCell>
                     <TableCell>${invoice.totalAmount.toFixed(2)}</TableCell>
-                    <TableCell className="text-green-600">${invoice.paidAmount.toFixed(2)}</TableCell>
+                    <TableCell className="text-green-600">${getNetPaidAmount(invoice).toFixed(2)}</TableCell>
                     <TableCell className={invoice.balanceAmount > 0 ? "text-orange-600" : ""}>
                       ${invoice.balanceAmount.toFixed(2)}
                     </TableCell>

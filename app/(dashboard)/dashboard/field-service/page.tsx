@@ -1,31 +1,37 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
-  Bell,
-  CalendarDays,
+  ArrowLeft,
   Camera,
   CheckCircle2,
-  Clock,
+  ChevronDown,
   Compass,
   MapPin,
+  MoreHorizontal,
   Navigation,
   Phone,
   Plus,
   Route,
   Search,
   Send,
-  UserCheck,
-  Users,
-  Wrench,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { FIELD_PHOTO_CATEGORIES, FIELD_SERVICE_STATUSES, FIELD_NOTE_TYPES, formatFieldStatus } from "@/lib/field-service";
@@ -127,6 +134,10 @@ interface FieldJob {
     queuedUntil?: string | null;
     createdAt: string;
   }>;
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+  } | null;
 }
 
 interface DashboardResponse {
@@ -243,7 +254,6 @@ export default function FieldServiceDashboardPage() {
   const { toast } = useToast();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeCard, setActiveCard] = useState("all");
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
   const [technicianId, setTechnicianId] = useState("all");
@@ -264,6 +274,10 @@ export default function FieldServiceDashboardPage() {
   const [pendingNotification, setPendingNotification] = useState<{ job: FieldJob; timer: number } | null>(null);
   const [calloutAddressValue, setCalloutAddressValue] = useState("");
   const [pendingDialogSection, setPendingDialogSection] = useState<"notes" | "photos" | null>(null);
+  const [dashboardTab, setDashboardTab] = useState<"jobs" | "map">("jobs");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [mapLoadError, setMapLoadError] = useState("");
+  const [expandedDialogSections, setExpandedDialogSections] = useState<Record<string, boolean>>({});
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -275,7 +289,7 @@ export default function FieldServiceDashboardPage() {
 
   const fetchDashboard = async () => {
     const params = new URLSearchParams({
-      card: activeCard,
+      card: "all",
       date,
       technicianId,
       status,
@@ -306,15 +320,21 @@ export default function FieldServiceDashboardPage() {
     fetchDashboard();
     const interval = window.setInterval(fetchDashboard, 15000);
     return () => window.clearInterval(interval);
-  }, [activeCard, date, technicianId, status, priority, search, suburb, unassignedOnly, runningLateOnly]);
+  }, [date, technicianId, status, priority, search, suburb, unassignedOnly, runningLateOnly]);
 
   useEffect(() => {
     if (!data?.map.googleApiKey || window.google?.maps) return;
 
-    window.initFieldServiceMap = () => renderMap();
+    window.initFieldServiceMap = () => {
+      setMapLoadError("");
+      renderMap();
+    };
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${data.map.googleApiKey}&libraries=places&callback=initFieldServiceMap`;
     script.async = true;
+    script.onerror = () => {
+      setMapLoadError("Google Maps could not load. Check the API key browser restrictions, Maps JavaScript API access, and billing status in Google Cloud.");
+    };
     document.head.appendChild(script);
     return () => {
       delete window.initFieldServiceMap;
@@ -323,7 +343,7 @@ export default function FieldServiceDashboardPage() {
 
   useEffect(() => {
     renderMap();
-  }, [data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
+  }, [dashboardTab, data?.jobs, data?.map.officeLatitude, data?.map.officeLongitude]);
 
   useEffect(() => {
     setCalloutAddressValue(selectedJob?.calloutAddress || "");
@@ -366,7 +386,7 @@ export default function FieldServiceDashboardPage() {
   }, [selectedJob, data?.map.googleApiKey]);
 
   const renderMap = () => {
-    if (!window.google?.maps || !mapRef.current || !data) return;
+    if (dashboardTab !== "map" || !window.google?.maps || !mapRef.current || !data) return;
 
     const office = {
       lat: data.map.officeLatitude || -36.8485,
@@ -380,6 +400,8 @@ export default function FieldServiceDashboardPage() {
         mapTypeControl: false,
         streetViewControl: false,
       });
+    } else {
+      mapInstanceRef.current.setCenter(office);
     }
 
     markersRef.current.forEach((marker) => marker.setMap(null));
@@ -430,6 +452,9 @@ export default function FieldServiceDashboardPage() {
   const openJobDialog = (job: FieldJob, section?: "notes" | "photos") => {
     setSelectedJob(job);
     setPendingDialogSection(section || null);
+    if (section === "photos") {
+      setExpandedDialogSections((current) => ({ ...current, photos: true }));
+    }
   };
 
   const refreshSelectedJob = (jobs: FieldJob[]) => {
@@ -437,6 +462,69 @@ export default function FieldServiceDashboardPage() {
     const fresh = jobs.find((job) => job.id === selectedJob.id);
     if (fresh) setSelectedJob(fresh);
   };
+
+  const isStartTravelDisabled = (job: FieldJob) => job.status === "ARRIVED_ON_SITE";
+
+  const setDialogSectionExpanded = (section: string, open: boolean) => {
+    setExpandedDialogSections((current) => ({ ...current, [section]: open }));
+  };
+
+  const CollapsibleSummary = ({ section, title }: { section: string; title: string }) => {
+    const open = Boolean(expandedDialogSections[section]);
+    return (
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 text-base font-semibold">
+        <span>{title}</span>
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-blue-700">
+          {open ? "Hide details" : "Show details"}
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </span>
+      </summary>
+    );
+  };
+
+  const JobActionsMenu = ({ job, buttonClassName = "" }: { job: FieldJob; buttonClassName?: string }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className={buttonClassName}>
+          <MoreHorizontal className="mr-2 h-4 w-4" />
+          More
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel>Job Actions</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <a href={`tel:${job.customer.phone}`}>
+            <Phone className="mr-2 h-4 w-4" />
+            Call Customer
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={isStartTravelDisabled(job)}
+          onClick={() => {
+            if (!isStartTravelDisabled(job)) {
+              updateStatus(job, "TECHNICIAN_ON_THE_WAY");
+            }
+          }}
+        >
+          <Send className="mr-2 h-4 w-4" />
+          Start Travel
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>
+          <CheckCircle2 className="mr-2 h-4 w-4" />
+          Mark Arrived
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => openJobDialog(job, "notes")}>
+          Add Note
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openJobDialog(job, "photos")}>
+          <Camera className="mr-2 h-4 w-4" />
+          Upload Photos
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const mutateJob = async (jobId: string, payload: Record<string, unknown>, method: "PATCH" | "POST" = "PATCH") => {
     const response = await fetch(`/api/field-service/jobs/${jobId}`, {
@@ -466,10 +554,14 @@ export default function FieldServiceDashboardPage() {
 
   const updateStatus = async (job: FieldJob, nextStatus: string) => {
     try {
-      await mutateJob(job.id, { action: "status", status: nextStatus });
+      const updatedJob = await mutateJob(job.id, { action: "status", status: nextStatus });
       toast({ title: "Status updated", description: `${job.jobNumber} is now ${formatFieldStatus(nextStatus)}.` });
       if (nextStatus === "TECHNICIAN_ON_THE_WAY") {
         prepareOnTheWayNotification(job);
+      }
+      if (nextStatus === "COMPLETED") {
+        const invoiceId = updatedJob?.invoice?.id || job.invoice?.id;
+        router.push(invoiceId ? `/invoices/${invoiceId}` : `/invoices/new?jobId=${job.id}`);
       }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -634,30 +726,30 @@ export default function FieldServiceDashboardPage() {
     }
   };
 
-  const counts = data?.counts || {};
   const jobs = data?.jobs || [];
+  const newestJobs = [...jobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const activeFilterCount = [
+    search,
+    date,
+    technicianId !== "all",
+    status !== "all",
+    priority !== "all",
+    suburb,
+    unassignedOnly,
+    runningLateOnly,
+  ].filter(Boolean).length;
+
   useEffect(() => {
     refreshSelectedJob(jobs);
   }, [jobs]);
-
-  const overviewCards = useMemo(() => [
-    { key: "totalToday", label: "Total Callouts Today", value: counts.totalToday || 0, icon: CalendarDays },
-    { key: "scheduled", label: "Scheduled Jobs", value: counts.scheduled || 0, icon: Clock },
-    { key: "inProgress", label: "Jobs In Progress", value: counts.inProgress || 0, icon: Wrench },
-    { key: "onTheWay", label: "Technicians On The Way", value: counts.onTheWay || 0, icon: Navigation },
-    { key: "completedToday", label: "Completed Today", value: counts.completedToday || 0, icon: CheckCircle2 },
-    { key: "urgent", label: "Urgent Jobs", value: counts.urgent || 0, icon: AlertTriangle },
-    { key: "unassigned", label: "Unassigned Jobs", value: counts.unassigned || 0, icon: Users },
-    { key: "runningLate", label: "Running Late Jobs", value: counts.runningLate || 0, icon: Bell },
-  ], [counts]);
 
   if (loading) {
     return <div className="p-6 text-sm text-gray-600">Loading field service dashboard...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 lg:p-6">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="space-y-5 overflow-x-hidden">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-950">Field Service Dashboard</h1>
           <p className="mt-1 text-sm text-slate-600">Callout repair operations, scheduling, dispatch, and technician work.</p>
@@ -678,113 +770,124 @@ export default function FieldServiceDashboardPage() {
         </div>
       )}
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {overviewCards.map((card) => {
-          const Icon = card.icon;
-          const active = activeCard === card.key;
-          return (
-            <button
-              key={card.key}
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle>Callout Job List</CardTitle>
+          <CardDescription>View and manage field service callout jobs</CardDescription>
+        </CardHeader>
+        <CardContent className="min-w-0">
+          <div className="mb-4 flex items-center justify-between gap-2 sm:hidden">
+            <Button
               type="button"
-              onClick={() => setActiveCard(active ? "all" : card.key)}
-              className={`rounded-lg border bg-white p-4 text-left shadow-sm transition ${active ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-200 hover:border-slate-300"}`}
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => setShowMobileFilters((open) => !open)}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">{card.label}</span>
-                <Icon className="h-5 w-5 text-slate-500" />
-              </div>
-              <div className="mt-3 text-3xl font-bold text-slate-950">{card.value}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mb-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
-          <div className="xl:col-span-2">
-            <Label htmlFor="search">Search</Label>
-            <div className="relative mt-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input id="search" value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 pl-9 xl:h-10" placeholder="Job, customer, phone, address" />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="date">Date</Label>
-            <div className="mt-1 flex gap-2">
-              <Input id="date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11 xl:h-10" />
-              {date && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setDate("")}>
-                  All
-                </Button>
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              Search & Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">
+                  {activeFilterCount}
+                </Badge>
               )}
-            </div>
+            </Button>
+            <span className="text-xs text-slate-500">{jobs.length} jobs</span>
           </div>
-          <div>
-            <Label>Technician</Label>
+
+          <div className={`${showMobileFilters ? "grid" : "hidden"} mb-6 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(220px,1fr)_180px_180px_180px_150px_180px_180px] 2xl:items-center`}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                id="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="h-11 pl-10 lg:h-10"
+                placeholder="Search jobs..."
+              />
+            </div>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              className="h-11 lg:h-10"
+            />
             <Select value={technicianId} onValueChange={setTechnicianId}>
-              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Technician" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All technicians</SelectItem>
+                <SelectItem value="all">All Technicians</SelectItem>
                 {data?.technicians.map((tech) => (
                   <SelectItem key={tech.id} value={tech.id}>{tech.firstName} {tech.lastName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 {FIELD_SERVICE_STATUSES.map((item) => (
                   <SelectItem key={item} value={item}>{formatFieldStatus(item)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Priority</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="mt-1 h-11 xl:h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="all">All Priority</SelectItem>
                 <SelectItem value="LOW">Low</SelectItem>
-                <SelectItem value="MEDIUM">Normal</SelectItem>
+                <SelectItem value="MEDIUM">Medium</SelectItem>
                 <SelectItem value="HIGH">High</SelectItem>
                 <SelectItem value="URGENT">Urgent</SelectItem>
               </SelectContent>
             </Select>
+            <Input
+              id="suburb"
+              value={suburb}
+              onChange={(event) => setSuburb(event.target.value)}
+              className="h-11 lg:h-10"
+              placeholder="Address contains"
+            />
+            <Select
+              value={unassignedOnly ? "unassigned" : runningLateOnly ? "late" : "all"}
+              onValueChange={(value) => {
+                setUnassignedOnly(value === "unassigned");
+                setRunningLateOnly(value === "late");
+              }}
+            >
+              <SelectTrigger className="h-11 w-full lg:h-10">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Callouts</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="late">Running Late</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <Label htmlFor="suburb">Suburb</Label>
-            <Input id="suburb" value={suburb} onChange={(event) => setSuburb(event.target.value)} className="mt-1 h-11 xl:h-10" placeholder="Address contains" />
-          </div>
-          <div className="flex items-end gap-2">
-            <Button variant={unassignedOnly ? "default" : "outline"} onClick={() => setUnassignedOnly(!unassignedOnly)} className="flex-1">
-              <UserCheck className="mr-2 h-4 w-4" />
-              Unassigned
-            </Button>
-            <Button variant={runningLateOnly ? "default" : "outline"} onClick={() => setRunningLateOnly(!runningLateOnly)} className="flex-1">
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Late
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.9fr)]">
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="font-semibold text-slate-950">Callout Jobs</h2>
-            <p className="text-sm text-slate-500">{jobs.length} callout jobs shown</p>
-          </div>
-          <div className="space-y-3 p-4 md:hidden">
-            {jobs.map((job) => (
+      <Tabs value={dashboardTab} onValueChange={(value) => setDashboardTab(value as "jobs" | "map")} className="min-w-0 space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 p-1 sm:w-[360px]">
+          <TabsTrigger value="jobs" className="h-10">Callout Jobs</TabsTrigger>
+          <TabsTrigger value="map" className="h-10">Map View</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="jobs" className="mt-0" forceMount hidden={dashboardTab !== "jobs"}>
+          <div className="mb-4 text-sm text-slate-500">{jobs.length} callout jobs shown</div>
+          <div className="space-y-3 md:hidden">
+            {newestJobs.map((job) => (
               <div key={job.id} className={`rounded-2xl border p-4 shadow-sm ${job.runningLate ? "border-rose-200 bg-rose-50" : !job.assignedTechnicianId ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-slate-950">{job.jobNumber}</p>
+                    <Link href={`/jobs/${job.id}`} className="font-semibold text-blue-700 hover:underline">
+                      {job.jobNumber}
+                    </Link>
                     <p className="mt-1 truncate text-sm text-slate-700">{job.customer.firstName} {job.customer.lastName}</p>
                     <a className="mt-1 block text-sm text-blue-700" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a>
                   </div>
@@ -803,64 +906,117 @@ export default function FieldServiceDashboardPage() {
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <Button className="h-11" onClick={() => openJobDialog(job)}>Open</Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`} target="_blank" rel="noreferrer">
+                      <Compass className="mr-2 h-4 w-4" />
+                      Maps
+                    </a>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <a href={`tel:${job.customer.phone}`}>
+                      <Phone className="mr-2 h-4 w-4" />
+                      Call
+                    </a>
+                  </Button>
+                  <Button
+                    size="lg"
+                    onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}
+                    disabled={isStartTravelDisabled(job)}
+                  >
+                    Start Travel
+                  </Button>
+                  <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
+                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
+                  <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto md:block">
-            <Table>
+          <div className="hidden min-w-0 rounded-md border border-slate-200 md:block">
+            <Table className="min-w-[1080px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Job ID</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Phone</TableHead>
                   <TableHead>Appliance</TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>Booking</TableHead>
                   <TableHead>Scheduled</TableHead>
                   <TableHead>Technician</TableHead>
-                  <TableHead>Distance</TableHead>
-                  <TableHead>Travel</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="min-w-[220px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {jobs.map((job) => (
+                {newestJobs.map((job) => (
                   <TableRow key={job.id} className={job.runningLate ? "bg-rose-50" : !job.assignedTechnicianId ? "bg-amber-50/50" : ""}>
-                    <TableCell className="font-medium">{job.jobNumber}</TableCell>
-                    <TableCell>{job.customer.firstName} {job.customer.lastName}</TableCell>
-                    <TableCell><a className="text-blue-700 hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a></TableCell>
-                    <TableCell>{job.applianceType}</TableCell>
-                    <TableCell className="min-w-[220px] text-sm">{job.calloutAddress || "Address not selected"}</TableCell>
-                    <TableCell>{formatDateTime(job.createdAt)}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/jobs/${job.id}`} className="text-blue-700 hover:underline">
+                        {job.jobNumber}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{job.customer.firstName} {job.customer.lastName}</div>
+                      <a className="text-sm text-blue-700 hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a>
+                    </TableCell>
+                    <TableCell>
+                      <div>{job.applianceType}</div>
+                      <div className="text-sm text-slate-500">{job.applianceBrand}</div>
+                    </TableCell>
+                    <TableCell className="min-w-[240px] text-sm">{job.calloutAddress || "Address not selected"}</TableCell>
                     <TableCell>{formatDateTime(job.scheduledAt)}</TableCell>
                     <TableCell>{job.assignedTechnician ? `${job.assignedTechnician.firstName} ${job.assignedTechnician.lastName}` : "Unassigned"}</TableCell>
                     <TableCell>
-                      {formatDistance(job.distanceFromOfficeKm)}
-                      {job.travelEstimateSource === "STRAIGHT_LINE_ESTIMATE" && <span className="ml-1 text-xs text-slate-500">(est.)</span>}
+                      <Select value={job.status} onValueChange={(value) => updateStatus(job, value)}>
+                        <SelectTrigger
+                          className={`h-9 w-[190px] max-w-full rounded-md border px-3 text-left text-xs font-medium shadow-none [&>span]:truncate ${statusTone[job.status] || "bg-slate-100 text-slate-700"}`}
+                        >
+                          <SelectValue>
+                            <span className="block w-full truncate">{formatFieldStatus(job.status)}</span>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FIELD_SERVICE_STATUSES.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {formatFieldStatus(item)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
-                    <TableCell>{job.estimatedTravelTime || "Not calculated"}</TableCell>
-                    <TableCell><Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge></TableCell>
                     <TableCell><Badge className={priorityTone[job.priority] || priorityTone.MEDIUM}>{job.priority === "MEDIUM" ? "NORMAL" : job.priority}</Badge></TableCell>
-                    <TableCell>{formatDateTime(job.updatedAt)}</TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openJobDialog(job)}>Open</Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`} target="_blank" rel="noreferrer">
+                            <Compass className="mr-1 h-3.5 w-3.5" />
+                            Maps
+                          </a>
+                        </Button>
+                        <JobActionsMenu job={job} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-        </div>
+        </TabsContent>
 
-        <div className="space-y-5">
-          <div className="h-[340px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[420px] xl:h-[520px]">
-            {data?.map.googleApiKey ? (
+        <TabsContent value="map" className="mt-0" forceMount hidden={dashboardTab !== "map"}>
+          <div className="space-y-5">
+          <div className="h-[420px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm sm:h-[520px] xl:h-[calc(100vh-260px)] xl:min-h-[560px]">
+            {mapLoadError ? (
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-600">
+                <MapPin className="mb-3 h-8 w-8 text-slate-400" />
+                <p className="max-w-md">{mapLoadError}</p>
+              </div>
+            ) : data?.map.googleApiKey ? (
               <div ref={mapRef} className="h-full w-full" />
             ) : (
               <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-600">
@@ -870,33 +1026,11 @@ export default function FieldServiceDashboardPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
-            <h2 className="font-semibold text-slate-950">Technician Mobile View</h2>
-            <p className="text-sm text-slate-500">My Jobs Today</p>
-            <div className="mt-3 space-y-3">
-              {jobs.slice(0, 4).map((job) => (
-                <div key={job.id} className="rounded-md border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{job.jobNumber}</p>
-                      <p className="text-sm text-slate-600">{job.customer.firstName} {job.customer.lastName}</p>
-                    </div>
-                    <Badge className={statusTone[job.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(job.status)}</Badge>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Button size="lg" variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(job.calloutAddress || "")}`}><Compass className="mr-2 h-4 w-4" />Maps</a></Button>
-                    <Button size="lg" variant="outline" asChild><a href={`tel:${job.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
-                    <Button size="lg" onClick={() => updateStatus(job, "TECHNICIAN_ON_THE_WAY")}>Start Travel</Button>
-                    <Button size="lg" onClick={() => updateStatus(job, "ARRIVED_ON_SITE")}>Arrived</Button>
-                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "notes")}>Add Note</Button>
-                    <Button size="lg" variant="outline" onClick={() => openJobDialog(job, "photos")}>Upload Photos</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
+        </CardContent>
+      </Card>
 
       <Dialog open={Boolean(selectedJob)} onOpenChange={(open) => !open && setSelectedJob(null)}>
         <DialogContent
@@ -911,12 +1045,56 @@ export default function FieldServiceDashboardPage() {
           {selectedJob && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex flex-wrap items-center gap-2">
-                  {selectedJob.jobNumber}
-                  <Badge className={statusTone[selectedJob.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(selectedJob.status)}</Badge>
-                  {selectedJob.runningLate && <Badge className="bg-rose-100 text-rose-700">Running Late</Badge>}
-                </DialogTitle>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <DialogTitle className="flex flex-wrap items-center gap-2">
+                    <Link href={`/jobs/${selectedJob.id}`} className="text-blue-700 hover:underline">
+                      {selectedJob.jobNumber}
+                    </Link>
+                    <Badge className={statusTone[selectedJob.status] || "bg-slate-100 text-slate-700"}>{formatFieldStatus(selectedJob.status)}</Badge>
+                    {selectedJob.runningLate && <Badge className="bg-rose-100 text-rose-700">Running Late</Badge>}
+                  </DialogTitle>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setSelectedJob(null)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Dashboard
+                  </Button>
+                </div>
               </DialogHeader>
+
+              <Card className="border-blue-200 bg-blue-50/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Quick Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Select value={selectedJob.status} onValueChange={(value) => updateStatus(selectedJob, value)}>
+                    <SelectTrigger className={`h-11 ${statusTone[selectedJob.status] || "bg-white text-slate-700"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FIELD_SERVICE_STATUSES.map((item) => (
+                        <SelectItem key={item} value={item}>{formatFieldStatus(item)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}
+                      disabled={isStartTravelDisabled(selectedJob)}
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Start Travel
+                    </Button>
+                    <Button variant="outline" onClick={() => updateStatus(selectedJob, "ARRIVED_ON_SITE")}>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Arrived
+                    </Button>
+                  </div>
+                  {isStartTravelDisabled(selectedJob) && (
+                    <p className="text-xs text-slate-600">
+                      Start Travel is disabled while this job is marked Arrived On Site. Change the status above to enable it again.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
               <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
                 <div className="space-y-5">
@@ -931,9 +1109,13 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Callout Details</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.callout)}
+                    onToggle={(event) => setDialogSectionExpanded("callout", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="callout" title="Callout Details" />
+                    <div className="space-y-4 px-6 pb-6">
                       <div className="grid gap-3 md:grid-cols-2">
 	                        <div className="md:col-span-2">
 	                          <Label htmlFor="calloutAddress">Google Places Address</Label>
@@ -980,8 +1162,8 @@ export default function FieldServiceDashboardPage() {
                         </div>
                       </div>
                       <Button onClick={saveCalloutDetails}><Route className="mr-2 h-4 w-4" />Save Schedule and Route</Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
 
                   <Card ref={notesSectionRef}>
                     <CardHeader>
@@ -1044,9 +1226,13 @@ export default function FieldServiceDashboardPage() {
                     </CardContent>
                   </Card>
 
-                  <Card ref={photosSectionRef}>
-                    <CardHeader><CardTitle className="text-base">Photos</CardTitle></CardHeader>
-                    <CardContent className="space-y-3">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.photos)}
+                    onToggle={(event) => setDialogSectionExpanded("photos", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="photos" title={`Photos (${selectedJob.fieldPhotos.length})`} />
+                    <div ref={photosSectionRef} className="space-y-3 px-6 pb-6">
                       <div className="grid gap-3 md:grid-cols-3">
                         <Select value={photoCategory} onValueChange={setPhotoCategory}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1070,14 +1256,18 @@ export default function FieldServiceDashboardPage() {
                           </div>
                         ))}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
                 </div>
 
                 <div className="space-y-4">
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Dispatch</CardTitle></CardHeader>
-                    <CardContent className="space-y-3">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.dispatch)}
+                    onToggle={(event) => setDialogSectionExpanded("dispatch", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="dispatch" title="Dispatch Options" />
+                    <div className="space-y-3 px-6 pb-6">
                       <div>
                         <Label>Assigned Technician</Label>
                         <Select value={selectedJob.assignedTechnicianId || "unassigned"} onValueChange={(value) => assignTechnician(selectedJob.id, value)}>
@@ -1102,13 +1292,28 @@ export default function FieldServiceDashboardPage() {
                         <Button variant="outline" asChild><a href={`tel:${selectedJob.customer.phone}`}><Phone className="mr-2 h-4 w-4" />Call</a></Button>
                         <Button variant="outline" asChild><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedJob.calloutAddress || "")}`} target="_blank" rel="noreferrer"><Navigation className="mr-2 h-4 w-4" />Maps</a></Button>
                       </div>
-                      <Button className="w-full" onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}><Send className="mr-2 h-4 w-4" />Technician On The Way</Button>
-                    </CardContent>
-                  </Card>
+                      <Button
+                        className="w-full"
+                        onClick={() => updateStatus(selectedJob, "TECHNICIAN_ON_THE_WAY")}
+                        disabled={isStartTravelDisabled(selectedJob)}
+                      >
+                        <Send className="mr-2 h-4 w-4" />
+                        Technician On The Way
+                      </Button>
+                      <Button variant="outline" className="w-full" onClick={() => setSelectedJob(null)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Dashboard
+                      </Button>
+                    </div>
+                  </details>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Status History</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.history)}
+                    onToggle={(event) => setDialogSectionExpanded("history", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="history" title="Status History" />
+                    <div className="space-y-2 px-6 pb-6">
                       {selectedJob.statusHistory.map((entry) => (
                         <div key={entry.id} className="rounded-md border border-slate-200 p-2 text-sm">
                           <p className="font-medium">{formatFieldStatus(entry.newStatus || entry.status)}</p>
@@ -1116,12 +1321,16 @@ export default function FieldServiceDashboardPage() {
                           <p className="text-xs text-slate-500">{formatDateTime(entry.changedAt || entry.createdAt)}</p>
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
 
-                  <Card>
-                    <CardHeader><CardTitle className="text-base">Customer Notifications</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
+                  <details
+                    className="rounded-lg border bg-card text-card-foreground shadow-sm"
+                    open={Boolean(expandedDialogSections.notifications)}
+                    onToggle={(event) => setDialogSectionExpanded("notifications", event.currentTarget.open)}
+                  >
+                    <CollapsibleSummary section="notifications" title="Customer Notifications" />
+                    <div className="space-y-2 px-6 pb-6">
                       {selectedJob.customerNotifications.length === 0 && <p className="text-sm text-slate-500">No customer notifications yet.</p>}
                       {selectedJob.customerNotifications.map((notification) => (
                         <div key={notification.id} className="rounded-md border border-slate-200 p-2 text-sm">
@@ -1145,8 +1354,8 @@ export default function FieldServiceDashboardPage() {
                           )}
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </details>
                 </div>
               </div>
             </>

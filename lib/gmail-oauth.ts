@@ -2,6 +2,10 @@ import { google } from "googleapis";
 import { db } from "./db";
 
 const OAuth2 = google.auth.OAuth2;
+const GOOGLE_WORKSPACE_SCOPES = [
+  "https://mail.google.com/",
+  "https://www.googleapis.com/auth/calendar.readonly",
+];
 
 /**
  * Creates OAuth2 client for Gmail API
@@ -60,7 +64,7 @@ export async function generateGmailAuthUrl(
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://mail.google.com/"], // Full Gmail access for sending
+    scope: GOOGLE_WORKSPACE_SCOPES,
     prompt: "consent", // Force consent to get refresh token
     state,
   });

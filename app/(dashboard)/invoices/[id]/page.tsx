@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   FileText,
   Printer,
   CreditCard,
+  RotateCcw,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
@@ -64,6 +66,16 @@ interface Payment {
   paymentDate: string;
   referenceNumber?: string;
   notes?: string;
+}
+
+interface Refund {
+  id: string;
+  amount: number;
+  refundMethod: string;
+  refundDate: string;
+  reason: string;
+  referenceNumber?: string | null;
+  payoutStatus?: string;
 }
 
 interface Invoice {
@@ -95,6 +107,10 @@ interface Invoice {
   job: {
     id: string;
     jobNumber: string;
+    isCallout?: boolean;
+    calloutFee?: number | null;
+    diagnosticFeeAmount?: number;
+    diagnosticFeePaid?: boolean;
     applianceType: string;
     applianceBrand: string;
     modelNumber?: string;
@@ -108,6 +124,7 @@ interface Invoice {
   };
   invoiceItems: InvoiceItem[];
   payments: Payment[];
+  refunds: Refund[];
 }
 
 interface CompanySettings {
@@ -116,6 +133,7 @@ interface CompanySettings {
   companyPhone?: string;
   companyAddress?: string;
   companyLogo?: string;
+  termsAndConditions?: string;
 }
 
 interface SessionInfo {
@@ -133,7 +151,10 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [showRefundTools, setShowRefundTools] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
 
@@ -143,6 +164,14 @@ export default function InvoiceDetailPage() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0]);
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
+
+  // Refund form state
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundMethod, setRefundMethod] = useState("CASH");
+  const [refundDate, setRefundDate] = useState(new Date().toISOString().split("T")[0]);
+  const [refundReferenceNumber, setRefundReferenceNumber] = useState("");
+  const [refundPayoutStatus, setRefundPayoutStatus] = useState("COMPLETED");
 
   const fetchInvoice = async () => {
     setLoading(true);
@@ -209,6 +238,72 @@ export default function InvoiceDetailPage() {
     return statusMap[status] || "default";
   };
 
+  const calculateRefundSummary = (currentInvoice: Invoice) => {
+    const totalRefunded = (currentInvoice.refunds || []).reduce(
+      (sum, refund) => sum + refund.amount,
+      0
+    );
+    const nonRefundableDiagnosticFee =
+      currentInvoice.job.diagnosticFeePaid && currentInvoice.job.diagnosticFeeAmount
+        ? currentInvoice.job.diagnosticFeeAmount
+        : 0;
+    const nonRefundableCalloutFee = currentInvoice.job.isCallout
+      ? currentInvoice.job.calloutFee || 0
+      : 0;
+    const refundableInvoiceAmount = Math.max(
+      0,
+      currentInvoice.totalAmount -
+        nonRefundableDiagnosticFee -
+        nonRefundableCalloutFee
+    );
+    const maximumRefundableAmount = Math.max(
+      0,
+      Math.min(
+        currentInvoice.paidAmount - totalRefunded,
+        refundableInvoiceAmount - totalRefunded
+      )
+    );
+    const totalPaidDisplay =
+      currentInvoice.paidAmount + nonRefundableDiagnosticFee;
+    const netPaid = Math.max(0, currentInvoice.paidAmount - totalRefunded);
+
+    return {
+      totalPaidDisplay,
+      totalRefunded,
+      netPaid,
+      nonRefundableDiagnosticFee,
+      nonRefundableCalloutFee,
+      refundableInvoiceAmount,
+      maximumRefundableAmount,
+    };
+  };
+
+  const getRefundUnavailableReason = (currentInvoice: Invoice) => {
+    const summary = calculateRefundSummary(currentInvoice);
+
+    if (!(sessionInfo?.user?.role === "ADMIN" || sessionInfo?.user?.role === "TECHNICIAN")) {
+      return "Only admins and technicians can record refunds.";
+    }
+
+    if (currentInvoice.status === "CANCELLED") {
+      return "Cancelled invoices cannot be refunded.";
+    }
+
+    if (summary.netPaid <= 0) {
+      return "There is no paid amount left to refund.";
+    }
+
+    if (summary.refundableInvoiceAmount <= summary.totalRefunded) {
+      return "All refundable invoice value has already been refunded. Diagnostic and callout fees remain non-refundable.";
+    }
+
+    if (summary.maximumRefundableAmount <= 0) {
+      return "No refundable amount is available for this invoice.";
+    }
+
+    return "";
+  };
+
   const handleDownloadPDF = async () => {
     try {
       const response = await fetch(`/api/invoices/${params.id}/pdf`);
@@ -232,6 +327,41 @@ export default function InvoiceDetailPage() {
       toast({
         title: "Error",
         description: "Failed to download PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePrintPDF = async () => {
+    try {
+      const response = await fetch(`/api/invoices/${params.id}/pdf`);
+      if (!response.ok) throw new Error("Failed to generate PDF");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = url;
+
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        window.setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+          iframe.remove();
+        }, 60000);
+      };
+
+      document.body.appendChild(iframe);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to prepare invoice for printing",
         variant: "destructive",
       });
     }
@@ -333,6 +463,91 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const openRefundDialog = () => {
+    if (!invoice) return;
+
+    const summary = calculateRefundSummary(invoice);
+    setRefundAmount(summary.maximumRefundableAmount.toFixed(2));
+    setRefundReason("");
+    setRefundMethod("CASH");
+    setRefundDate(new Date().toISOString().split("T")[0]);
+    setRefundReferenceNumber("");
+    setRefundPayoutStatus("COMPLETED");
+    setIsRefundDialogOpen(true);
+  };
+
+  const handleProcessRefund = async () => {
+    if (!invoice) return;
+
+    const amount = parseFloat(refundAmount);
+    const summary = calculateRefundSummary(invoice);
+
+    if (!refundAmount || Number.isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid refund amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (amount > summary.maximumRefundableAmount) {
+      toast({
+        title: "Amount Too Large",
+        description: `Refund cannot exceed ${formatCurrency(summary.maximumRefundableAmount)}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!refundReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please enter a refund reason",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingRefund(true);
+    try {
+      const response = await fetch(`/api/invoices/${params.id}/refunds`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          refundMethod,
+          refundDate: new Date(refundDate).toISOString(),
+          reason: refundReason.trim(),
+          referenceNumber: refundReferenceNumber || undefined,
+          payoutStatus: refundPayoutStatus,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to process refund");
+      }
+
+      setInvoice(result.invoice);
+      setIsRefundDialogOpen(false);
+
+      toast({
+        title: "Success",
+        description: "Refund recorded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process refund",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingRefund(false);
+    }
+  };
+
   const handleDeleteInvoice = async () => {
     if (!invoice) return;
 
@@ -392,6 +607,13 @@ export default function InvoiceDetailPage() {
   const canDeleteInvoice =
     sessionInfo?.user?.role === "ADMIN" &&
     invoice.payments.length === 0;
+  const canProcessRefund =
+    (sessionInfo?.user?.role === "ADMIN" || sessionInfo?.user?.role === "TECHNICIAN") &&
+    invoice.status !== "CANCELLED" &&
+    calculateRefundSummary(invoice).maximumRefundableAmount > 0;
+  const refundSummary = calculateRefundSummary(invoice);
+  const refundUnavailableReason = getRefundUnavailableReason(invoice);
+  const configuredTerms = companySettings?.termsAndConditions?.trim();
 
   return (
     <>
@@ -422,12 +644,140 @@ export default function InvoiceDetailPage() {
             left: 0;
             top: 0;
             width: 100%;
-            padding: 20px;
+            padding: 8px 12px;
+            font-size: 10px;
+            line-height: 1.25;
+            color: #111827;
           }
 
           /* Remove max-width for printing */
           #invoice-content > div {
             max-width: none !important;
+          }
+
+          #invoice-content,
+          #invoice-content .space-y-6,
+          #invoice-content .space-y-3,
+          #invoice-content .space-y-2 {
+            gap: 0 !important;
+          }
+
+          #invoice-content .print-section {
+            margin: 0 !important;
+          }
+
+          #invoice-content .print-card > div {
+            padding: 8px 10px !important;
+          }
+
+          #invoice-content .print-card > div:first-child {
+            display: none !important;
+          }
+
+          #invoice-content h1 {
+            font-size: 18px !important;
+            line-height: 1.1 !important;
+          }
+
+          #invoice-content h2 {
+            font-size: 15px !important;
+            margin-bottom: 4px !important;
+          }
+
+          #invoice-content h3,
+          #invoice-content h4 {
+            font-size: 10px !important;
+            margin: 0 0 4px !important;
+          }
+
+          #invoice-content p,
+          #invoice-content span,
+          #invoice-content div,
+          #invoice-content td,
+          #invoice-content th {
+            font-size: 10px !important;
+            line-height: 1.25 !important;
+          }
+
+          #invoice-content table th,
+          #invoice-content table td {
+            padding: 3px 5px !important;
+          }
+
+          #invoice-content .print-company-header {
+            margin-bottom: 8px !important;
+            padding-bottom: 6px !important;
+          }
+
+          #invoice-content .print-company-header-row {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) 210px !important;
+            column-gap: 18px !important;
+            align-items: start !important;
+          }
+
+          #invoice-content .print-company-contact,
+          #invoice-content .print-invoice-meta {
+            min-width: 0 !important;
+            overflow-wrap: anywhere !important;
+          }
+
+          #invoice-content .print-company-logo {
+            height: 38px !important;
+            margin-bottom: 4px !important;
+          }
+
+          #invoice-content .print-invoice-meta h1 {
+            margin: 0 0 4px !important;
+          }
+
+          #invoice-content .print-meta-row {
+            display: grid !important;
+            grid-template-columns: 58px minmax(0, 1fr) !important;
+            gap: 6px !important;
+            margin-bottom: 2px !important;
+            text-align: right !important;
+          }
+
+          #invoice-content .print-meta-row span:first-child {
+            text-align: left !important;
+          }
+
+          #invoice-content .screen-invoice-metadata,
+          #invoice-content .screen-invoice-metadata *,
+          #invoice-content .print-metadata-duplicate,
+          #invoice-content .print-metadata-duplicate *,
+          #invoice-content .print-hide,
+          #invoice-content .print-hide *,
+          #invoice-content [data-radix-separator] {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          #invoice-content .print-job-details {
+            padding: 6px !important;
+          }
+
+          #invoice-content .print-totals {
+            width: 230px !important;
+          }
+
+          #invoice-content .print-terms-summary {
+            border: 0 !important;
+            padding: 4px 0 0 !important;
+            background: transparent !important;
+          }
+
+          #invoice-content .print-terms-summary ul {
+            columns: 2;
+            gap: 16px;
+            margin: 0 !important;
+          }
+
+          #invoice-content .print-terms-summary li,
+          #invoice-content .print-terms-summary p {
+            font-size: 8px !important;
+            line-height: 1.2 !important;
           }
 
           /* Ensure proper page breaks */
@@ -470,7 +820,12 @@ export default function InvoiceDetailPage() {
               Invoice {invoice.invoiceNumber}
             </h1>
             <p className="text-gray-600 mt-1">
-              Job #{invoice.job.jobNumber} - {invoice.customer.firstName}{" "}
+              Job #{" "}
+              <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                {invoice.job.jobNumber}
+              </Link>
+              {" - "}
+              {invoice.customer.firstName}{" "}
               {invoice.customer.lastName}
             </p>
           </div>
@@ -505,7 +860,7 @@ export default function InvoiceDetailPage() {
               </>
             )}
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={handlePrintPDF}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -554,6 +909,77 @@ export default function InvoiceDetailPage() {
         </Card>
       </div>
 
+      <div className="no-print">
+        <Button
+          variant="outline"
+          onClick={() => setShowRefundTools((current) => !current)}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          {showRefundTools ? "Hide Refund Options" : "Refund Options"}
+        </Button>
+      </div>
+
+      {showRefundTools && (
+        <Card className="no-print">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Refund
+            </CardTitle>
+            <CardDescription>
+              Refunds exclude earned diagnostic and callout fees.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Total Paid</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.totalPaidDisplay)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Non-refundable Diagnostic Fee</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.nonRefundableDiagnosticFee)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Non-refundable Callout Fee</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.nonRefundableCalloutFee)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Refunded</div>
+                <div className="text-lg font-semibold text-red-600">
+                  {formatCurrency(refundSummary.totalRefunded)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Net Paid</div>
+                <div className="text-lg font-semibold">
+                  {formatCurrency(refundSummary.netPaid)}
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-gray-500">Maximum Refundable Amount</div>
+                <div className="text-lg font-semibold text-green-700">
+                  {formatCurrency(refundSummary.maximumRefundableAmount)}
+                </div>
+              </div>
+            </div>
+            <Button onClick={openRefundDialog} disabled={!canProcessRefund}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Process Refund
+            </Button>
+            {!canProcessRefund && refundUnavailableReason && (
+              <p className="text-sm text-gray-600">{refundUnavailableReason}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Invoice Details */}
       <Card className="print-section print-card">
         <CardHeader>
@@ -562,14 +988,14 @@ export default function InvoiceDetailPage() {
         <CardContent className="space-y-6">
           {/* Company Header - Only visible when printing */}
           {companySettings && (
-            <div className="hidden print:block mb-6 pb-4 border-b-2">
-              <div className="flex justify-between items-start">
-                <div>
+            <div className="print-company-header hidden print:block mb-6 pb-4 border-b-2">
+              <div className="print-company-header-row flex justify-between items-start">
+                <div className="print-company-contact">
                   {companySettings.companyLogo && (
                     <img
                       src={`${companySettings.companyLogo}?t=${new Date().getTime()}`}
                       alt={companySettings.companyName}
-                      className="h-16 w-auto mb-3"
+                      className="print-company-logo h-16 w-auto mb-3"
                     />
                   )}
                   {!companySettings.companyLogo && (
@@ -587,13 +1013,25 @@ export default function InvoiceDetailPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="print-invoice-meta text-right">
                   <h1 className="text-3xl font-bold">INVOICE</h1>
                   <div className="text-sm mt-2 space-y-1">
-                    <div><span className="font-semibold">Invoice #:</span> {invoice.invoiceNumber}</div>
-                    <div><span className="font-semibold">Issue Date:</span> {format(new Date(invoice.issueDate), "MMM dd, yyyy")}</div>
-                    <div><span className="font-semibold">Due Date:</span> Payment due upon collection of the device</div>
-                    <div><span className="font-semibold">Job #:</span> {invoice.job.jobNumber}</div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Invoice #:</span>
+                      <span>{invoice.invoiceNumber}</span>
+                    </div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Issue Date:</span>
+                      <span>{format(new Date(invoice.issueDate), "MMM dd, yyyy")}</span>
+                    </div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Payment:</span>
+                      <span>Payment due upon collection of the device</span>
+                    </div>
+                    <div className="print-meta-row">
+                      <span className="font-semibold">Job #:</span>
+                      <span>{invoice.job.jobNumber}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -602,7 +1040,7 @@ export default function InvoiceDetailPage() {
 
           {/* Header Info */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            <div>
+            <div className="screen-invoice-metadata print:hidden">
               <h3 className="font-semibold text-sm text-gray-500 mb-2">BILL TO</h3>
               <p className="font-medium">
                 {invoice.customer.firstName} {invoice.customer.lastName}
@@ -636,7 +1074,9 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Job Number:</span>
-                  <span className="font-medium">{invoice.job.jobNumber}</span>
+                  <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                    {invoice.job.jobNumber}
+                  </Link>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Issued By:</span>
@@ -653,7 +1093,7 @@ export default function InvoiceDetailPage() {
           {/* Job Information */}
           <div>
             <h3 className="font-semibold mb-2">Job Details</h3>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="print-job-details bg-gray-50 p-4 rounded-lg space-y-2">
               <p className="text-sm">
                 <span className="font-medium">Appliance:</span>{" "}
                 {invoice.job.applianceBrand} {invoice.job.applianceType}
@@ -706,7 +1146,7 @@ export default function InvoiceDetailPage() {
 
           {/* Totals */}
           <div className="flex justify-start md:justify-end">
-            <div className="w-full space-y-2 md:w-80">
+            <div className="print-totals w-full space-y-2 md:w-80">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal:</span>
                 <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
@@ -734,6 +1174,22 @@ export default function InvoiceDetailPage() {
                   {formatCurrency(invoice.paidAmount)}
                 </span>
               </div>
+              {refundSummary.totalRefunded > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-red-600">Refunded:</span>
+                    <span className="font-medium text-red-600">
+                      -{formatCurrency(refundSummary.totalRefunded)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Net Paid:</span>
+                    <span className="font-medium">
+                      {formatCurrency(refundSummary.netPaid)}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-lg font-bold">
                 <span className="text-orange-600">Balance Due:</span>
                 <span className="text-orange-600">
@@ -749,7 +1205,7 @@ export default function InvoiceDetailPage() {
               <Separator />
               <div className="space-y-3">
                 {normalizePaymentTerms(invoice.paymentTerms) && (
-                  <div>
+                  <div className="print-hide">
                     <h3 className="font-semibold text-sm mb-1">Payment Terms</h3>
                     <p className="text-sm text-gray-600">
                       {normalizePaymentTerms(invoice.paymentTerms)}
@@ -767,13 +1223,20 @@ export default function InvoiceDetailPage() {
           )}
 
           <Separator />
-          <TermsSummary />
+          {configuredTerms ? (
+            <div className="print-terms-summary rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              <h4 className="mb-2 font-semibold text-gray-900">Terms and Conditions</h4>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">{configuredTerms}</p>
+            </div>
+          ) : (
+            <TermsSummary className="print-terms-summary" />
+          )}
         </CardContent>
       </Card>
 
       {/* Payment History */}
       {invoice.payments.length > 0 && (
-        <Card className="print-section print-card">
+        <Card className="print-hide print-section print-card">
           <CardHeader>
             <CardTitle>Payment History</CardTitle>
             <CardDescription>
@@ -811,6 +1274,61 @@ export default function InvoiceDetailPage() {
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       {formatCurrency(payment.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {invoice.refunds && invoice.refunds.length > 0 && (
+        <Card className="print-hide print-section print-card">
+          <CardHeader>
+            <CardTitle>Refund History</CardTitle>
+            <CardDescription>
+              {invoice.refunds.length} refund{invoice.refunds.length !== 1 ? "s" : ""} recorded
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoice.refunds.map((refund) => (
+                  <TableRow key={refund.id}>
+                    <TableCell>
+                      {format(new Date(refund.refundDate), "MMM dd, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {formatStatus(refund.refundMethod)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={refund.payoutStatus === "PENDING" ? "destructive" : "secondary"}>
+                        {formatStatus(refund.payoutStatus || "COMPLETED")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {refund.referenceNumber || "-"}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {refund.reason}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-red-600">
+                      -{formatCurrency(refund.amount)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -902,6 +1420,113 @@ export default function InvoiceDetailPage() {
             </Button>
             <Button onClick={handleAddPayment} disabled={isProcessingPayment}>
               {isProcessingPayment ? "Processing..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refund Dialog */}
+      <Dialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Process Refund</DialogTitle>
+            <DialogDescription>
+              Maximum refundable amount:{" "}
+              <span className="font-semibold">
+                {formatCurrency(refundSummary.maximumRefundableAmount)}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="refundAmount">Refund Amount *</Label>
+              <Input
+                id="refundAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={refundSummary.maximumRefundableAmount}
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundReason">Refund Reason *</Label>
+              <Select value={refundReason} onValueChange={setRefundReason}>
+                <SelectTrigger id="refundReason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Part unavailable">Part unavailable</SelectItem>
+                  <SelectItem value="Customer cancelled">Customer cancelled</SelectItem>
+                  <SelectItem value="Warranty issue">Warranty issue</SelectItem>
+                  <SelectItem value="Duplicate charge">Duplicate charge</SelectItem>
+                  <SelectItem value="Goodwill refund">Goodwill refund</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundMethod">Refund Method *</Label>
+              <Select value={refundMethod} onValueChange={setRefundMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                  <SelectItem value="CARD">Card</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundDate">Refund Date *</Label>
+              <Input
+                id="refundDate"
+                type="date"
+                value={refundDate}
+                onChange={(e) => setRefundDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundReference">Manual Payout Reference</Label>
+              <Input
+                id="refundReference"
+                value={refundReferenceNumber}
+                onChange={(e) => setRefundReferenceNumber(e.target.value)}
+                placeholder="Bank ref, receipt number, card terminal ref..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundPayoutStatus">Manual Payout Status *</Label>
+              <Select value={refundPayoutStatus} onValueChange={setRefundPayoutStatus}>
+                <SelectTrigger id="refundPayoutStatus">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {refundPayoutStatus === "PENDING" && (
+              <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+                This records the refund and deducts it from revenue. The manual payout still needs to be completed.
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRefundDialogOpen(false)}
+              disabled={isProcessingRefund}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleProcessRefund} disabled={isProcessingRefund}>
+              {isProcessingRefund ? "Processing..." : "Process Refund"}
             </Button>
           </DialogFooter>
         </DialogContent>

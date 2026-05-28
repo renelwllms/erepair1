@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -672,13 +673,12 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 {job.warrantyParentJob && (
                   <div>
                     <p className="text-sm font-medium text-gray-600">Warranty Parent Job</p>
-                    <button
-                      type="button"
-                      className="text-sm mt-1 text-blue-600 hover:underline"
-                      onClick={() => router.push(`/jobs/${job.warrantyParentJob?.id}`)}
+                    <Link
+                      href={`/jobs/${job.warrantyParentJob.id}`}
+                      className="mt-1 inline-block text-sm text-blue-600 hover:underline"
                     >
                       {job.warrantyParentJob.jobNumber} ({formatStatus(job.warrantyParentJob.status)})
-                    </button>
+                    </Link>
                   </div>
                 )}
                 {job.serviceLocation && (
@@ -739,11 +739,10 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               </CardHeader>
               <CardContent className="space-y-3">
                 {job.warrantyFollowUpJobs.map((followUpJob) => (
-                  <button
+                  <Link
                     key={followUpJob.id}
-                    type="button"
+                    href={`/jobs/${followUpJob.id}`}
                     className="flex w-full items-center justify-between rounded-md border p-3 text-left hover:bg-gray-50"
-                    onClick={() => router.push(`/jobs/${followUpJob.id}`)}
                   >
                     <div>
                       <p className="text-sm font-medium text-gray-900">{followUpJob.jobNumber}</p>
@@ -752,7 +751,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                       </p>
                     </div>
                     <ArrowLeft className="h-4 w-4 rotate-180 text-gray-400" />
-                  </button>
+                  </Link>
                 ))}
               </CardContent>
             </Card>
@@ -1424,7 +1423,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           <DialogHeader>
             <DialogTitle>Warranty Return</DialogTitle>
             <DialogDescription>
-              Choose whether to reopen this job or create a linked warranty follow-up job. Refunds remain manual outside the system.
+              Choose whether to reopen this job or create a linked warranty follow-up job. Manual refund payouts can be tracked from the invoice.
             </DialogDescription>
           </DialogHeader>
 
@@ -1464,7 +1463,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
                 id="warrantyNotes"
                 value={warrantyNotes}
                 onChange={(event) => setWarrantyNotes(event.target.value)}
-                placeholder="Optional internal notes. Any refund handling remains manual outside the system."
+                placeholder="Optional internal notes. Manual refund payouts can be tracked from the invoice."
               />
             </div>
           </div>

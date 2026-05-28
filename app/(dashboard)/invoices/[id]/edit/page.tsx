@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -54,6 +55,41 @@ export default function EditInvoicePage() {
   const [notes, setNotes] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [focusedAmountField, setFocusedAmountField] = useState<string | null>(null);
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
+  const parseNumberInput = (value: string, fallback = 0) => {
+    if (value.trim() === "") return fallback;
+    const nextValue = Number(value);
+    return Number.isFinite(nextValue) ? nextValue : fallback;
+  };
+  const sanitizeAmountInput = (value: string, allowNegative = false) => {
+    const isNegative = allowNegative && value.trim().startsWith("-");
+    const unsignedValue = value.replace(/-/g, "");
+    const [rawInteger = "", ...decimalParts] = unsignedValue.replace(/[^\d.]/g, "").split(".");
+    const integerPart = rawInteger.replace(/^0+(?=\d)/, "") || (rawInteger ? "0" : "");
+    const decimalPart = decimalParts.length > 0 ? `.${decimalParts.join("").slice(0, 2)}` : "";
+    return `${isNegative ? "-" : ""}${integerPart}${decimalPart}`;
+  };
+  const getAmountInputValue = (key: string, value: number) => {
+    if (focusedAmountField === key && amountDrafts[key] !== undefined) {
+      return amountDrafts[key];
+    }
+    return value === 0 ? "" : String(value);
+  };
+  const focusAmountInput = (key: string, value: number) => {
+    setFocusedAmountField(key);
+    setAmountDrafts((drafts) => ({
+      ...drafts,
+      [key]: value === 0 ? "" : String(value),
+    }));
+  };
+  const blurAmountInput = (key: string) => {
+    setFocusedAmountField(null);
+    setAmountDrafts((drafts) => {
+      const { [key]: _removed, ...nextDrafts } = drafts;
+      return nextDrafts;
+    });
+  };
 
   useEffect(() => {
     fetchInvoice();
@@ -131,10 +167,17 @@ export default function EditInvoicePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (items.some((item) => !item.description || item.quantity <= 0)) {
+    if (
+      items.some(
+        (item) =>
+          !item.description ||
+          item.quantity <= 0 ||
+          (item.itemType === "DISCOUNT" ? item.unitPrice > 0 : item.unitPrice < 0)
+      )
+    ) {
       toast({
         title: "Invalid items",
-        description: "All items must have a description and valid quantity",
+        description: "All items must have a description and valid amounts",
         variant: "destructive",
       });
       return;
@@ -208,7 +251,11 @@ export default function EditInvoicePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Edit Invoice</h1>
         <p className="text-gray-600">
-          {invoice.invoiceNumber} - {invoice.customer.firstName} {invoice.customer.lastName} (Job: {invoice.job.jobNumber})
+          {invoice.invoiceNumber} - {invoice.customer.firstName} {invoice.customer.lastName} (Job:{" "}
+          <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+            {invoice.job.jobNumber}
+          </Link>
+          )
         </p>
       </div>
 
@@ -255,6 +302,7 @@ export default function EditInvoicePage() {
                     <option value="PART">Part</option>
                     <option value="LABOR">Labor</option>
                     <option value="SERVICE_FEE">Service Fee</option>
+                    <option value="DISCOUNT">Discount</option>
                   </select>
                 </div>
                 <div className="md:col-span-2">
@@ -264,9 +312,9 @@ export default function EditInvoicePage() {
                   <input
                     type="number"
                     value={item.quantity}
-                    onChange={(e) => handleItemChange(index, "quantity", Number(e.target.value))}
+                    onChange={(e) => handleItemChange(index, "quantity", parseNumberInput(e.target.value, 0))}
                     placeholder="Qty"
-                    min="1"
+                    min="0.01"
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
@@ -277,11 +325,18 @@ export default function EditInvoicePage() {
                     Unit Price
                   </label>
                   <input
-                    type="number"
-                    value={item.unitPrice}
-                    onChange={(e) => handleItemChange(index, "unitPrice", Number(e.target.value))}
+                    type="text"
+                    inputMode="decimal"
+                    value={getAmountInputValue(`item-${index}`, item.unitPrice)}
+                    onFocus={() => focusAmountInput(`item-${index}`, item.unitPrice)}
+                    onBlur={() => blurAmountInput(`item-${index}`)}
+                    onChange={(e) => {
+                      const sanitizedValue = sanitizeAmountInput(e.target.value, item.itemType === "DISCOUNT");
+                      setAmountDrafts((drafts) => ({ ...drafts, [`item-${index}`]: sanitizedValue }));
+                      handleItemChange(index, "unitPrice", parseNumberInput(sanitizedValue, 0));
+                    }}
                     placeholder="Price"
-                    min="0"
+                    min={item.itemType === "DISCOUNT" ? undefined : "0"}
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
@@ -330,7 +385,7 @@ export default function EditInvoicePage() {
                       <input
                         type="number"
                         value={taxRate}
-                        onChange={(e) => setTaxRate(Number(e.target.value))}
+                        onChange={(e) => setTaxRate(parseNumberInput(e.target.value, 0))}
                         min="0"
                         max="100"
                         step="0.01"
@@ -351,7 +406,7 @@ export default function EditInvoicePage() {
                       <input
                         type="number"
                         value={discountAmount}
-                        onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                        onChange={(e) => setDiscountAmount(parseNumberInput(e.target.value, 0))}
                         min="0"
                         step="0.01"
                         className="w-32 px-2 py-1 border border-gray-300 rounded text-right"

@@ -1,19 +1,13 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "./db";
+import { authConfig } from "@/auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/auth/login",
-    error: "/auth/error",
-  },
+  ...authConfig,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -127,25 +121,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user, account }) {
-      // For credentials login or initial Google sign-in, user object has all the info
-      if (user) {
-        token.role = user.role;
-        token.firstName = user.firstName;
-        token.lastName = user.lastName;
-        token.id = user.id;
-      }
-
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.role = token.role as UserRole;
-        session.user.firstName = token.firstName as string;
-        session.user.lastName = token.lastName as string;
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
+    ...authConfig.callbacks,
   },
 });

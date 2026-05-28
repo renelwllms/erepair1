@@ -423,12 +423,12 @@ export default function BookCalloutPage() {
             </CardContent>
           </Card>
 
-          {/* Service Location */}
+          {/* Visit Address */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
-                Service Location
+                Visit Address
               </CardTitle>
               <CardDescription>
                 Where should our technician visit?

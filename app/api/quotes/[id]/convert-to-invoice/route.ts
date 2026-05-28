@@ -5,6 +5,21 @@ import { canAccessQuote } from "@/lib/access-control";
 import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
 import { addDays } from "date-fns";
 
+async function resolveActiveStaffUser(session: any) {
+  return (
+    (await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, isActive: true },
+    })) ||
+    (session.user.email
+      ? await db.user.findUnique({
+          where: { email: session.user.email },
+          select: { id: true, isActive: true },
+        })
+      : null)
+  );
+}
+
 // POST /api/quotes/[id]/convert-to-invoice - Convert accepted quote to invoice
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -15,6 +30,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
     if (session.user.role === "CUSTOMER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const actor = await resolveActiveStaffUser(session);
+    if (!actor || !actor.isActive) {
+      return NextResponse.json(
+        { error: "Your login session is out of sync with the user record. Please sign out and sign in again." },
+        { status: 401 }
+      );
     }
 
     if (!(await canAccessQuote(session.user, params.id))) {
@@ -117,7 +140,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         invoiceNumber,
         jobId: quote.jobId,
         customerId: quote.customerId,
-        issuedById: session.user.id,
+        issuedById: actor.id,
         status: "DRAFT",
         issueDate: new Date(),
         dueDate,
@@ -170,7 +193,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         jobId: quote.jobId,
         status: "IN_PROGRESS",
         notes: `Quote ${quote.quoteNumber} converted to invoice ${invoiceNumber}`,
-        changedBy: session.user.id,
+        changedBy: actor.id,
       },
     });
 

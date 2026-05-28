@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ interface Invoice {
   };
   invoiceItems: any[];
   payments: any[];
+  refunds: { amount: number }[];
 }
 
 export default function InvoicesPage() {
@@ -129,6 +131,15 @@ export default function InvoicesPage() {
     router.push(`/invoices/${id}`);
   };
 
+  const getRefundedAmount = (invoice: Invoice) =>
+    (invoice.refunds || []).reduce((sum, refund) => sum + refund.amount, 0);
+
+  const getNetRevenueAmount = (invoice: Invoice) =>
+    Math.max(0, invoice.totalAmount - getRefundedAmount(invoice));
+
+  const getNetPaidAmount = (invoice: Invoice) =>
+    Math.max(0, invoice.paidAmount - getRefundedAmount(invoice));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -155,23 +166,23 @@ export default function InvoicesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(invoices.reduce((sum, inv) => sum + inv.totalAmount, 0))}
+              {formatCurrency(invoices.reduce((sum, inv) => sum + getNetRevenueAmount(inv), 0))}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid Amount</CardTitle>
+            <CardTitle className="text-sm font-medium">Net Paid</CardTitle>
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(invoices.reduce((sum, inv) => sum + inv.paidAmount, 0))}
+              {formatCurrency(invoices.reduce((sum, inv) => sum + getNetPaidAmount(inv), 0))}
             </div>
           </CardContent>
         </Card>
@@ -259,22 +270,30 @@ export default function InvoicesPage() {
                   <div key={invoice.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-950">{invoice.invoiceNumber}</p>
+                        <Link href={`/invoices/${invoice.id}`} className="font-semibold text-blue-700 hover:underline">
+                          {invoice.invoiceNumber}
+                        </Link>
                         <p className="mt-1 truncate text-sm text-gray-700">
                           {invoice.customer.firstName} {invoice.customer.lastName}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">{invoice.job.jobNumber} · {invoice.job.applianceBrand} {invoice.job.applianceType}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                            {invoice.job.jobNumber}
+                          </Link>
+                          {" · "}
+                          {invoice.job.applianceBrand} {invoice.job.applianceType}
+                        </p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(invoice.status)}>{formatStatus(invoice.status)}</Badge>
                     </div>
                     <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
                       <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs text-gray-500">Total</p>
-                        <p className="font-semibold">{formatCurrency(invoice.totalAmount)}</p>
+                        <p className="text-xs text-gray-500">Net Total</p>
+                        <p className="font-semibold">{formatCurrency(getNetRevenueAmount(invoice))}</p>
                       </div>
                       <div className="rounded-lg bg-gray-50 p-3">
-                        <p className="text-xs text-gray-500">Paid</p>
-                        <p className="font-semibold text-green-600">{formatCurrency(invoice.paidAmount)}</p>
+                        <p className="text-xs text-gray-500">Net Paid</p>
+                        <p className="font-semibold text-green-600">{formatCurrency(getNetPaidAmount(invoice))}</p>
                       </div>
                       <div className="rounded-lg bg-gray-50 p-3">
                         <p className="text-xs text-gray-500">Balance</p>
@@ -303,8 +322,8 @@ export default function InvoicesPage() {
                       <TableHead>Job</TableHead>
                       <TableHead>Issue Date</TableHead>
                       <TableHead>Due Date</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Paid</TableHead>
+                      <TableHead>Net Total</TableHead>
+                      <TableHead>Net Paid</TableHead>
                       <TableHead>Balance</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -318,7 +337,9 @@ export default function InvoicesPage() {
                         onDoubleClick={() => router.push(`/invoices/${invoice.id}`)}
                       >
                         <TableCell className="font-medium">
-                          {invoice.invoiceNumber}
+                          <Link href={`/invoices/${invoice.id}`} className="text-blue-700 hover:underline">
+                            {invoice.invoiceNumber}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <div>
@@ -332,7 +353,9 @@ export default function InvoicesPage() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{invoice.job.jobNumber}</p>
+                            <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                              {invoice.job.jobNumber}
+                            </Link>
                             <p className="text-sm text-gray-500">
                               {invoice.job.applianceBrand} {invoice.job.applianceType}
                             </p>
@@ -345,10 +368,10 @@ export default function InvoicesPage() {
                           {format(new Date(invoice.dueDate), "MMM dd, yyyy")}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {formatCurrency(invoice.totalAmount)}
+                          {formatCurrency(getNetRevenueAmount(invoice))}
                         </TableCell>
                         <TableCell className="text-green-600 font-medium">
-                          {formatCurrency(invoice.paidAmount)}
+                          {formatCurrency(getNetPaidAmount(invoice))}
                         </TableCell>
                         <TableCell className="text-orange-600 font-medium">
                           {formatCurrency(invoice.balanceAmount)}
