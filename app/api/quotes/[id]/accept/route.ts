@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
 
+async function resolveInvoiceIssuerId(quote: any) {
+  const candidates = [
+    quote.issuedById,
+    quote.job?.createdById,
+    quote.job?.assignedTechnicianId,
+  ].filter(Boolean);
+
+  for (const id of candidates) {
+    const user = await db.user.findFirst({
+      where: {
+        id,
+        isActive: true,
+        role: { in: ["ADMIN", "TECHNICIAN"] },
+      },
+      select: { id: true },
+    });
+
+    if (user) {
+      return user.id;
+    }
+  }
+
+  const fallback = await db.user.findFirst({
+    where: {
+      isActive: true,
+      role: { in: ["ADMIN", "TECHNICIAN"] },
+    },
+    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    select: { id: true },
+  });
+
+  return fallback?.id ?? null;
+}
+
 // POST /api/quotes/[id]/accept - Accept a quote (public endpoint)
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -21,44 +55,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Check if quote is still valid
-    if (quote.validUntil < new Date()) {
+    if (quote.customerResponse !== "ACCEPTED" && quote.validUntil < new Date()) {
       return NextResponse.json({ error: "Quote has expired" }, { status: 400 });
     }
 
-    // Check if quote has already been responded to
-    if (quote.customerResponse) {
+    // Check if quote has already been rejected
+    if (quote.customerResponse === "REJECTED") {
       return NextResponse.json(
-        { error: `Quote has already been ${quote.customerResponse.toLowerCase()}` },
+        { error: "Quote has already been rejected" },
         { status: 400 }
       );
     }
-
-    // Update quote status to ACCEPTED
-    const updatedQuote = await dbAny.quote.update({
-      where: { id: params.id },
-      data: {
-        status: "ACCEPTED",
-        customerResponse: "ACCEPTED",
-        customerResponseDate: new Date(),
-      },
-    });
-
-    // Update job status
-    await dbAny.job.update({
-      where: { id: quote.jobId },
-      data: {
-        status: "IN_PROGRESS",
-      },
-    });
-
-    // Create status history entry
-    await dbAny.jobStatusHistory.create({
-      data: {
-        jobId: quote.jobId,
-        status: "IN_PROGRESS",
-        notes: `Quote ${quote.quoteNumber} accepted by customer`,
-      },
-    });
 
     // Check if job already has an invoice (avoid duplicates)
     const existingInvoice = await dbAny.invoice.findUnique({
@@ -84,6 +91,42 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       });
     }
 
+    const issuedById = await resolveInvoiceIssuerId(quote);
+    if (!issuedById) {
+      return NextResponse.json(
+        { error: "No active staff user found to issue the invoice" },
+        { status: 500 }
+      );
+    }
+
+    // Update quote status to ACCEPTED. This remains safe to retry if invoice creation fails.
+    const updatedQuote = await dbAny.quote.update({
+      where: { id: params.id },
+      data: {
+        status: "ACCEPTED",
+        customerResponse: "ACCEPTED",
+        customerResponseDate: quote.customerResponseDate || new Date(),
+      },
+    });
+
+    // Update job status
+    await dbAny.job.update({
+      where: { id: quote.jobId },
+      data: {
+        status: "IN_PROGRESS",
+      },
+    });
+
+    // Create status history entry
+    await dbAny.jobStatusHistory.create({
+      data: {
+        jobId: quote.jobId,
+        status: "IN_PROGRESS",
+        notes: `Quote ${quote.quoteNumber} accepted by customer`,
+        changedBy: issuedById,
+      },
+    });
+
     // Generate invoice number
     const today = new Date();
     const year = today.getFullYear();
@@ -104,9 +147,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // Set due date to 30 days from now
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
-
-    // Get the user who issued the quote to use as the invoice issuer
-    const issuedById = quote.issuedById;
 
     const jobWithDiagnostics = quote.job as any;
     const shouldApplyDiagnosticFee =

@@ -133,11 +133,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Calendar</h1>
-          <p className="text-gray-600 mt-1">View appointments from the connected Google Workspace account</p>
-        </div>
+      <div className="flex justify-end">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={fetchCalendarEvents} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" />

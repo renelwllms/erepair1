@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,6 +8,7 @@ import { normalizePaymentTerms } from "@/lib/payment-terms";
 
 interface InvoiceItem {
   id?: string;
+  partId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -33,7 +33,7 @@ interface Invoice {
   job: {
     id: string;
     jobNumber: string;
-  };
+  } | null;
   customer: {
     id: string;
     firstName: string;
@@ -247,18 +247,7 @@ export default function EditInvoicePage() {
   const { subtotal, taxAmount, total, balanceAmount } = calculateTotals();
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Edit Invoice</h1>
-        <p className="text-gray-600">
-          {invoice.invoiceNumber} - {invoice.customer.firstName} {invoice.customer.lastName} (Job:{" "}
-          <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
-            {invoice.job.jobNumber}
-          </Link>
-          )
-        </p>
-      </div>
-
+    <div className="max-w-6xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Invoice Items */}
         <div className="bg-white rounded-lg shadow p-6">

@@ -43,6 +43,8 @@ next-env.d.ts
 
 # local runtime artifacts
 logs/
+backups/
+*.dump
 dev-server.log
 server.log
 next.config.mjs.save

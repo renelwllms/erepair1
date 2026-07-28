@@ -310,10 +310,6 @@ export default function QuoteDetailPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quote Details</h1>
-              <p className="text-gray-600">View quote sent to customer</p>
-            </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {(quote?.status === "DRAFT" || quote?.status === "SENT") && (

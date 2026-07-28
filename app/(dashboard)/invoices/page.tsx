@@ -57,7 +57,7 @@ interface Invoice {
     jobNumber: string;
     applianceType: string;
     applianceBrand: string;
-  };
+  } | null;
   invoiceItems: any[];
   payments: any[];
   refunds: { amount: number }[];
@@ -142,11 +142,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Invoices</h1>
-          <p className="text-gray-600 mt-1">Create and manage invoices</p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={() => router.push("/invoices/new")} className="h-11 w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Invoice
@@ -277,11 +273,17 @@ export default function InvoicesPage() {
                           {invoice.customer.firstName} {invoice.customer.lastName}
                         </p>
                         <p className="mt-1 text-xs text-gray-500">
-                          <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
-                            {invoice.job.jobNumber}
-                          </Link>
-                          {" · "}
-                          {invoice.job.applianceBrand} {invoice.job.applianceType}
+                          {invoice.job ? (
+                            <>
+                              <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                                {invoice.job.jobNumber}
+                              </Link>
+                              {" · "}
+                              {invoice.job.applianceBrand} {invoice.job.applianceType}
+                            </>
+                          ) : (
+                            "Parts Sale"
+                          )}
                         </p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(invoice.status)}>{formatStatus(invoice.status)}</Badge>
@@ -305,9 +307,15 @@ export default function InvoicesPage() {
                         <Eye className="mr-2 h-4 w-4" />
                         Open
                       </Button>
-                      <Button variant="outline" className="h-11" onClick={() => router.push(`/jobs/${invoice.job.id}`)}>
-                        Job
-                      </Button>
+                      {invoice.job ? (
+                        <Button variant="outline" className="h-11" onClick={() => router.push(`/jobs/${invoice.job!.id}`)}>
+                          Job
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="h-11" onClick={() => router.push("/parts")}>
+                          Parts
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -353,12 +361,21 @@ export default function InvoicesPage() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
-                              {invoice.job.jobNumber}
-                            </Link>
-                            <p className="text-sm text-gray-500">
-                              {invoice.job.applianceBrand} {invoice.job.applianceType}
-                            </p>
+                            {invoice.job ? (
+                              <>
+                                <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                                  {invoice.job.jobNumber}
+                                </Link>
+                                <p className="text-sm text-gray-500">
+                                  {invoice.job.applianceBrand} {invoice.job.applianceType}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-medium">Parts Sale</span>
+                                <p className="text-sm text-gray-500">No repair job</p>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

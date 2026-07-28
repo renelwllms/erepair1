@@ -296,11 +296,7 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Customers</h1>
-          <p className="text-gray-600 mt-1">Manage customer relationships and data</p>
-        </div>
+      <div className="flex justify-end">
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

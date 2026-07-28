@@ -58,7 +58,12 @@ export function getInvoiceAccessScope(sessionUser: SessionUser) {
   }
 
   if (sessionUser.role === "TECHNICIAN") {
-    return { job: { assignedTechnicianId: sessionUser.id } };
+    return {
+      OR: [
+        { job: { assignedTechnicianId: sessionUser.id } },
+        { jobId: null, issuedById: sessionUser.id },
+      ],
+    };
   }
 
   if (sessionUser.role === "CUSTOMER") {

@@ -39,28 +39,7 @@ const jobSchema = z.object({
     return;
   }
 
-  const requiredFields: Array<[
-    "calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation",
-    string
-  ]> = [
-    ["calloutAddress", "Full address is required for callout repairs"],
-    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
-    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
-    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
-    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
-  ];
-
-  for (const [field, message] of requiredFields) {
-    if (!data[field]?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [field],
-        message,
-      });
-    }
-  }
-
-  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+  if (data.calloutAddress?.trim() && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["calloutAddress"],

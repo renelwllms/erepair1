@@ -116,7 +116,7 @@ interface Invoice {
     modelNumber?: string;
     issueDescription: string;
     status: string;
-  };
+  } | null;
   issuedBy: {
     id: string;
     firstName: string;
@@ -244,10 +244,10 @@ export default function InvoiceDetailPage() {
       0
     );
     const nonRefundableDiagnosticFee =
-      currentInvoice.job.diagnosticFeePaid && currentInvoice.job.diagnosticFeeAmount
+      currentInvoice.job?.diagnosticFeePaid && currentInvoice.job?.diagnosticFeeAmount
         ? currentInvoice.job.diagnosticFeeAmount
         : 0;
-    const nonRefundableCalloutFee = currentInvoice.job.isCallout
+    const nonRefundableCalloutFee = currentInvoice.job?.isCallout
       ? currentInvoice.job.calloutFee || 0
       : 0;
     const refundableInvoiceAmount = Math.max(
@@ -576,7 +576,7 @@ export default function InvoiceDetailPage() {
         description: "Invoice deleted successfully",
       });
 
-      router.push(`/invoices/new?jobId=${invoice.job.id}`);
+      router.push(invoice.job ? `/invoices/new?jobId=${invoice.job.id}` : "/parts");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -815,20 +815,6 @@ export default function InvoiceDetailPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              Invoice {invoice.invoiceNumber}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Job #{" "}
-              <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
-                {invoice.job.jobNumber}
-              </Link>
-              {" - "}
-              {invoice.customer.firstName}{" "}
-              {invoice.customer.lastName}
-            </p>
-          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {canEditInvoice && (
@@ -1029,8 +1015,8 @@ export default function InvoiceDetailPage() {
                       <span>Payment due upon collection of the device</span>
                     </div>
                     <div className="print-meta-row">
-                      <span className="font-semibold">Job #:</span>
-                      <span>{invoice.job.jobNumber}</span>
+                      <span className="font-semibold">{invoice.job ? "Job #:" : "Invoice Type:"}</span>
+                      <span>{invoice.job?.jobNumber || "Parts Sale"}</span>
                     </div>
                   </div>
                 </div>
@@ -1073,10 +1059,14 @@ export default function InvoiceDetailPage() {
                   <span className="font-medium">Payment due upon collection of the device</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Job Number:</span>
-                  <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
-                    {invoice.job.jobNumber}
-                  </Link>
+                  <span className="text-gray-500">{invoice.job ? "Job Number:" : "Invoice Type:"}</span>
+                  {invoice.job ? (
+                    <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                      {invoice.job.jobNumber}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">Parts Sale</span>
+                  )}
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Issued By:</span>
@@ -1090,18 +1080,26 @@ export default function InvoiceDetailPage() {
 
           <Separator />
 
-          {/* Job Information */}
+          {/* Job or Sale Information */}
           <div>
-            <h3 className="font-semibold mb-2">Job Details</h3>
+            <h3 className="font-semibold mb-2">{invoice.job ? "Job Details" : "Sale Details"}</h3>
             <div className="print-job-details bg-gray-50 p-4 rounded-lg space-y-2">
-              <p className="text-sm">
-                <span className="font-medium">Appliance:</span>{" "}
-                {invoice.job.applianceBrand} {invoice.job.applianceType}
-                {invoice.job.modelNumber && ` (${invoice.job.modelNumber})`}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Issue:</span> {invoice.job.issueDescription}
-              </p>
+              {invoice.job ? (
+                <>
+                  <p className="text-sm">
+                    <span className="font-medium">Appliance:</span>{" "}
+                    {invoice.job.applianceBrand} {invoice.job.applianceType}
+                    {invoice.job.modelNumber && ` (${invoice.job.modelNumber})`}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-medium">Issue:</span> {invoice.job.issueDescription}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm">
+                  <span className="font-medium">Invoice Type:</span> Parts sale
+                </p>
+              )}
             </div>
           </div>
 

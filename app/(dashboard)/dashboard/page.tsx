@@ -120,17 +120,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className={`${animationClass} opacity-0 transition-all duration-700 ease-out transform -translate-y-4`}>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-          Dashboard
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Overview of your repair shop performance
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {/* Stats Grid with Stagger Animation */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => {

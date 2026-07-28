@@ -140,11 +140,7 @@ export default function QuotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
-          <p className="text-gray-600">View and manage all quotes sent to customers</p>
-        </div>
+      <div className="flex justify-end">
         <Link
           href="/quotes/new"
           className="inline-flex h-11 w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"

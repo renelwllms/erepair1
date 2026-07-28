@@ -14,11 +14,20 @@ const invoiceUpdateSchema = z.object({
   paymentTerms: z.string().optional(),
   items: z.array(z.object({
     id: z.string().optional(),
+    partId: z.string().optional().nullable(),
     description: z.string(),
     quantity: z.number(),
     unitPrice: z.number(),
     totalPrice: z.number(),
     itemType: z.string(),
+  }).superRefine((item, ctx) => {
+    if (item.partId && (!Number.isInteger(item.quantity) || item.quantity < 1)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["quantity"],
+        message: "Inventory part quantities must be whole numbers",
+      });
+    }
   })).optional(),
   subtotal: z.number().optional(),
   taxRate: z.number().optional(),
@@ -120,6 +129,9 @@ export async function PUT(
     // Check if invoice exists
     const existingInvoice = await db.invoice.findUnique({
       where: { id: params.id },
+      include: {
+        invoiceItems: true,
+      },
     });
 
     if (!existingInvoice) {
@@ -149,26 +161,6 @@ export async function PUT(
       );
     }
 
-    // If items are provided, delete old items and create new ones
-    if (validatedData.items) {
-      // Delete existing items
-      await db.invoiceItem.deleteMany({
-        where: { invoiceId: params.id },
-      });
-
-      // Create new items
-      await db.invoiceItem.createMany({
-        data: validatedData.items.map(item => ({
-          invoiceId: params.id,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.totalPrice,
-          itemType: item.itemType,
-        })),
-      });
-    }
-
     // Update invoice
     const updateData: any = {
       status: validatedData.status,
@@ -187,25 +179,90 @@ export async function PUT(
     if (validatedData.totalAmount !== undefined) updateData.totalAmount = validatedData.totalAmount;
     if (validatedData.balanceAmount !== undefined) updateData.balanceAmount = validatedData.balanceAmount;
 
-    const invoice = await (db as any).invoice.update({
-      where: { id: params.id },
-      data: updateData,
-      include: {
-        customer: true,
-        job: true,
-        invoiceItems: true,
-        payments: true,
-        refunds: {
-          orderBy: { refundDate: "desc" },
-        },
-        issuedBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
+    const invoice = await db.$transaction(async (tx: any) => {
+      if (validatedData.items) {
+        const previousByPart = new Map<string, number>();
+        for (const item of existingInvoice.invoiceItems) {
+          if (!item.partId) continue;
+          previousByPart.set(item.partId, (previousByPart.get(item.partId) || 0) + item.quantity);
+        }
+
+        const nextByPart = new Map<string, number>();
+        for (const item of validatedData.items) {
+          if (!item.partId) continue;
+          nextByPart.set(item.partId, (nextByPart.get(item.partId) || 0) + item.quantity);
+        }
+
+        const partIds = new Set([
+          ...Array.from(previousByPart.keys()),
+          ...Array.from(nextByPart.keys()),
+        ]);
+        for (const partId of Array.from(partIds)) {
+          const previousQuantity = previousByPart.get(partId) || 0;
+          const nextQuantity = nextByPart.get(partId) || 0;
+          const delta = nextQuantity - previousQuantity;
+
+          if (delta > 0) {
+            const updatedPart = await tx.part.updateMany({
+              where: {
+                id: partId,
+                quantityInStock: { gte: Math.trunc(delta) },
+              },
+              data: {
+                quantityInStock: { decrement: Math.trunc(delta) },
+              },
+            });
+
+            if (updatedPart.count !== 1) {
+              throw new Error("Insufficient stock for one or more invoice parts");
+            }
+          } else if (delta < 0) {
+            await tx.part.update({
+              where: { id: partId },
+              data: {
+                quantityInStock: { increment: Math.trunc(Math.abs(delta)) },
+              },
+            });
+          }
+        }
+
+        await tx.invoiceItem.deleteMany({
+          where: { invoiceId: params.id },
+        });
+
+        await tx.invoiceItem.createMany({
+          data: validatedData.items.map(item => ({
+            invoiceId: params.id,
+            partId: item.partId || null,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            itemType: item.itemType,
+          })),
+        });
+      }
+
+      return tx.invoice.update({
+        where: { id: params.id },
+        data: updateData,
+        include: {
+          customer: true,
+          job: true,
+          invoiceItems: true,
+          payments: true,
+          refunds: {
+            orderBy: { refundDate: "desc" },
+          },
+          issuedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
+      });
     });
 
     return NextResponse.json(invoice);
@@ -213,6 +270,13 @@ export async function PUT(
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation error", details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith("Insufficient stock")) {
+      return NextResponse.json(
+        { error: error.message },
         { status: 400 }
       );
     }
@@ -245,7 +309,7 @@ export async function DELETE(
     // Check if invoice exists
     const existingInvoice = await db.invoice.findUnique({
       where: { id: params.id },
-      include: { payments: true },
+      include: { payments: true, invoiceItems: true },
     });
 
     if (!existingInvoice) {
@@ -286,6 +350,18 @@ export async function DELETE(
       }
 
       // Delete invoice (cascade deletes invoice items)
+      if (existingInvoice.status === "DRAFT") {
+        for (const item of existingInvoice.invoiceItems) {
+          if (!item.partId) continue;
+          await tx.part.update({
+            where: { id: item.partId },
+            data: {
+              quantityInStock: { increment: Math.trunc(item.quantity) },
+            },
+          });
+        }
+      }
+
       await tx.invoice.delete({
         where: { id: params.id },
       });

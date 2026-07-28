@@ -749,11 +749,7 @@ export default function FieldServiceDashboardPage() {
 
   return (
     <div className="space-y-5 overflow-x-hidden">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-950">Field Service Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-600">Callout repair operations, scheduling, dispatch, and technician work.</p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={() => router.push("/jobs/new")} className="w-full lg:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           New Callout

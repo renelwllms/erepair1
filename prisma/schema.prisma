@@ -336,9 +336,11 @@ model CustomerNotification {
 model Part {
   id              String   @id @default(cuid())
   partNumber      String   @unique
+  sku             String?  @unique
   partName        String
   description     String?  @db.Text
   supplier        String?
+  location        String?
   costPrice       Float
   sellingPrice    Float
   quantityInStock Int      @default(0)
@@ -348,9 +350,11 @@ model Part {
   updatedAt       DateTime @updatedAt
 
   // Relations
-  jobParts JobPart[]
+  jobParts     JobPart[]
+  invoiceItems InvoiceItem[]
 
   @@index([partNumber])
+  @@index([sku])
   @@index([partName])
 }
 
@@ -438,7 +442,7 @@ model QuoteItem {
 model Invoice {
   id             String        @id @default(cuid())
   invoiceNumber  String        @unique
-  jobId          String        @unique
+  jobId          String?       @unique
   customerId     String
   issuedById     String
   status         InvoiceStatus @default(DRAFT)
@@ -457,7 +461,7 @@ model Invoice {
   updatedAt      DateTime      @updatedAt
 
   // Relations
-  job          Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job          Job?          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   issuedBy     User          @relation(fields: [issuedById], references: [id])
   invoiceItems InvoiceItem[]
@@ -474,6 +478,7 @@ model Invoice {
 model InvoiceItem {
   id          String   @id @default(cuid())
   invoiceId   String
+  partId      String?
   description String
   quantity    Float
   unitPrice   Float
@@ -483,8 +488,10 @@ model InvoiceItem {
 
   // Relations
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  part    Part?   @relation(fields: [partId], references: [id], onDelete: Restrict)
 
   @@index([invoiceId])
+  @@index([partId])
 }
 
 // 9. Payment Model (Payment Tracking)

@@ -47,28 +47,7 @@ const jobUpdateSchema = z.object({
     return;
   }
 
-  const requiredFields: Array<[
-    "calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation",
-    string
-  ]> = [
-    ["calloutAddress", "Full address is required for callout repairs"],
-    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
-    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
-    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
-    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
-  ];
-
-  for (const [field, message] of requiredFields) {
-    if (!data[field]?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [field],
-        message,
-      });
-    }
-  }
-
-  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+  if (data.calloutAddress?.trim() && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["calloutAddress"],
@@ -273,23 +252,13 @@ export async function PUT(
       validatedData.calloutAddress !== existingJob.calloutAddress;
 
     if (isCallout) {
-      const effectiveAddress = validatedData.calloutAddress ?? existingJob.calloutAddress;
-      const effectivePreferredDate = validatedData.preferredCalloutDate ?? existingJob.preferredCalloutDate?.toISOString();
-      const effectiveAccess = validatedData.calloutAccessInstructions ?? existingJob.calloutAccessInstructions;
-      const effectiveParking = validatedData.calloutParkingNotes ?? existingJob.calloutParkingNotes;
-      const effectiveApplianceLocation = validatedData.calloutApplianceLocation ?? existingJob.calloutApplianceLocation;
-      const effectiveLatitude = validatedData.calloutLatitude ?? existingJob.calloutLatitude;
-      const effectiveLongitude = validatedData.calloutLongitude ?? existingJob.calloutLongitude;
-      const effectivePlaceId = validatedData.googlePlaceId ?? existingJob.googlePlaceId;
+      const nextAddress = validatedData.calloutAddress ?? existingJob.calloutAddress;
 
       const missingFields = [
-        !effectiveAddress?.trim() && "Full address is required for callout repairs",
-        !effectivePreferredDate && "Preferred date/time is required for callout repairs",
-        !effectiveAccess?.trim() && "Access instructions are required for callout repairs",
-        !effectiveParking?.trim() && "Parking notes are required for callout repairs",
-        !effectiveApplianceLocation?.trim() && "Appliance location is required for callout repairs",
-        (!effectiveLatitude || !effectiveLongitude || !effectivePlaceId) && "Select a Google Places address before saving a callout repair",
-        addressChanged && (!validatedData.calloutLatitude || !validatedData.calloutLongitude || !validatedData.googlePlaceId) && "Address changes must be selected from Google Places",
+        addressChanged &&
+          nextAddress?.trim() &&
+          (!validatedData.calloutLatitude || !validatedData.calloutLongitude || !validatedData.googlePlaceId) &&
+          "Address changes must be selected from Google Places",
       ].filter(Boolean);
 
       if (missingFields.length > 0) {

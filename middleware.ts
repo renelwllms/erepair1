@@ -44,7 +44,11 @@ export default auth((req) => {
   const isCustomerPortal = pathname.startsWith("/portal");
 
   // API routes that should be public
-  const isPublicApi = pathname.startsWith("/api/auth") || pathname.startsWith("/api/portal") || pathname.startsWith("/api/public");
+  const isPublicApi =
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/portal") ||
+    pathname.startsWith("/api/public") ||
+    /^\/api\/quotes\/[^/]+\/(accept|reject)$/.test(pathname);
 
   // Allow public routes
   if (isPublicRoute || isPublicApi || isCustomerPortal) {

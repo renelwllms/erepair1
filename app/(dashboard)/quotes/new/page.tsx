@@ -204,12 +204,7 @@ export default function NewQuotePage() {
   const { subtotal, taxAmount, total } = calculateTotals();
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Create Quote</h1>
-        <p className="text-gray-600">Create a new quote for a job</p>
-      </div>
-
+    <div className="max-w-6xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Job Selection */}
         <div className="bg-white rounded-lg shadow p-6">

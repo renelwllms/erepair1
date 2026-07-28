@@ -102,7 +102,7 @@ const jobSchema = z.object({
   modelNumber: z.string().optional(),
   serialNumber: z.string().optional(),
   issueDescription: z.string().min(1, "Issue description is required"),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
   assignedTechnicianId: z.string().optional(),
   warrantyStatus: z.string().optional(),
   serviceLocation: z.string().optional(),
@@ -128,28 +128,7 @@ const jobSchema = z.object({
     return;
   }
 
-  const requiredFields: Array<[
-    "calloutAddress" | "preferredCalloutDate" | "calloutAccessInstructions" | "calloutParkingNotes" | "calloutApplianceLocation",
-    string
-  ]> = [
-    ["calloutAddress", "Full address is required for callout repairs"],
-    ["preferredCalloutDate", "Preferred date/time is required for callout repairs"],
-    ["calloutAccessInstructions", "Access instructions are required for callout repairs"],
-    ["calloutParkingNotes", "Parking notes are required for callout repairs"],
-    ["calloutApplianceLocation", "Appliance location is required for callout repairs"],
-  ];
-
-  for (const [field, message] of requiredFields) {
-    if (!data[field]?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [field],
-        message,
-      });
-    }
-  }
-
-  if (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId) {
+  if (data.calloutAddress?.trim() && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["calloutAddress"],
@@ -409,10 +388,6 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Edit Job</h1>
-          <p className="text-gray-600 mt-1">Update job details</p>
-        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -579,11 +554,12 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="priority">
-                  Priority <span className="text-red-500">*</span>
+                  {jobType === "CALLOUT_REPAIR" ? "Urgency" : "Priority"}
+                  {jobType !== "CALLOUT_REPAIR" && <span className="text-red-500"> *</span>}
                 </Label>
                 <Select value={priority} onValueChange={(value) => setValue("priority", value as any)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
+                    <SelectValue placeholder={jobType === "CALLOUT_REPAIR" ? "Select urgency" : "Select priority"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="LOW">Low</SelectItem>
@@ -629,7 +605,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
 
                 <div className="space-y-2">
                   <Label htmlFor="calloutAddress">
-                    Full Address <span className="text-red-500">*</span>
+                    Full Address
                   </Label>
                   <Input
                     id="calloutAddress"
@@ -654,7 +630,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="preferredCalloutDate">
-                      Preferred Date/Time <span className="text-red-500">*</span>
+                      Preferred Date/Time
                     </Label>
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Input
@@ -708,7 +684,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="calloutApplianceLocation">
-                      Appliance Location <span className="text-red-500">*</span>
+                      Appliance Location
                     </Label>
                     <Input
                       id="calloutApplianceLocation"
@@ -732,7 +708,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="calloutAccessInstructions">
-                      Access Instructions <span className="text-red-500">*</span>
+                      Access Instructions
                     </Label>
                     <textarea
                       id="calloutAccessInstructions"
@@ -747,7 +723,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
 
                   <div className="space-y-2">
                     <Label htmlFor="calloutParkingNotes">
-                      Parking Notes <span className="text-red-500">*</span>
+                      Parking Notes
                     </Label>
                     <textarea
                       id="calloutParkingNotes"

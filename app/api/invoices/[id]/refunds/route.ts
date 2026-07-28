@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canAccessInvoice } from "@/lib/access-control";
+import { calculateInvoicePaymentState } from "@/lib/invoice-payment-state";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -53,9 +54,10 @@ function calculateRefundSummary(invoice: any) {
 async function getInvoiceForRefund(invoiceId: string) {
   return (db as any).invoice.findUnique({
     where: { id: invoiceId },
-      include: {
-        invoiceItems: true,
-        refunds: true,
+    include: {
+      invoiceItems: true,
+      payments: true,
+      refunds: true,
       job: {
         select: {
           id: true,
@@ -152,44 +154,60 @@ export async function POST(
       );
     }
 
-    const refund = await (db as any).refund.create({
-      data: {
-        invoiceId: params.id,
-        amount: validatedData.amount,
-        refundMethod: validatedData.refundMethod,
-        refundDate: validatedData.refundDate
-          ? new Date(validatedData.refundDate)
-          : new Date(),
-        reason: validatedData.reason,
-        referenceNumber: validatedData.referenceNumber || null,
-        payoutStatus: validatedData.payoutStatus,
-        createdById: session.user.id,
-      },
-    });
+    const result = await (db as any).$transaction(async (tx: any) => {
+      const refund = await tx.refund.create({
+        data: {
+          invoiceId: params.id,
+          amount: validatedData.amount,
+          refundMethod: validatedData.refundMethod,
+          refundDate: validatedData.refundDate
+            ? new Date(validatedData.refundDate)
+            : new Date(),
+          reason: validatedData.reason,
+          referenceNumber: validatedData.referenceNumber || null,
+          payoutStatus: validatedData.payoutStatus,
+          createdById: session.user.id,
+        },
+      });
 
-    const updatedInvoice = await (db as any).invoice.findUnique({
-      where: { id: params.id },
-      include: {
-        customer: true,
-        job: true,
-        invoiceItems: true,
-        payments: {
-          orderBy: { paymentDate: "desc" },
+      const paymentState = calculateInvoicePaymentState({
+        totalAmount: invoice.totalAmount,
+        currentStatus: invoice.status,
+        dueDate: invoice.dueDate,
+        payments: invoice.payments,
+        refunds: [...invoice.refunds, refund],
+      });
+
+      const updatedInvoice = await tx.invoice.update({
+        where: { id: params.id },
+        data: {
+          balanceAmount: paymentState.balanceAmount,
+          status: paymentState.status,
         },
-        refunds: {
-          orderBy: { refundDate: "desc" },
-        },
-        issuedBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
+        include: {
+          customer: true,
+          job: true,
+          invoiceItems: true,
+          payments: {
+            orderBy: { paymentDate: "desc" },
+          },
+          refunds: {
+            orderBy: { refundDate: "desc" },
+          },
+          issuedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
+      });
+
+      return { refund, invoice: updatedInvoice };
     });
 
-    return NextResponse.json({ refund, invoice: updatedInvoice }, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -127,6 +127,23 @@ export async function POST(
         </div>
       `
       : termsSummaryHtml(termsUrl);
+    const jobDetailsRows = invoice.job
+      ? `
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Job Number:</td>
+            <td style="color: #1f2937; font-size: 14px; font-weight: bold; padding: 8px 0;">${invoice.job.jobNumber}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Appliance:</td>
+            <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${invoice.job.applianceBrand} ${invoice.job.applianceType}</td>
+          </tr>
+        `
+      : `
+          <tr>
+            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Invoice Type:</td>
+            <td style="color: #1f2937; font-size: 14px; font-weight: bold; padding: 8px 0;">Parts Sale</td>
+          </tr>
+        `;
 
     const content = `
       <h2 style="color: #1f2937; margin: 0 0 20px 0;">
@@ -150,10 +167,7 @@ export async function POST(
             <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Invoice Number:</td>
             <td style="color: #1f2937; font-size: 14px; font-weight: bold; padding: 8px 0;">${invoice.invoiceNumber}</td>
           </tr>
-          <tr>
-            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Job Number:</td>
-            <td style="color: #1f2937; font-size: 14px; font-weight: bold; padding: 8px 0;">${invoice.job.jobNumber}</td>
-          </tr>
+          ${jobDetailsRows}
           <tr>
             <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Issue Date:</td>
             <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${format(invoice.issueDate, "MMMM dd, yyyy")}</td>
@@ -161,10 +175,6 @@ export async function POST(
           <tr>
             <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Due Date:</td>
             <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${dueDateText}</td>
-          </tr>
-          <tr>
-            <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Appliance:</td>
-            <td style="color: #1f2937; font-size: 14px; padding: 8px 0;">${invoice.job.applianceBrand} ${invoice.job.applianceType}</td>
           </tr>
         </table>
       </div>

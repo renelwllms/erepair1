@@ -310,11 +310,7 @@ export default function ShopProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Shop Products</h1>
-          <p className="mt-1 text-gray-600">Manage refurbished stock shown on the public website.</p>
-        </div>
+      <div className="flex justify-end">
         <Button type="button" onClick={resetForm}>
           <Plus className="mr-2 h-4 w-4" />
           New Product

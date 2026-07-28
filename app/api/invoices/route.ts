@@ -8,11 +8,20 @@ import { z } from "zod";
 export const dynamic = 'force-dynamic';
 
 const invoiceItemSchema = z.object({
+  partId: z.string().optional().nullable(),
   description: z.string().min(1, "Description is required"),
   quantity: z.number().min(0.01, "Quantity must be greater than 0"),
   unitPrice: z.number(),
   itemType: z.enum(["PART", "LABOR", "SERVICE_FEE", "TAX", "DISCOUNT"]),
 }).superRefine((item, ctx) => {
+  if (item.partId && (!Number.isInteger(item.quantity) || item.quantity < 1)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["quantity"],
+      message: "Inventory part quantities must be whole numbers",
+    });
+  }
+
   if (item.itemType === "DISCOUNT") {
     if (item.unitPrice > 0) {
       ctx.addIssue({
@@ -35,13 +44,22 @@ const invoiceItemSchema = z.object({
 
 // Validation schema for invoice creation
 const invoiceCreateSchema = z.object({
-  jobId: z.string().min(1, "Job ID is required"),
+  jobId: z.string().optional(),
+  customerId: z.string().optional(),
   dueDate: z.string().datetime(),
   items: z.array(invoiceItemSchema).min(1, "At least one item is required"),
   taxRate: z.number().min(0).max(100).optional(),
   discountAmount: z.number().min(0).optional(),
   notes: z.string().optional(),
   paymentTerms: z.string().optional(),
+}).superRefine((invoice, ctx) => {
+  if (!invoice.jobId && !invoice.customerId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["customerId"],
+      message: "Customer is required for parts-sale invoices",
+    });
+  }
 });
 
 async function resolveActiveStaffUser(session: any) {
@@ -190,23 +208,48 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = invoiceCreateSchema.parse(body);
 
-    // Check if job exists and doesn't already have an invoice
-    const existingJob = (await db.job.findUnique({
-      where: { id: validatedData.jobId },
-      include: { invoice: true },
-    })) as any;
+    let existingJob: any = null;
+    let customerId = validatedData.customerId;
 
-    if (!existingJob) {
+    if (validatedData.jobId) {
+      existingJob = (await db.job.findUnique({
+        where: { id: validatedData.jobId },
+        include: { invoice: true },
+      })) as any;
+
+      if (!existingJob) {
+        return NextResponse.json(
+          { error: "Job not found" },
+          { status: 404 }
+        );
+      }
+
+      if (existingJob.invoice) {
+        return NextResponse.json(
+          { error: "Invoice already exists for this job" },
+          { status: 400 }
+        );
+      }
+
+      customerId = existingJob.customerId;
+    }
+
+    if (!customerId) {
       return NextResponse.json(
-        { error: "Job not found" },
-        { status: 404 }
+        { error: "Customer is required for parts-sale invoices" },
+        { status: 400 }
       );
     }
 
-    if (existingJob.invoice) {
+    const customer = await db.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true },
+    });
+
+    if (!customer) {
       return NextResponse.json(
-        { error: "Invoice already exists for this job" },
-        { status: 400 }
+        { error: "Customer not found" },
+        { status: 404 }
       );
     }
 
@@ -241,12 +284,14 @@ export async function POST(request: NextRequest) {
 
     const hasDiagnosticCreditItem = validatedData.items.some((item) =>
       item.itemType === "DISCOUNT" &&
+      existingJob &&
       item.description === "Diagnostic Fee (credited)" &&
       item.quantity === 1 &&
       Number(item.unitPrice) === -Math.abs(existingJob.diagnosticFeeAmount || 0)
     );
 
     const shouldApplyDiagnosticFee =
+      existingJob &&
       existingJob.diagnosticFeeAmount > 0 &&
       existingJob.diagnosticFeePaid &&
       !existingJob.diagnosticFeeAppliedToInvoice &&
@@ -255,7 +300,10 @@ export async function POST(request: NextRequest) {
     const invoiceItems = [
       ...validatedData.items,
       ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(existingJob.diagnosticFeeAmount)] : []),
-    ];
+    ].map((item) => ({
+      ...item,
+      partId: "partId" in item ? item.partId || null : null,
+    }));
 
     // Calculate totals
     const subtotal = invoiceItems.reduce(
@@ -276,11 +324,30 @@ export async function POST(request: NextRequest) {
 
     // Create invoice with items in a transaction
     const invoice = await db.$transaction(async (tx: any) => {
+      for (const item of invoiceItems) {
+        if (!item.partId) continue;
+
+        const quantity = Math.trunc(item.quantity);
+        const updatedPart = await tx.part.updateMany({
+          where: {
+            id: item.partId,
+            quantityInStock: { gte: quantity },
+          },
+          data: {
+            quantityInStock: { decrement: quantity },
+          },
+        });
+
+        if (updatedPart.count !== 1) {
+          throw new Error(`Insufficient stock for ${item.description}`);
+        }
+      }
+
       const newInvoice = await tx.invoice.create({
         data: {
           invoiceNumber,
-          jobId: validatedData.jobId,
-          customerId: existingJob.customerId,
+          jobId: validatedData.jobId || null,
+          customerId,
           issuedById: actor.id,
           status: "DRAFT",
           issueDate: new Date(),
@@ -312,6 +379,7 @@ export async function POST(request: NextRequest) {
       await tx.invoiceItem.createMany({
         data: invoiceItems.map((item) => ({
           invoiceId: newInvoice.id,
+          partId: item.partId || null,
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -320,7 +388,7 @@ export async function POST(request: NextRequest) {
         })),
       });
 
-      if (shouldApplyDiagnosticFee) {
+      if (existingJob && shouldApplyDiagnosticFee) {
         const txAny = tx as any;
         await txAny.job.update({
           where: { id: existingJob.id },
@@ -344,6 +412,13 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation error", details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith("Insufficient stock")) {
+      return NextResponse.json(
+        { error: error.message },
         { status: 400 }
       );
     }

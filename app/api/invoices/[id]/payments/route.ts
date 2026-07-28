@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canAccessInvoice } from "@/lib/access-control";
+import { calculateInvoicePaymentState } from "@/lib/invoice-payment-state";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -75,7 +76,7 @@ export async function POST(
     // Check if invoice exists
     const invoice = await db.invoice.findUnique({
       where: { id: params.id },
-      include: { payments: true },
+      include: { payments: true, refunds: true },
     });
 
     if (!invoice) {
@@ -115,25 +116,21 @@ export async function POST(
         },
       });
 
-      // Calculate new paid amount and balance
-      const newPaidAmount = invoice.paidAmount + validatedData.amount;
-      const newBalanceAmount = invoice.totalAmount - newPaidAmount;
-
-      // Determine new status
-      let newStatus = invoice.status;
-      if (newBalanceAmount === 0) {
-        newStatus = "PAID";
-      } else if (newBalanceAmount < invoice.totalAmount && newBalanceAmount > 0) {
-        newStatus = "PARTIALLY_PAID";
-      }
+      const paymentState = calculateInvoicePaymentState({
+        totalAmount: invoice.totalAmount,
+        currentStatus: invoice.status,
+        dueDate: invoice.dueDate,
+        payments: [...invoice.payments, payment],
+        refunds: invoice.refunds,
+      });
 
       // Update invoice
       const updatedInvoice = await tx.invoice.update({
         where: { id: params.id },
         data: {
-          paidAmount: newPaidAmount,
-          balanceAmount: newBalanceAmount,
-          status: newStatus,
+          paidAmount: paymentState.paidAmount,
+          balanceAmount: paymentState.balanceAmount,
+          status: paymentState.status,
         },
         include: {
           customer: true,
@@ -141,6 +138,9 @@ export async function POST(
           invoiceItems: true,
           payments: {
             orderBy: { paymentDate: "desc" },
+          },
+          refunds: {
+            orderBy: { refundDate: "desc" },
           },
           issuedBy: {
             select: {

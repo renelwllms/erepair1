@@ -68,6 +68,30 @@ export async function generateQuotePDF(quoteData: QuoteData): Promise<jsPDF> {
     }).format(amount);
   };
 
+  const contentBottomY = pageHeight - 55;
+  const ensureSpace = (neededHeight: number) => {
+    if (yPosition + neededHeight > contentBottomY) {
+      doc.addPage();
+      yPosition = margin;
+    }
+  };
+
+  const addWrappedText = (text: string, lineHeight: number) => {
+    const paragraphs = text.split(/\r?\n/);
+
+    paragraphs.forEach((paragraph) => {
+      const lines = paragraph.trim()
+        ? doc.splitTextToSize(paragraph, pageWidth - 2 * margin)
+        : [""];
+
+      lines.forEach((line: string) => {
+        ensureSpace(lineHeight);
+        doc.text(line, margin, yPosition);
+        yPosition += lineHeight;
+      });
+    });
+  };
+
   // Add logo if available
   if (quoteData.companyLogo) {
     try {
@@ -368,12 +392,10 @@ export async function generateQuotePDF(quoteData: QuoteData): Promise<jsPDF> {
 
   // Terms and Conditions
   if (quoteData.termsAndConditions) {
-    if (yPosition > pageHeight - 60) {
-      doc.addPage();
-      yPosition = margin;
-    }
+    ensureSpace(24);
 
     yPosition += 5;
+    ensureSpace(14);
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 8;
@@ -386,8 +408,7 @@ export async function generateQuotePDF(quoteData: QuoteData): Promise<jsPDF> {
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    const termsLines = doc.splitTextToSize(quoteData.termsAndConditions, pageWidth - 2 * margin);
-    doc.text(termsLines, margin, yPosition);
+    addWrappedText(quoteData.termsAndConditions, 3.5);
   }
 
   // Footer

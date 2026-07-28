@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -197,18 +196,7 @@ export default function EditQuotePage() {
   const { subtotal, taxAmount, total } = calculateTotals();
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Edit Quote</h1>
-        <p className="text-gray-600">
-          {quote.quoteNumber} - {quote.customer.firstName} {quote.customer.lastName} (Job:{" "}
-          <Link href={`/jobs/${quote.job.id}`} className="text-blue-700 hover:underline">
-            {quote.job.jobNumber}
-          </Link>
-          )
-        </p>
-      </div>
-
+    <div className="max-w-6xl mx-auto">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Quote Items */}
         <div className="bg-white rounded-lg shadow p-6">

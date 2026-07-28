@@ -393,10 +393,6 @@ export default function NewInvoicePage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Create Invoice</h1>
-          <p className="text-gray-600 mt-1">Generate an invoice from a ready, completed, or closed job</p>
-        </div>
       </div>
 
       {/* Job Selection */}

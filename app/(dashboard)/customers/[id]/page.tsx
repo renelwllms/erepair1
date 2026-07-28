@@ -170,12 +170,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              {customer.firstName} {customer.lastName}
-            </h1>
-            <p className="text-gray-600 mt-1">Customer Details</p>
-          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button variant="outline" onClick={() => window.location.href = `tel:${customer.phone}`}>

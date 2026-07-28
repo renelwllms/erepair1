@@ -569,12 +569,6 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{job.jobNumber}</h1>
-            <p className="text-gray-600 mt-1">
-              {job.applianceType} - {job.applianceBrand}
-            </p>
-          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {(job.status === "CLOSED" || job.invoice?.status === "PAID") && (

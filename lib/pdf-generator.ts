@@ -18,13 +18,13 @@ interface InvoiceData {
     state?: string;
     zipCode?: string;
   };
-  job: {
+  job?: {
     jobNumber: string;
     applianceType: string;
     applianceBrand: string;
     modelNumber?: string;
     issueDescription: string;
-  };
+  } | null;
   invoiceItems: Array<{
     description: string;
     quantity: number;
@@ -252,7 +252,7 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
     normalizedPaymentTerms ? "Payment:" : "Due Date:",
     normalizedPaymentTerms || format(new Date(invoiceData.dueDate), "MMM dd, yyyy")
   );
-  addHeaderRow("Job #:", invoiceData.job.jobNumber);
+  addHeaderRow(invoiceData.job ? "Job #:" : "Invoice Type:", invoiceData.job?.jobNumber || "Parts Sale");
 
   // Set yPosition to the lower of the two columns
   yPosition = Math.max(leftYPosition, rightYPosition) + 6;
@@ -292,29 +292,34 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
   doc.text(invoiceData.customer.phone, margin, yPosition);
   yPosition += 6;
 
-  // Job Details section with background
+  // Job or sale details section with background
   doc.setFillColor(249, 250, 251);
-  const jobBoxHeight = 15;
+  const jobBoxHeight = invoiceData.job ? 15 : 11;
   doc.rect(margin, yPosition, pageWidth - 2 * margin, jobBoxHeight, "F");
 
   yPosition += 5;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text("Job Details", margin + 3, yPosition);
+  doc.text(invoiceData.job ? "Job Details" : "Sale Details", margin + 3, yPosition);
   yPosition += 5;
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
 
-  const jobDetails = `Appliance: ${invoiceData.job.applianceBrand} ${invoiceData.job.applianceType}${invoiceData.job.modelNumber ? ` (${invoiceData.job.modelNumber})` : ""}`;
-  doc.text(jobDetails, margin + 3, yPosition);
-  yPosition += 4;
+  if (invoiceData.job) {
+    const jobDetails = `Appliance: ${invoiceData.job.applianceBrand} ${invoiceData.job.applianceType}${invoiceData.job.modelNumber ? ` (${invoiceData.job.modelNumber})` : ""}`;
+    doc.text(jobDetails, margin + 3, yPosition);
+    yPosition += 4;
 
-  const issueText = `Issue: ${invoiceData.job.issueDescription}`;
-  const issueLines = doc.splitTextToSize(issueText, pageWidth - 2 * margin - 6);
-  doc.text(issueLines, margin + 3, yPosition);
-  yPosition += Math.max(issueLines.length * 3.5, 3.5) + 5;
+    const issueText = `Issue: ${invoiceData.job.issueDescription}`;
+    const issueLines = doc.splitTextToSize(issueText, pageWidth - 2 * margin - 6);
+    doc.text(issueLines, margin + 3, yPosition);
+    yPosition += Math.max(issueLines.length * 3.5, 3.5) + 5;
+  } else {
+    doc.text("Parts sale invoice", margin + 3, yPosition);
+    yPosition += 7;
+  }
 
   // Items section header
   doc.setFontSize(9);
