@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 // POST /api/quotes/[id]/resend - Resend quote to customer
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -24,13 +24,13 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!(await canAccessQuote(session.user, params.id))) {
+    if (!(await canAccessQuote(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get quote with all details
     const quote = await db.quote.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         customer: true,
         job: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,7 +143,8 @@ interface JobDetails {
   }>;
 }
 
-export default function JobDetailPage({ params }: { params: { id: string } }) {
+export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
   const [job, setJob] = useState<JobDetails | null>(null);
@@ -185,7 +186,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   const fetchJob = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/jobs/${params.id}`);
+      const response = await fetch(`/api/jobs/${id}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("Job not found");
@@ -218,7 +219,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     fetchJob();
-  }, [params.id]);
+  }, [id]);
 
   const handleStatusUpdate = async () => {
     if (newStatus === job?.status) {
@@ -243,7 +244,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         }
       }
 
-      const response = await fetch(`/api/jobs/${params.id}/status`, {
+      const response = await fetch(`/api/jobs/${id}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -273,7 +274,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         if (result.invoice?.id) {
           router.push(`/invoices/${result.invoice.id}`);
         } else {
-          router.push(`/invoices/new?jobId=${params.id}`);
+          router.push(`/invoices/new?jobId=${id}`);
         }
       }
     } catch (error: any) {
@@ -296,7 +297,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           ? diagnosticFeePaidAt || new Date().toISOString().slice(0, 10)
           : "";
 
-      const response = await fetch(`/api/jobs/${params.id}`, {
+      const response = await fetch(`/api/jobs/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -332,7 +333,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   const handleAddCommunication = async () => {
     setAddingComm(true);
     try {
-      const response = await fetch(`/api/jobs/${params.id}/communications`, {
+      const response = await fetch(`/api/jobs/${id}/communications`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -426,7 +427,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
         validDays: 30,
       };
 
-      const response = await fetch(`/api/jobs/${params.id}/send-quote`, {
+      const response = await fetch(`/api/jobs/${id}/send-quote`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -473,7 +474,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
     setProcessingWarranty(true);
     try {
-      const response = await fetch(`/api/jobs/${params.id}/warranty-return`, {
+      const response = await fetch(`/api/jobs/${id}/warranty-return`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

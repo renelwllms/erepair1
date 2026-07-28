@@ -85,7 +85,7 @@ const getCalloutJob = async (id: string) => {
   });
 };
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session) {
@@ -96,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const job = await getCalloutJob(params.id);
+    const job = await getCalloutJob((await params).id);
     if (!job) {
       return NextResponse.json({ error: "Callout job not found" }, { status: 404 });
     }
@@ -106,7 +106,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (data.action === "assign") {
       const updated = await dbAny.job.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           assignedTechnicianId: data.assignedTechnicianId,
           assignedAt: data.assignedTechnicianId ? new Date() : null,
@@ -125,7 +125,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (data.assignedTechnicianId) {
         await dbAny.jobStatusHistory.create({
           data: {
-            jobId: params.id,
+            jobId: (await params).id,
             status: "TECHNICIAN_ASSIGNED",
             previousStatus: job.status,
             newStatus: "TECHNICIAN_ASSIGNED",
@@ -141,7 +141,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (data.action === "status") {
       const updated = await dbAny.job.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           status: data.status,
           statusUpdatedAt: new Date(),
@@ -152,7 +152,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
       await dbAny.jobStatusHistory.create({
         data: {
-          jobId: params.id,
+          jobId: (await params).id,
           status: data.status,
           previousStatus: job.status,
           newStatus: data.status,
@@ -175,7 +175,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
       const scheduledTime = data.scheduledTime ? new Date(data.scheduledTime) : undefined;
       const updated = await dbAny.job.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           scheduledTime,
           scheduledDate: scheduledTime,
@@ -209,7 +209,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session) {
@@ -220,7 +220,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const job = await getCalloutJob(params.id);
+    const job = await getCalloutJob((await params).id);
     if (!job) {
       return NextResponse.json({ error: "Callout job not found" }, { status: 404 });
     }
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (data.action === "note") {
       const note = await dbAny.jobNote.create({
         data: {
-          jobId: params.id,
+          jobId: (await params).id,
           technicianId: session.user.id,
           noteType: data.noteType,
           noteText: data.noteText,
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (data.action === "photo") {
       const photo = await dbAny.jobPhoto.create({
         data: {
-          jobId: params.id,
+          jobId: (await params).id,
           uploadedBy: session.user.id,
           photoCategory: data.photoCategory,
           fileUrl: data.fileUrl,
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const queued = isWithinQuietHours() && !data.overrideQuietHours;
       if (data.notificationId) {
         const existingNotification = await dbAny.customerNotification.findFirst({
-          where: { id: data.notificationId, jobId: params.id },
+          where: { id: data.notificationId, jobId: (await params).id },
         });
         if (!existingNotification) {
           return NextResponse.json({ error: "Notification does not belong to this job" }, { status: 400 });
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           })
         : await dbAny.customerNotification.create({
             data: {
-              jobId: params.id,
+              jobId: (await params).id,
               notificationType: data.notificationType,
               recipient: job.customer.email,
               message: data.message,

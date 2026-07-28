@@ -42,7 +42,7 @@ function replaceTemplateVariables(template: string, variables: Record<string, an
 }
 
 // PUT /api/jobs/[id]/status - Update job status
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const dbAny = db as any;
     const session = await auth();
@@ -56,29 +56,29 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const body = await request.json();
     const validatedData = statusUpdateSchema.parse(body);
 
-    const job = (await db.job.findUnique({ where: { id: params.id }, include: { customer: true } })) as any;
+    const job = (await db.job.findUnique({ where: { id: (await params).id }, include: { customer: true } })) as any;
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (!(await canAccessJob(session.user, params.id))) {
+    if (!(await canAccessJob(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const previousStatus = job.status;
 
     const updatedJob = await db.job.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: { status: validatedData.status, lastNotificationSent: new Date() },
     });
 
     await db.jobStatusHistory.create({
-      data: { jobId: params.id, status: validatedData.status, notes: validatedData.notes, changedBy: session.user.id },
+      data: { jobId: (await params).id, status: validatedData.status, notes: validatedData.notes, changedBy: session.user.id },
     });
 
     if (validatedData.status === "CLOSED") {
       const existingInvoice = await db.invoice.findUnique({
-        where: { jobId: params.id },
+        where: { jobId: (await params).id },
         select: { id: true },
       });
 
@@ -157,7 +157,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     void (async () => {
       // Send push notification
       try {
-        await sendJobStatusNotification(params.id, validatedData.status, validatedData.notes);
+        await sendJobStatusNotification((await params).id, validatedData.status, validatedData.notes);
       } catch (pushError) {
         console.error("Failed to send push notification:", pushError);
       }
@@ -290,7 +290,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     })();
 
     const jobWithInvoice = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         invoice: {
           select: {

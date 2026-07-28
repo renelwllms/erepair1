@@ -17,7 +17,7 @@ const emailTemplateUpdateSchema = z.object({
 // GET /api/email-templates/[id] - Get single email template
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const template = await db.emailTemplate.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!template) {
@@ -50,7 +50,7 @@ export async function GET(
 // PUT /api/email-templates/[id] - Update email template
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -68,7 +68,7 @@ export async function PUT(
     const validatedData = emailTemplateUpdateSchema.parse(body);
 
     const template = await db.emailTemplate.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: validatedData,
     });
 
@@ -92,7 +92,7 @@ export async function PUT(
 // DELETE /api/email-templates/[id] - Delete email template
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -107,7 +107,7 @@ export async function DELETE(
     }
 
     await db.emailTemplate.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({ message: "Template deleted successfully" });

@@ -7,7 +7,7 @@ const rejectQuoteSchema = z.object({
 });
 
 // POST /api/quotes/[id]/reject - Reject a quote (public endpoint)
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const dbAny = db as any;
     const body = await request.json();
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Get quote with job and customer details
     const quote = await dbAny.quote.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         job: true,
         customer: true,
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Update quote status to REJECTED
     const updatedQuote = await dbAny.quote.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status: "REJECTED",
         customerResponse: "REJECTED",

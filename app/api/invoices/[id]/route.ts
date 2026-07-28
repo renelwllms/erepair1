@@ -40,9 +40,10 @@ const invoiceUpdateSchema = z.object({
 // GET /api/invoices/[id] - Get invoice by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session) {
@@ -50,7 +51,7 @@ export async function GET(
     }
 
     const invoice = await (db as any).invoice.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: true,
         job: {
@@ -90,7 +91,7 @@ export async function GET(
       );
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -107,9 +108,10 @@ export async function GET(
 // PUT /api/invoices/[id] - Update invoice
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session) {
@@ -128,7 +130,7 @@ export async function PUT(
 
     // Check if invoice exists
     const existingInvoice = await db.invoice.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         invoiceItems: true,
       },
@@ -141,7 +143,7 @@ export async function PUT(
       );
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -227,12 +229,12 @@ export async function PUT(
         }
 
         await tx.invoiceItem.deleteMany({
-          where: { invoiceId: params.id },
+          where: { invoiceId: id },
         });
 
         await tx.invoiceItem.createMany({
           data: validatedData.items.map(item => ({
-            invoiceId: params.id,
+            invoiceId: id,
             partId: item.partId || null,
             description: item.description,
             quantity: item.quantity,
@@ -244,7 +246,7 @@ export async function PUT(
       }
 
       return tx.invoice.update({
-        where: { id: params.id },
+        where: { id },
         data: updateData,
         include: {
           customer: true,
@@ -292,9 +294,10 @@ export async function PUT(
 // DELETE /api/invoices/[id] - Delete invoice
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session) {
@@ -308,7 +311,7 @@ export async function DELETE(
 
     // Check if invoice exists
     const existingInvoice = await db.invoice.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { payments: true, invoiceItems: true },
     });
 
@@ -363,7 +366,7 @@ export async function DELETE(
       }
 
       await tx.invoice.delete({
-        where: { id: params.id },
+        where: { id },
       });
     });
 

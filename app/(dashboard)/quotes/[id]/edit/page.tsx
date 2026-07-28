@@ -39,6 +39,7 @@ interface Quote {
 export default function EditQuotePage() {
   const router = useRouter();
   const params = useParams();
+  const id = String(params.id);
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -55,7 +56,7 @@ export default function EditQuotePage() {
 
   const fetchQuote = async () => {
     try {
-      const response = await fetch(`/api/quotes/${params.id}`);
+      const response = await fetch(`/api/quotes/${id}`);
       if (!response.ok) throw new Error("Failed to fetch quote");
 
       const data = await response.json();
@@ -67,7 +68,7 @@ export default function EditQuotePage() {
           description: "Only draft or sent quotes can be edited",
           variant: "destructive",
         });
-        router.push(`/quotes/${params.id}`);
+        router.push(`/quotes/${id}`);
         return;
       }
 
@@ -139,7 +140,7 @@ export default function EditQuotePage() {
     try {
       const { subtotal, taxAmount, total } = calculateTotals();
 
-      const response = await fetch(`/api/quotes/${params.id}`, {
+      const response = await fetch(`/api/quotes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -164,7 +165,7 @@ export default function EditQuotePage() {
         description: "Quote updated successfully",
       });
 
-      router.push(`/quotes/${params.id}`);
+      router.push(`/quotes/${id}`);
     } catch (error: any) {
       console.error("Error updating quote:", error);
       toast({
@@ -356,7 +357,7 @@ export default function EditQuotePage() {
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => router.push(`/quotes/${params.id}`)}
+            onClick={() => router.push(`/quotes/${id}`)}
             className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2"
           >
             <X className="h-4 w-4" />

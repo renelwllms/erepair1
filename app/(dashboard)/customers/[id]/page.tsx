@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,7 +87,8 @@ interface CustomerDetails {
   };
 }
 
-export default function CustomerDetailPage({ params }: { params: { id: string } }) {
+export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
   const [customer, setCustomer] = useState<CustomerDetails | null>(null);
@@ -97,7 +98,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const fetchCustomer = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/customers/${params.id}`);
+      const response = await fetch(`/api/customers/${id}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error("Customer not found");
@@ -121,7 +122,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     fetchCustomer();
-  }, [params.id]);
+  }, [id]);
 
   const getStatusBadgeVariant = (status: string) => {
     const statusMap: Record<string, "default" | "secondary" | "destructive"> = {

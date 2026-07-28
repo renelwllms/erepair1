@@ -37,12 +37,12 @@ async function resolveInvoiceIssuerId(quote: any) {
 }
 
 // POST /api/quotes/[id]/accept - Accept a quote (public endpoint)
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const dbAny = db as any;
     // Get quote with job, customer, and items details
     const quote = await dbAny.quote.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         job: true,
         customer: true,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     if (existingInvoice) {
       const convertedQuote = await dbAny.quote.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           status: "CONVERTED_TO_INVOICE",
           convertedToInvoiceId: existingInvoice.id,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Update quote status to ACCEPTED. This remains safe to retry if invoice creation fails.
     const updatedQuote = await dbAny.quote.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status: "ACCEPTED",
         customerResponse: "ACCEPTED",
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Mark quote as converted and link invoice
     const convertedQuote = await dbAny.quote.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status: "CONVERTED_TO_INVOICE",
         convertedToInvoiceId: invoice.id,

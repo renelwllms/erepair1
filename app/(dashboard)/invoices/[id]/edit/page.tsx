@@ -44,6 +44,7 @@ interface Invoice {
 export default function EditInvoicePage() {
   const router = useRouter();
   const params = useParams();
+  const id = String(params.id);
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export default function EditInvoicePage() {
 
   const fetchInvoice = async () => {
     try {
-      const response = await fetch(`/api/invoices/${params.id}`);
+      const response = await fetch(`/api/invoices/${id}`);
       if (!response.ok) throw new Error("Failed to fetch invoice");
 
       const data = await response.json();
@@ -108,7 +109,7 @@ export default function EditInvoicePage() {
           description: "Only draft invoices can be edited",
           variant: "destructive",
         });
-        router.push(`/invoices/${params.id}`);
+        router.push(`/invoices/${id}`);
         return;
       }
 
@@ -187,7 +188,7 @@ export default function EditInvoicePage() {
     try {
       const { subtotal, taxAmount, total, balanceAmount } = calculateTotals();
 
-      const response = await fetch(`/api/invoices/${params.id}`, {
+      const response = await fetch(`/api/invoices/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,7 +216,7 @@ export default function EditInvoicePage() {
         description: "Invoice updated successfully",
       });
 
-      router.push(`/invoices/${params.id}`);
+      router.push(`/invoices/${id}`);
     } catch (error: any) {
       console.error("Error updating invoice:", error);
       toast({
@@ -459,7 +460,7 @@ export default function EditInvoicePage() {
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => router.push(`/invoices/${params.id}`)}
+            onClick={() => router.push(`/invoices/${id}`)}
             className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2"
           >
             <X className="h-4 w-4" />

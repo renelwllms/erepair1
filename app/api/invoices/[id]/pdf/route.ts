@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/invoices/[id]/pdf - Generate and download invoice PDF
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -19,13 +19,13 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Fetch invoice with all related data
     const invoice = await db.invoice.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         customer: true,
         job: true,

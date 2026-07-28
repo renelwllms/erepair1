@@ -36,7 +36,7 @@ function replaceTemplateVariables(template: string, variables: Record<string, an
 }
 
 // POST /api/jobs/[id]/send-quote - Generate and send quote
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!(await canAccessJob(session.user, params.id))) {
+    if (!(await canAccessJob(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Get job with customer details
     const job = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { customer: true },
     });
 
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const quote = await db.quote.create({
       data: {
         quoteNumber,
-        jobId: params.id,
+        jobId: (await params).id,
         customerId: job.customerId,
         issuedById: issuer.id,
         status: "DRAFT",
@@ -325,7 +325,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         data: { status: "SENT" },
       }),
       db.job.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           status: "AWAITING_CUSTOMER_APPROVAL",
           quoteSentAt: new Date(),
@@ -334,7 +334,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }),
       db.jobStatusHistory.create({
         data: {
-          jobId: params.id,
+          jobId: (await params).id,
           status: "AWAITING_CUSTOMER_APPROVAL",
           notes: `Quote sent: ${quoteNumber} - Total: ${validatedData.totalAmount}`,
           changedBy: issuer.id,

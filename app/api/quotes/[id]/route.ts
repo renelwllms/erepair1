@@ -27,16 +27,17 @@ const quoteUpdateSchema = z.object({
 // GET /api/quotes/[id] - Get a single quote with all details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const quote = await db.quote.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: {
           select: {
@@ -82,7 +83,7 @@ export async function GET(
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
 
-    if (!(await canAccessQuote(session.user, params.id))) {
+    if (!(await canAccessQuote(session.user, id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -96,9 +97,10 @@ export async function GET(
 // PUT /api/quotes/[id] - Update a quote
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -114,14 +116,14 @@ export async function PUT(
 
     // Check if quote exists
     const existingQuote = await db.quote.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingQuote) {
       return NextResponse.json({ error: "Quote not found" }, { status: 404 });
     }
 
-    if (!(await canAccessQuote(session.user, params.id))) {
+    if (!(await canAccessQuote(session.user, id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -136,12 +138,12 @@ export async function PUT(
     // If quote items are provided, delete old items and create new ones
     if (validatedData.quoteItems) {
       await db.quoteItem.deleteMany({
-        where: { quoteId: params.id },
+        where: { quoteId: id },
       });
 
       await db.quoteItem.createMany({
         data: validatedData.quoteItems.map(item => ({
-          quoteId: params.id,
+          quoteId: id,
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -166,7 +168,7 @@ export async function PUT(
     }
 
     const quote = await db.quote.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         customer: true,

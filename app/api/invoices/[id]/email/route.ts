@@ -19,7 +19,7 @@ const escapeHtml = (value: string) =>
 // POST /api/invoices/[id]/email - Email invoice to customer
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -33,13 +33,13 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Fetch invoice with all related data
     const invoice = await db.invoice.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         customer: true,
         job: true,
@@ -273,7 +273,7 @@ export async function POST(
     // Update invoice status to SENT if it was DRAFT
     if (invoice.status === "DRAFT") {
       await db.invoice.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: { status: "SENT" },
       });
     }

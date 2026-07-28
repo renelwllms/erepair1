@@ -19,7 +19,7 @@ const paymentCreateSchema = z.object({
 // GET /api/invoices/[id]/payments - Get payments for an invoice
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -28,12 +28,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const payments = await db.payment.findMany({
-      where: { invoiceId: params.id },
+      where: { invoiceId: (await params).id },
       orderBy: { paymentDate: "desc" },
     });
 
@@ -50,7 +50,7 @@ export async function GET(
 // POST /api/invoices/[id]/payments - Add payment to invoice
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -64,7 +64,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -75,7 +75,7 @@ export async function POST(
 
     // Check if invoice exists
     const invoice = await db.invoice.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { payments: true, refunds: true },
     });
 
@@ -107,7 +107,7 @@ export async function POST(
       // Create payment
       const payment = await tx.payment.create({
         data: {
-          invoiceId: params.id,
+          invoiceId: (await params).id,
           amount: validatedData.amount,
           paymentMethod: validatedData.paymentMethod,
           paymentDate: validatedData.paymentDate ? new Date(validatedData.paymentDate) : new Date(),
@@ -126,7 +126,7 @@ export async function POST(
 
       // Update invoice
       const updatedInvoice = await tx.invoice.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           paidAmount: paymentState.paidAmount,
           balanceAmount: paymentState.balanceAmount,

@@ -62,24 +62,24 @@ const uniqueSlug = async (base: string, excludeId: string) => {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const guard = await requireStaff();
     if (guard.error) return guard.error;
 
-    const existing = await db.shopProduct.findUnique({ where: { id: params.id } });
+    const existing = await db.shopProduct.findUnique({ where: { id: (await params).id } });
     if (!existing) {
       return NextResponse.json({ error: "Shop product not found" }, { status: 404 });
     }
 
     const body = await request.json();
     const data = shopProductSchema.parse(body);
-    const slug = await uniqueSlug(makeSlug(data.slug || data.title), params.id);
+    const slug = await uniqueSlug(makeSlug(data.slug || data.title), (await params).id);
     const now = new Date();
 
     const product = await db.shopProduct.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         title: data.title,
         slug,
@@ -127,13 +127,13 @@ export async function PUT(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const guard = await requireStaff();
     if (guard.error) return guard.error;
 
-    await db.shopProduct.delete({ where: { id: params.id } });
+    await db.shopProduct.delete({ where: { id: (await params).id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting shop product:", error);

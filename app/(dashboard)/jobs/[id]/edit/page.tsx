@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -146,7 +146,8 @@ interface Technician {
   role: string;
 }
 
-export default function EditJobPage({ params }: { params: { id: string } }) {
+export default function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -190,7 +191,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
@@ -265,7 +266,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const fetchData = async () => {
     try {
       const [jobRes, techniciansRes, settingsRes] = await Promise.all([
-        fetch(`/api/jobs/${params.id}`),
+        fetch(`/api/jobs/${id}`),
         fetch("/api/users/technicians"),
         fetch("/api/settings"),
       ]);
@@ -340,7 +341,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   const onSubmit = async (data: JobFormData) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/jobs/${params.id}`, {
+      const response = await fetch(`/api/jobs/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -358,7 +359,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
         description: "Job updated successfully",
       });
 
-      router.push(`/jobs/${params.id}`);
+      router.push(`/jobs/${id}`);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -384,7 +385,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/jobs/${params.id}`)}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(`/jobs/${id}`)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -826,7 +827,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push(`/jobs/${params.id}`)}
+            onClick={() => router.push(`/jobs/${id}`)}
             disabled={loading}
             className="h-11 sm:h-10"
           >

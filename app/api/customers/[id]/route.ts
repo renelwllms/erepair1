@@ -23,7 +23,7 @@ const customerUpdateSchema = z.object({
 // GET /api/customers/[id] - Get a single customer
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -33,7 +33,7 @@ export async function GET(
     }
 
     const customer = await db.customer.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         jobs: {
           include: {
@@ -78,7 +78,7 @@ export async function GET(
       );
     }
 
-    if (!(await canAccessCustomer(session.user, params.id))) {
+    if (!(await canAccessCustomer(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -115,7 +115,7 @@ export async function GET(
 // PUT /api/customers/[id] - Update a customer
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -136,7 +136,7 @@ export async function PUT(
 
     // Check if customer exists
     const existingCustomer = await db.customer.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!existingCustomer) {
@@ -146,7 +146,7 @@ export async function PUT(
       );
     }
 
-    if (!(await canAccessCustomer(session.user, params.id))) {
+    if (!(await canAccessCustomer(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -166,7 +166,7 @@ export async function PUT(
 
     // Update customer
     const customer = await db.customer.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: validatedData,
       include: {
         jobs: true,
@@ -194,7 +194,7 @@ export async function PUT(
 // DELETE /api/customers/[id] - Delete a customer
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -210,7 +210,7 @@ export async function DELETE(
 
     // Check if customer exists
     const customer = await db.customer.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         jobs: true,
         invoices: true,
@@ -240,7 +240,7 @@ export async function DELETE(
 
     // Delete customer
     await db.customer.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({ message: "Customer deleted successfully" });

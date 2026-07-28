@@ -6,7 +6,7 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session) {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const dbAny = db as any;
     const job = await dbAny.job.findFirst({
       where: {
-        id: params.id,
+        id: (await params).id,
         OR: [{ jobType: "CALLOUT_REPAIR" }, { isCallout: true }],
       },
       select: { id: true },
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-    const filename = `${params.id}-${Date.now()}-${crypto.randomUUID()}.${ext}`;
+    const filename = `${(await params).id}-${Date.now()}-${crypto.randomUUID()}.${ext}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads", "field-service");
     await mkdir(uploadDir, { recursive: true });
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const fileUrl = `/uploads/field-service/${filename}`;
     const photo = await dbAny.jobPhoto.create({
       data: {
-        jobId: params.id,
+        jobId: (await params).id,
         uploadedBy: session.user.id,
         photoCategory,
         fileUrl,

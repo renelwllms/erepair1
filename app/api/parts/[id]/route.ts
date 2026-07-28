@@ -37,13 +37,13 @@ function normalizeOptional(value?: string | null) {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const guard = await requireStaff();
     if (guard.error) return guard.error;
 
-    const existing = await db.part.findUnique({ where: { id: params.id } });
+    const existing = await db.part.findUnique({ where: { id: (await params).id } });
     if (!existing) {
       return NextResponse.json({ error: "Part not found" }, { status: 404 });
     }
@@ -53,19 +53,19 @@ export async function PUT(
     const sku = normalizeOptional(data.sku);
 
     const partNumberOwner = await db.part.findUnique({ where: { partNumber } });
-    if (partNumberOwner && partNumberOwner.id !== params.id) {
+    if (partNumberOwner && partNumberOwner.id !== (await params).id) {
       return NextResponse.json({ error: "Part number already exists" }, { status: 400 });
     }
 
     if (sku) {
       const skuOwner = await db.part.findUnique({ where: { sku } });
-      if (skuOwner && skuOwner.id !== params.id) {
+      if (skuOwner && skuOwner.id !== (await params).id) {
         return NextResponse.json({ error: "SKU already exists" }, { status: 400 });
       }
     }
 
     const part = await db.part.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         partNumber,
         sku,
@@ -93,14 +93,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const guard = await requireStaff();
     if (guard.error) return guard.error;
 
     const existing = await db.part.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         _count: {
           select: {
@@ -122,7 +122,7 @@ export async function DELETE(
       );
     }
 
-    await db.part.delete({ where: { id: params.id } });
+    await db.part.delete({ where: { id: (await params).id } });
     return NextResponse.json({ message: "Part deleted successfully" });
   } catch (error) {
     console.error("Error deleting part:", error);

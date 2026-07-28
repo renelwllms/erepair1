@@ -21,7 +21,7 @@ async function resolveActiveStaffUser(session: any) {
 }
 
 // POST /api/quotes/[id]/convert-to-invoice - Convert accepted quote to invoice
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const dbAny = db as any;
     const session = await auth();
@@ -40,13 +40,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    if (!(await canAccessQuote(session.user, params.id))) {
+    if (!(await canAccessQuote(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get quote with all details
     const quote = await dbAny.quote.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         job: true,
         customer: true,
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Update quote to mark as converted
     await dbAny.quote.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         status: "CONVERTED_TO_INVOICE",
         convertedToInvoiceId: invoice.id,

@@ -13,7 +13,7 @@ const passwordSchema = z.object({
 // POST /api/users/[id]/password - Update user password (admin only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -29,7 +29,7 @@ export async function POST(
     const validated = passwordSchema.parse(body);
 
     const user = await db.user.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       select: { id: true, role: true, isActive: true },
     });
 
@@ -48,7 +48,7 @@ export async function POST(
     const hashedPassword = await bcrypt.hash(validated.newPassword, 10);
 
     await db.user.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: { password: hashedPassword },
     });
 

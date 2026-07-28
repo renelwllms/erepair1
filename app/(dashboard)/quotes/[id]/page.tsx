@@ -77,6 +77,7 @@ interface Quote {
 
 export default function QuoteDetailPage() {
   const params = useParams();
+  const id = String(params.id);
   const router = useRouter();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,12 +87,12 @@ export default function QuoteDetailPage() {
   useEffect(() => {
     fetchQuote();
     fetchCompanySettings();
-  }, [params.id]);
+  }, [id]);
 
   const fetchQuote = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/quotes/${params.id}`);
+      const response = await fetch(`/api/quotes/${id}`);
       if (response.ok) {
         const data = await response.json();
         setQuote(data);
@@ -124,7 +125,7 @@ export default function QuoteDetailPage() {
 
     setIsResending(true);
     try {
-      const response = await fetch(`/api/quotes/${params.id}/resend`, {
+      const response = await fetch(`/api/quotes/${id}/resend`, {
         method: "POST",
       });
 
@@ -314,7 +315,7 @@ export default function QuoteDetailPage() {
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {(quote?.status === "DRAFT" || quote?.status === "SENT") && (
               <button
-                onClick={() => router.push(`/quotes/${params.id}/edit`)}
+                onClick={() => router.push(`/quotes/${id}/edit`)}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg transition-colors"
               >
                 <Edit className="h-4 w-4" />

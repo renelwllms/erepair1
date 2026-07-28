@@ -145,6 +145,7 @@ interface SessionInfo {
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const id = String(params.id);
   const { toast } = useToast();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
@@ -177,7 +178,7 @@ export default function InvoiceDetailPage() {
     setLoading(true);
     try {
       const [invoiceResponse, settingsResponse] = await Promise.all([
-        fetch(`/api/invoices/${params.id}`),
+        fetch(`/api/invoices/${id}`),
         fetch('/api/public/settings')
       ]);
 
@@ -210,10 +211,10 @@ export default function InvoiceDetailPage() {
   };
 
   useEffect(() => {
-    if (params.id) {
+    if (id) {
       fetchInvoice();
     }
-  }, [params.id]);
+  }, [id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -306,7 +307,7 @@ export default function InvoiceDetailPage() {
 
   const handleDownloadPDF = async () => {
     try {
-      const response = await fetch(`/api/invoices/${params.id}/pdf`);
+      const response = await fetch(`/api/invoices/${id}/pdf`);
       if (!response.ok) throw new Error("Failed to generate PDF");
 
       const blob = await response.blob();
@@ -334,7 +335,7 @@ export default function InvoiceDetailPage() {
 
   const handlePrintPDF = async () => {
     try {
-      const response = await fetch(`/api/invoices/${params.id}/pdf`);
+      const response = await fetch(`/api/invoices/${id}/pdf`);
       if (!response.ok) throw new Error("Failed to generate PDF");
 
       const blob = await response.blob();
@@ -370,7 +371,7 @@ export default function InvoiceDetailPage() {
   const handleEmailInvoice = async () => {
     setIsSendingEmail(true);
     try {
-      const response = await fetch(`/api/invoices/${params.id}/email`, {
+      const response = await fetch(`/api/invoices/${id}/email`, {
         method: "POST",
       });
 
@@ -420,7 +421,7 @@ export default function InvoiceDetailPage() {
 
     setIsProcessingPayment(true);
     try {
-      const response = await fetch(`/api/invoices/${params.id}/payments`, {
+      const response = await fetch(`/api/invoices/${id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -511,7 +512,7 @@ export default function InvoiceDetailPage() {
 
     setIsProcessingRefund(true);
     try {
-      const response = await fetch(`/api/invoices/${params.id}/refunds`, {
+      const response = await fetch(`/api/invoices/${id}/refunds`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -561,7 +562,7 @@ export default function InvoiceDetailPage() {
 
     setIsDeletingInvoice(true);
     try {
-      const response = await fetch(`/api/invoices/${params.id}`, {
+      const response = await fetch(`/api/invoices/${id}`, {
         method: "DELETE",
       });
 
@@ -818,7 +819,7 @@ export default function InvoiceDetailPage() {
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {canEditInvoice && (
-            <Button variant="outline" onClick={() => router.push(`/invoices/${params.id}/edit`)}>
+            <Button variant="outline" onClick={() => router.push(`/invoices/${id}/edit`)}>
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>

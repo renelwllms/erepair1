@@ -44,7 +44,7 @@ async function generateJobNumber() {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -55,7 +55,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!(await canAccessJob(session.user, params.id))) {
+    if (!(await canAccessJob(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -71,7 +71,7 @@ export async function POST(
     const validatedData = warrantyReturnSchema.parse(requestBody);
 
     const sourceJob = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         customer: true,
         assignedTechnician: {

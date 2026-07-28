@@ -59,7 +59,7 @@ const jobUpdateSchema = z.object({
 // GET /api/jobs/[id] - Get a single job
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -69,7 +69,7 @@ export async function GET(
     }
 
     const job = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         customer: {
           select: {
@@ -167,7 +167,7 @@ export async function GET(
       );
     }
 
-    if (!(await canAccessJob(session.user, params.id))) {
+    if (!(await canAccessJob(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -184,7 +184,7 @@ export async function GET(
 // PUT /api/jobs/[id] - Update a job
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const dbAny = db as any;
@@ -206,7 +206,7 @@ export async function PUT(
 
     // Check if job exists
     const existingJob = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     if (!existingJob) {
@@ -271,7 +271,7 @@ export async function PUT(
 
     // Update job
     const job = await dbAny.job.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: {
         ...validatedData,
         jobType: nextJobType,
@@ -359,7 +359,7 @@ export async function PUT(
 // DELETE /api/jobs/[id] - Delete a job
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -375,7 +375,7 @@ export async function DELETE(
 
     // Check if job exists
     const job = await db.job.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         invoice: true,
       },
@@ -403,7 +403,7 @@ export async function DELETE(
 
     // Delete job (cascade will delete related records)
     await db.job.delete({
-      where: { id: params.id },
+      where: { id: (await params).id },
     });
 
     return NextResponse.json({ message: "Job deleted successfully" });

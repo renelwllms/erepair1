@@ -13,9 +13,9 @@ const contentTypeFor = (filename: string) => {
 
 export async function GET(
   request: Request,
-  { params }: { params: { filename: string } }
+  { params }: { params: Promise<{ filename: string }> }
 ) {
-  const filename = decodeURIComponent(params.filename);
+  const filename = decodeURIComponent((await params).filename);
 
   if (!/^[a-zA-Z0-9._-]+\.(jpe?g|png|webp)$/i.test(filename)) {
     return NextResponse.json({ error: "Invalid filename" }, { status: 400 });

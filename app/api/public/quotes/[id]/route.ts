@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 // GET /api/public/quotes/[id] - Public quote details for accept/reject pages
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const quote = await db.quote.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: {
         job: true,
       },

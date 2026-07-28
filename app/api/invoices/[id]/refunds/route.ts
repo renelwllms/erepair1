@@ -74,7 +74,7 @@ async function getInvoiceForRefund(invoiceId: string) {
 // GET /api/invoices/[id]/refunds - Get refunds and suggested refundable summary
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -83,11 +83,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const invoice = await getInvoiceForRefund(params.id);
+    const invoice = await getInvoiceForRefund((await params).id);
 
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
@@ -112,7 +112,7 @@ export async function GET(
 // POST /api/invoices/[id]/refunds - Process refund
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -125,12 +125,12 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!(await canAccessInvoice(session.user, params.id))) {
+    if (!(await canAccessInvoice(session.user, (await params).id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const validatedData = refundCreateSchema.parse(await request.json());
-    const invoice = await getInvoiceForRefund(params.id);
+    const invoice = await getInvoiceForRefund((await params).id);
 
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
@@ -157,7 +157,7 @@ export async function POST(
     const result = await (db as any).$transaction(async (tx: any) => {
       const refund = await tx.refund.create({
         data: {
-          invoiceId: params.id,
+          invoiceId: (await params).id,
           amount: validatedData.amount,
           refundMethod: validatedData.refundMethod,
           refundDate: validatedData.refundDate
@@ -179,7 +179,7 @@ export async function POST(
       });
 
       const updatedInvoice = await tx.invoice.update({
-        where: { id: params.id },
+        where: { id: (await params).id },
         data: {
           balanceAmount: paymentState.balanceAmount,
           status: paymentState.status,
