@@ -308,7 +308,18 @@ export default function InvoiceDetailPage() {
   const handleDownloadPDF = async () => {
     try {
       const response = await fetch(`/api/invoices/${id}/pdf`);
-      if (!response.ok) throw new Error("Failed to generate PDF");
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok || !contentType.includes("application/pdf")) {
+        let message = "Failed to generate PDF";
+        try {
+          const error = await response.json();
+          message = error.error || message;
+        } catch {
+          // Keep default message when the response is not JSON.
+        }
+        throw new Error(message);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -324,10 +335,10 @@ export default function InvoiceDetailPage() {
         title: "Success",
         description: "PDF downloaded successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to download PDF",
+        description: error.message || "Failed to download PDF",
         variant: "destructive",
       });
     }
@@ -336,7 +347,18 @@ export default function InvoiceDetailPage() {
   const handlePrintPDF = async () => {
     try {
       const response = await fetch(`/api/invoices/${id}/pdf`);
-      if (!response.ok) throw new Error("Failed to generate PDF");
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok || !contentType.includes("application/pdf")) {
+        let message = "Failed to generate PDF";
+        try {
+          const error = await response.json();
+          message = error.error || message;
+        } catch {
+          // Keep default message when the response is not JSON.
+        }
+        throw new Error(message);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -359,10 +381,10 @@ export default function InvoiceDetailPage() {
       };
 
       document.body.appendChild(iframe);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to prepare invoice for printing",
+        description: error.message || "Failed to prepare invoice for printing",
         variant: "destructive",
       });
     }

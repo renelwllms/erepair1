@@ -131,6 +131,45 @@ export default function InvoicesPage() {
     router.push(`/invoices/${id}`);
   };
 
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`);
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok || !contentType.includes("application/pdf")) {
+        let message = "Failed to generate PDF";
+        try {
+          const error = await response.json();
+          message = error.error || message;
+        } catch {
+          // Keep default message when the response is not JSON.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Invoice-${invoice.invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast({
+        title: "Success",
+        description: "PDF downloaded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to download PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getRefundedAmount = (invoice: Invoice) =>
     (invoice.refunds || []).reduce((sum, refund) => sum + refund.amount, 0);
 
@@ -417,7 +456,7 @@ export default function InvoicesPage() {
                                 View Invoice
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
                                 <Download className="mr-2 h-4 w-4" />
                                 Download PDF
                               </DropdownMenuItem>
