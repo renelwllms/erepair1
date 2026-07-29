@@ -60,7 +60,7 @@ interface Invoice {
     id: string;
     jobNumber: string;
     applianceType: string;
-  };
+  } | null;
 }
 
 interface CustomerDetails {
@@ -444,11 +444,17 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     <div>
                       <p className="font-semibold">{invoice.invoiceNumber}</p>
                       <p className="mt-1 text-sm text-gray-600">
-                        <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
-                          {invoice.job.jobNumber}
-                        </Link>
-                        {" · "}
-                        {invoice.job.applianceType}
+                        {invoice.job ? (
+                          <>
+                            <Link href={`/jobs/${invoice.job.id}`} className="text-blue-700 hover:underline">
+                              {invoice.job.jobNumber}
+                            </Link>
+                            {" · "}
+                            {invoice.job.applianceType}
+                          </>
+                        ) : (
+                          "Parts/Product Sale"
+                        )}
                       </p>
                     </div>
                     <Badge variant={invoice.status === "PAID" ? "secondary" : "default"}>{invoice.status}</Badge>
@@ -491,10 +497,19 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>
                       <div>
-                        <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
-                          {invoice.job.jobNumber}
-                        </Link>
-                        <div className="text-sm text-gray-500">{invoice.job.applianceType}</div>
+                        {invoice.job ? (
+                          <>
+                            <Link href={`/jobs/${invoice.job.id}`} className="font-medium text-blue-700 hover:underline">
+                              {invoice.job.jobNumber}
+                            </Link>
+                            <div className="text-sm text-gray-500">{invoice.job.applianceType}</div>
+                          </>
+                        ) : (
+                          <div>
+                            <span className="font-medium">Parts/Product Sale</span>
+                            <div className="text-sm text-gray-500">No job linked</div>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
