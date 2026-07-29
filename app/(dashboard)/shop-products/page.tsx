@@ -2,9 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,7 +26,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Edit, ImagePlus, Plus, Search, Trash2, X } from "lucide-react";
+import { Edit, ImagePlus, Package, Plus, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -46,6 +55,14 @@ type ShopProduct = {
   images: string[];
   internalNotes?: string | null;
   updatedAt: string;
+};
+
+type Customer = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
 };
 
 type ProductForm = {
@@ -100,9 +117,16 @@ const statusClasses: Record<ShopProductStatus, string> = {
   ARCHIVED: "bg-slate-100 text-slate-700",
 };
 
+function numberValue(value: string, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export default function ShopProductsPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -113,6 +137,12 @@ export default function ShopProductsPage() {
   const [showCustomBrand, setShowCustomBrand] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingProduct, setEditingProduct] = useState<ShopProduct | null>(null);
+  const [sellingProduct, setSellingProduct] = useState<ShopProduct | null>(null);
+  const [saleCustomerId, setSaleCustomerId] = useState("");
+  const [saleDueDate, setSaleDueDate] = useState("");
+  const [saleNotes, setSaleNotes] = useState("");
+  const [taxRate, setTaxRate] = useState("15");
+  const [creatingSale, setCreatingSale] = useState(false);
   const [form, setForm] = useState<ProductForm>(emptyForm);
 
   const filteredDeviceTypes = COMMON_APPLIANCES.filter((deviceType) =>
@@ -152,6 +182,11 @@ export default function ShopProductsPage() {
   };
 
   useEffect(() => {
+    fetchCustomers();
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
     fetchProducts();
   }, [statusFilter]);
 
@@ -159,6 +194,9 @@ export default function ShopProductsPage() {
     () => products.filter((product) => product.status === "PUBLISHED").length,
     [products]
   );
+  const saleSubtotal = sellingProduct?.price || 0;
+  const saleTax = (saleSubtotal * numberValue(taxRate, 0)) / 100;
+  const saleTotal = saleSubtotal + saleTax;
 
   const resetForm = () => {
     setEditingProduct(null);
@@ -168,6 +206,40 @@ export default function ShopProductsPage() {
     setDeviceSearchTerm("");
     setBrandSearchTerm("");
   };
+
+  async function fetchCustomers() {
+    try {
+      const response = await fetch("/api/customers?limit=500");
+      const data = await response.json();
+      if (response.ok) {
+        setCustomers(data.customers || []);
+      }
+    } catch (error) {
+      console.error("Failed to load customers", error);
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const response = await fetch("/api/settings");
+      if (response.ok) {
+        const settings = await response.json();
+        setTaxRate(String(settings.taxRate ?? 15));
+      }
+    } catch (error) {
+      console.error("Failed to load settings", error);
+    }
+
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 7);
+    setSaleDueDate(dueDate.toISOString().split("T")[0]);
+  }
+
+  function openSaleDialog(product: ShopProduct) {
+    setSellingProduct(product);
+    setSaleCustomerId("");
+    setSaleNotes("");
+  }
 
   const editProduct = (product: ShopProduct) => {
     setEditingProduct(product);
@@ -301,6 +373,54 @@ export default function ShopProductsPage() {
     }
   };
 
+  const createProductSaleInvoice = async () => {
+    if (!sellingProduct) return;
+
+    if (!saleCustomerId) {
+      toast({
+        title: "Customer required",
+        description: "Select a customer before creating the invoice",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingSale(true);
+    try {
+      const response = await fetch(`/api/shop-products/${sellingProduct.id}/sell`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: saleCustomerId,
+          dueDate: new Date(saleDueDate).toISOString(),
+          taxRate: numberValue(taxRate, 0),
+          notes: saleNotes || undefined,
+          paymentTerms: "Payment due upon collection of the product",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create invoice");
+      }
+
+      toast({
+        title: "Invoice created",
+        description: `${data.invoice.invoiceNumber} created for ${sellingProduct.title}`,
+      });
+      setSellingProduct(null);
+      fetchProducts();
+      router.push(`/invoices/${data.invoice.id}`);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create invoice",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingSale(false);
+    }
+  };
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-NZ", {
       style: "currency",
@@ -361,7 +481,7 @@ export default function ShopProductsPage() {
                     <TableHead>Product</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Price</TableHead>
-                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                    <TableHead className="w-[168px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -405,6 +525,16 @@ export default function ShopProductsPage() {
                         <TableCell>{formatCurrency(product.price)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openSaleDialog(product)}
+                              disabled={product.status === "SOLD" || product.status === "ARCHIVED"}
+                              title="Sell product"
+                            >
+                              <ShoppingCart className="h-4 w-4" />
+                            </Button>
                             <Button type="button" variant="outline" size="sm" onClick={() => editProduct(product)}>
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -653,6 +783,107 @@ export default function ShopProductsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={Boolean(sellingProduct)} onOpenChange={(open) => {
+        if (!open) setSellingProduct(null);
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Sell Product</DialogTitle>
+            <DialogDescription>Create a customer invoice and mark this shop product as sold.</DialogDescription>
+          </DialogHeader>
+
+          {sellingProduct ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-md border p-3">
+                <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  {sellingProduct.images[0] ? (
+                    <Image src={sellingProduct.images[0]} alt={sellingProduct.title} fill className="object-cover" sizes="80px" />
+                  ) : null}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{sellingProduct.title}</p>
+                  <p className="text-sm text-gray-500">
+                    {[
+                      sellingProduct.brand,
+                      sellingProduct.deviceType,
+                      sellingProduct.modelNumber,
+                    ].filter(Boolean).join(" / ") || sellingProduct.slug}
+                  </p>
+                </div>
+                <div className="ml-auto text-right font-semibold">
+                  {formatCurrency(sellingProduct.price)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Customer *</Label>
+                  <Select value={saleCustomerId} onValueChange={setSaleCustomerId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.firstName} {customer.lastName} - {customer.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Due Date</Label>
+                  <Input type="date" value={saleDueDate} onChange={(event) => setSaleDueDate(event.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea rows={4} value={saleNotes} onChange={(event) => setSaleNotes(event.target.value)} />
+                </div>
+                <div className="space-y-3 rounded-md border p-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span className="font-medium">{formatCurrency(saleSubtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <Label className="whitespace-nowrap">GST %</Label>
+                    <Input
+                      className="w-24 text-right"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={taxRate}
+                      onChange={(event) => setTaxRate(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>GST</span>
+                    <span className="font-medium">{formatCurrency(saleTax)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Total</span>
+                    <span>{formatCurrency(saleTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSellingProduct(null)} disabled={creatingSale}>
+              Cancel
+            </Button>
+            <Button onClick={createProductSaleInvoice} disabled={creatingSale}>
+              <Package className="mr-2 h-4 w-4" />
+              {creatingSale ? "Creating..." : "Create Invoice"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
