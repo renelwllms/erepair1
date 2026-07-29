@@ -63,6 +63,25 @@ type Customer = {
   lastName: string;
   email: string;
   phone: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  customerType?: "RESIDENTIAL" | "COMMERCIAL";
+  notes?: string;
+};
+
+type CustomerForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  customerType: "RESIDENTIAL" | "COMMERCIAL";
+  notes: string;
 };
 
 type ProductForm = {
@@ -97,6 +116,19 @@ const emptyForm: ProductForm = {
   featured: false,
   images: [],
   internalNotes: "",
+};
+
+const emptyCustomerForm: CustomerForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  customerType: "RESIDENTIAL",
+  notes: "",
 };
 
 const statusOptions: ShopProductStatus[] = ["DRAFT", "PUBLISHED", "RESERVED", "SOLD", "ARCHIVED"];
@@ -143,6 +175,9 @@ export default function ShopProductsPage() {
   const [saleNotes, setSaleNotes] = useState("");
   const [taxRate, setTaxRate] = useState("15");
   const [creatingSale, setCreatingSale] = useState(false);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [form, setForm] = useState<ProductForm>(emptyForm);
 
   const filteredDeviceTypes = COMMON_APPLIANCES.filter((deviceType) =>
@@ -239,6 +274,8 @@ export default function ShopProductsPage() {
     setSellingProduct(product);
     setSaleCustomerId("");
     setSaleNotes("");
+    setShowNewCustomer(false);
+    setCustomerForm(emptyCustomerForm);
   }
 
   const editProduct = (product: ShopProduct) => {
@@ -265,6 +302,10 @@ export default function ShopProductsPage() {
 
   const updateForm = (field: keyof ProductForm, value: string | boolean | string[]) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateCustomerForm = (field: keyof CustomerForm, value: string) => {
+    setCustomerForm((current) => ({ ...current, [field]: value }));
   };
 
   const uploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -370,6 +411,52 @@ export default function ShopProductsPage() {
         description: error.message || "Failed to delete product",
         variant: "destructive",
       });
+    }
+  };
+
+  const createCustomerForSale = async () => {
+    setSavingCustomer(true);
+    try {
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(customerForm),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create customer");
+      }
+
+      const newCustomer: Customer = {
+        id: data.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+        customerType: data.customerType,
+        notes: data.notes,
+      };
+
+      setCustomers((current) => [newCustomer, ...current.filter((customer) => customer.id !== newCustomer.id)]);
+      setSaleCustomerId(newCustomer.id);
+      setShowNewCustomer(false);
+      setCustomerForm(emptyCustomerForm);
+      toast({
+        title: "Customer created",
+        description: `${newCustomer.firstName} ${newCustomer.lastName} has been selected for this invoice`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create customer",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCustomer(false);
     }
   };
 
@@ -787,7 +874,7 @@ export default function ShopProductsPage() {
       <Dialog open={Boolean(sellingProduct)} onOpenChange={(open) => {
         if (!open) setSellingProduct(null);
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Sell Product</DialogTitle>
             <DialogDescription>Create a customer invoice and mark this shop product as sold.</DialogDescription>
@@ -818,7 +905,18 @@ export default function ShopProductsPage() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Customer *</Label>
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>Customer *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowNewCustomer((current) => !current)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Customer
+                    </Button>
+                  </div>
                   <Select value={saleCustomerId} onValueChange={setSaleCustomerId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select customer" />
@@ -837,6 +935,166 @@ export default function ShopProductsPage() {
                   <Input type="date" value={saleDueDate} onChange={(event) => setSaleDueDate(event.target.value)} />
                 </div>
               </div>
+
+              {showNewCustomer ? (
+                <div className="space-y-4 rounded-md border bg-gray-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">New Customer</p>
+                      <p className="text-xs text-gray-500">Fill in the details to create a new customer.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowNewCustomer(false);
+                        setCustomerForm(emptyCustomerForm);
+                      }}
+                      disabled={savingCustomer}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerFirstName">
+                        First Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="saleCustomerFirstName"
+                        value={customerForm.firstName}
+                        onChange={(event) => updateCustomerForm("firstName", event.target.value)}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerLastName">
+                        Last Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="saleCustomerLastName"
+                        value={customerForm.lastName}
+                        onChange={(event) => updateCustomerForm("lastName", event.target.value)}
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerEmail">
+                        Email <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="saleCustomerEmail"
+                        type="email"
+                        value={customerForm.email}
+                        onChange={(event) => updateCustomerForm("email", event.target.value)}
+                        placeholder="john.doe@example.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerPhone">
+                        Phone <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="saleCustomerPhone"
+                        value={customerForm.phone}
+                        onChange={(event) => updateCustomerForm("phone", event.target.value)}
+                        placeholder="(555) 123-4567"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="saleCustomerType">
+                      Customer Type <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={customerForm.customerType}
+                      onValueChange={(value) => updateCustomerForm("customerType", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="RESIDENTIAL">Residential</SelectItem>
+                        <SelectItem value="COMMERCIAL">Commercial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="saleCustomerAddress">Address</Label>
+                    <Input
+                      id="saleCustomerAddress"
+                      value={customerForm.address}
+                      onChange={(event) => updateCustomerForm("address", event.target.value)}
+                      placeholder="123 Main St"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerCity">City</Label>
+                      <Input
+                        id="saleCustomerCity"
+                        value={customerForm.city}
+                        onChange={(event) => updateCustomerForm("city", event.target.value)}
+                        placeholder="New York"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerState">State</Label>
+                      <Input
+                        id="saleCustomerState"
+                        value={customerForm.state}
+                        onChange={(event) => updateCustomerForm("state", event.target.value)}
+                        placeholder="NY"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="saleCustomerZipCode">Zip Code</Label>
+                      <Input
+                        id="saleCustomerZipCode"
+                        value={customerForm.zipCode}
+                        onChange={(event) => updateCustomerForm("zipCode", event.target.value)}
+                        placeholder="10001"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="saleCustomerNotes">Notes</Label>
+                    <Textarea
+                      id="saleCustomerNotes"
+                      rows={3}
+                      value={customerForm.notes}
+                      onChange={(event) => updateCustomerForm("notes", event.target.value)}
+                      placeholder="Any additional notes about the customer..."
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowNewCustomer(false);
+                        setCustomerForm(emptyCustomerForm);
+                      }}
+                      disabled={savingCustomer}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="button" onClick={createCustomerForSale} disabled={savingCustomer}>
+                      {savingCustomer ? "Saving..." : "Create"}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
