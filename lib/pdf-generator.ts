@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { INVOICE_PAYMENT_DETAILS } from "@/lib/payment-details";
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -470,6 +471,23 @@ export async function generateInvoicePDF(invoiceData: InvoiceData): Promise<jsPD
   }
 
   const configuredTerms = invoiceData.termsAndConditions?.trim();
+
+  ensureSpace(18);
+  addFullWidthSeparator();
+  yPosition += 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Payment Details", margin, yPosition);
+  yPosition += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(70, 70, 70);
+  doc.text(INVOICE_PAYMENT_DETAILS, margin, yPosition);
+  yPosition += 4;
+  doc.setTextColor(0, 0, 0);
 
   if (configuredTerms) {
     ensureSpace(22);

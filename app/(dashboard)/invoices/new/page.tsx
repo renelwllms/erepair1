@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Trash2, Calculator } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 
 interface Job {
   id: string;
@@ -268,15 +269,15 @@ export default function NewInvoicePage() {
   };
 
   const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    return calculateInvoiceTotals(items, parseFloat(taxRate || "0"), parseFloat(discountAmount || "0")).subtotal;
   };
 
   const calculateTax = () => {
-    return (calculateSubtotal() * parseFloat(taxRate || "0")) / 100;
+    return calculateInvoiceTotals(items, parseFloat(taxRate || "0"), parseFloat(discountAmount || "0")).taxAmount;
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateTax() - parseFloat(discountAmount || "0");
+    return calculateInvoiceTotals(items, parseFloat(taxRate || "0"), parseFloat(discountAmount || "0")).totalAmount;
   };
 
   const formatCurrency = (amount: number) => {

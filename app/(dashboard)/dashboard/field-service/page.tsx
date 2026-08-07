@@ -416,7 +416,7 @@ export default function FieldServiceDashboardPage() {
     markersRef.current.push(officeMarker);
 
     data.jobs
-      .filter((job) => job.calloutLatitude && job.calloutLongitude)
+      .filter((job) => job.status !== "CLOSED" && job.calloutLatitude && job.calloutLongitude)
       .forEach((job) => {
         const marker = new window.google.maps.Marker({
           position: { lat: job.calloutLatitude, lng: job.calloutLongitude },

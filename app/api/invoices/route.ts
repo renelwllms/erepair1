@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { withInvoiceAccessScope } from "@/lib/access-control";
 import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
+import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -305,12 +306,6 @@ export async function POST(request: NextRequest) {
       partId: "partId" in item ? item.partId || null : null,
     }));
 
-    // Calculate totals
-    const subtotal = invoiceItems.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
-      0
-    );
-
     // Get tax rate from settings or use provided
     let taxRate = validatedData.taxRate || 0;
     if (!validatedData.taxRate) {
@@ -318,9 +313,12 @@ export async function POST(request: NextRequest) {
       taxRate = settings?.taxRate || 0;
     }
 
-    const taxAmount = (subtotal * taxRate) / 100;
     const discountAmount = validatedData.discountAmount || 0;
-    const totalAmount = subtotal + taxAmount - discountAmount;
+    const { subtotal, taxAmount, totalAmount } = calculateInvoiceTotals(
+      invoiceItems,
+      taxRate,
+      discountAmount
+    );
 
     // Create invoice with items in a transaction
     const invoice = await db.$transaction(async (tx: any) => {

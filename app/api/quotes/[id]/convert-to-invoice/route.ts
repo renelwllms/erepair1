@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canAccessQuote } from "@/lib/access-control";
 import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
+import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 import { addDays } from "date-fns";
 
 async function resolveActiveStaffUser(session: any) {
@@ -128,11 +129,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(jobWithDiagnostics.diagnosticFeeAmount)] : []),
     ];
 
-    const subtotal = invoiceItems.reduce((sum, item) => sum + item.totalPrice, 0);
     const taxRate = quote.taxRate;
-    const taxAmount = (subtotal * taxRate) / 100;
     const discountAmount = quote.discountAmount || 0;
-    const totalAmount = subtotal + taxAmount - discountAmount;
+    const { subtotal, taxAmount, totalAmount } = calculateInvoiceTotals(
+      invoiceItems,
+      taxRate,
+      discountAmount
+    );
 
     // Create invoice from quote
     const invoice = await dbAny.invoice.create({

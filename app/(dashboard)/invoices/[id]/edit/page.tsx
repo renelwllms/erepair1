@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Plus, Trash2, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { normalizePaymentTerms } from "@/lib/payment-terms";
+import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 
 interface InvoiceItem {
   id?: string;
@@ -158,9 +159,8 @@ export default function EditInvoicePage() {
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-    const taxAmount = (subtotal * taxRate) / 100;
-    const total = subtotal + taxAmount - discountAmount;
+    const { subtotal, taxAmount, totalAmount } = calculateInvoiceTotals(items, taxRate, discountAmount);
+    const total = totalAmount;
     const balanceAmount = total;
     return { subtotal, taxAmount, total, balanceAmount };
   };

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canAccessInvoice } from "@/lib/access-control";
+import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic';
@@ -174,12 +175,25 @@ export async function PUT(
       updateData.dueDate = new Date(validatedData.dueDate);
     }
 
-    if (validatedData.subtotal !== undefined) updateData.subtotal = validatedData.subtotal;
-    if (validatedData.taxRate !== undefined) updateData.taxRate = validatedData.taxRate;
-    if (validatedData.taxAmount !== undefined) updateData.taxAmount = validatedData.taxAmount;
-    if (validatedData.discountAmount !== undefined) updateData.discountAmount = validatedData.discountAmount;
-    if (validatedData.totalAmount !== undefined) updateData.totalAmount = validatedData.totalAmount;
-    if (validatedData.balanceAmount !== undefined) updateData.balanceAmount = validatedData.balanceAmount;
+    if (validatedData.items) {
+      const taxRate = validatedData.taxRate ?? existingInvoice.taxRate;
+      const discountAmount = validatedData.discountAmount ?? existingInvoice.discountAmount;
+      const totals = calculateInvoiceTotals(validatedData.items, taxRate, discountAmount);
+
+      updateData.subtotal = totals.subtotal;
+      updateData.taxRate = taxRate;
+      updateData.taxAmount = totals.taxAmount;
+      updateData.discountAmount = totals.discountAmount;
+      updateData.totalAmount = totals.totalAmount;
+      updateData.balanceAmount = totals.totalAmount;
+    } else {
+      if (validatedData.subtotal !== undefined) updateData.subtotal = validatedData.subtotal;
+      if (validatedData.taxRate !== undefined) updateData.taxRate = validatedData.taxRate;
+      if (validatedData.taxAmount !== undefined) updateData.taxAmount = validatedData.taxAmount;
+      if (validatedData.discountAmount !== undefined) updateData.discountAmount = validatedData.discountAmount;
+      if (validatedData.totalAmount !== undefined) updateData.totalAmount = validatedData.totalAmount;
+      if (validatedData.balanceAmount !== undefined) updateData.balanceAmount = validatedData.balanceAmount;
+    }
 
     const invoice = await db.$transaction(async (tx: any) => {
       if (validatedData.items) {

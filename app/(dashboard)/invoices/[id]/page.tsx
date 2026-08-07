@@ -48,6 +48,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { normalizePaymentTerms } from "@/lib/payment-terms";
+import { INVOICE_PAYMENT_DETAILS } from "@/lib/payment-details";
 import { TermsSummary } from "@/components/legal/terms-summary";
 
 interface InvoiceItem {
@@ -1242,6 +1243,12 @@ export default function InvoiceDetailPage() {
               </div>
             </>
           )}
+
+          <Separator />
+          <div className="print-terms-summary rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+            <h4 className="mb-2 font-semibold text-gray-900">Payment Details</h4>
+            <p className="text-sm text-gray-700">{INVOICE_PAYMENT_DETAILS}</p>
+          </div>
 
           <Separator />
           {configuredTerms ? (
