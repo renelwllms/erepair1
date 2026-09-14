@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { withInvoiceAccessScope } from "@/lib/access-control";
-import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
+import {
+  buildCalloutFeeItem,
+  buildDiagnosticCreditItem,
+  getCalloutFeeAmount,
+  shouldApplyDiagnosticCredit,
+} from "@/lib/diagnostic-fees";
 import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 import { z } from "zod";
 
@@ -10,6 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const invoiceItemSchema = z.object({
   partId: z.string().optional().nullable(),
+  shopProductId: z.string().optional().nullable(),
   description: z.string().min(1, "Description is required"),
   quantity: z.number().min(0.01, "Quantity must be greater than 0"),
   unitPrice: z.number(),
@@ -20,6 +26,14 @@ const invoiceItemSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ["quantity"],
       message: "Inventory part quantities must be whole numbers",
+    });
+  }
+
+  if (item.shopProductId && item.quantity !== 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["quantity"],
+      message: "Shop product invoice quantities must be 1",
     });
   }
 
@@ -290,21 +304,40 @@ export async function POST(request: NextRequest) {
       item.quantity === 1 &&
       Number(item.unitPrice) === -Math.abs(existingJob.diagnosticFeeAmount || 0)
     );
+    const calloutFeeAmount = getCalloutFeeAmount(existingJob);
+    const hasCalloutFeeItem = validatedData.items.some((item) =>
+      existingJob &&
+      item.description === "Callout Fee" &&
+      item.quantity === 1 &&
+      Number(item.unitPrice) === Math.abs(calloutFeeAmount)
+    );
 
     const shouldApplyDiagnosticFee =
-      existingJob &&
-      existingJob.diagnosticFeeAmount > 0 &&
-      existingJob.diagnosticFeePaid &&
-      !existingJob.diagnosticFeeAppliedToInvoice &&
+      shouldApplyDiagnosticCredit(existingJob) &&
       !hasDiagnosticCreditItem;
+    const shouldApplyCalloutFee = calloutFeeAmount > 0 && !hasCalloutFeeItem;
 
     const invoiceItems = [
       ...validatedData.items,
+      ...(shouldApplyCalloutFee ? [buildCalloutFeeItem(calloutFeeAmount)] : []),
       ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(existingJob.diagnosticFeeAmount)] : []),
     ].map((item) => ({
       ...item,
       partId: "partId" in item ? item.partId || null : null,
+      shopProductId: "shopProductId" in item ? item.shopProductId || null : null,
     }));
+
+    const shopProductIds = invoiceItems
+      .map((item) => item.shopProductId)
+      .filter((id): id is string => Boolean(id));
+    const uniqueShopProductIds = Array.from(new Set(shopProductIds));
+
+    if (uniqueShopProductIds.length !== shopProductIds.length) {
+      return NextResponse.json(
+        { error: "Each shop product can only be added once to an invoice" },
+        { status: 400 }
+      );
+    }
 
     // Get tax rate from settings or use provided
     let taxRate = validatedData.taxRate || 0;
@@ -338,6 +371,28 @@ export async function POST(request: NextRequest) {
 
         if (updatedPart.count !== 1) {
           throw new Error(`Insufficient stock for ${item.description}`);
+        }
+      }
+
+      for (const shopProductId of uniqueShopProductIds) {
+        const matchingItem = invoiceItems.find((item) => item.shopProductId === shopProductId);
+        const updatedProduct = await tx.shopProduct.updateMany({
+          where: {
+            id: shopProductId,
+            status: { notIn: ["SOLD", "ARCHIVED"] },
+          },
+          data: {
+            status: "SOLD",
+            featured: false,
+            soldAt: new Date(),
+            internalNotes: matchingItem
+              ? `Sold via invoice ${invoiceNumber}${matchingItem.description ? `: ${matchingItem.description}` : ""}`
+              : `Sold via invoice ${invoiceNumber}`,
+          },
+        });
+
+        if (updatedProduct.count !== 1) {
+          throw new Error(`Shop product is no longer available: ${matchingItem?.description || shopProductId}`);
         }
       }
 
@@ -414,7 +469,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error instanceof Error && error.message.startsWith("Insufficient stock")) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("Insufficient stock") || error.message.startsWith("Shop product is no longer available"))
+    ) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { geocodeAddress, detectCalloutLocation } from "@/lib/geocoding";
 import { sendEmail } from "@/lib/email";
 import { calloutBookingConfirmationEmail } from "@/lib/email-templates";
 
@@ -25,45 +24,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = bookingSchema.parse(body);
 
-    // 1. Get settings for callout locations and geocoding
+    // Get the settings used to generate the job number.
     const settings = await db.settings.findFirst();
-    if (!settings || !settings.calloutLocations) {
+    if (!settings) {
       return NextResponse.json(
-        { error: "Callout service not configured" },
+        { error: "Callout service is not configured" },
         { status: 500 }
       );
     }
 
-    const locations = JSON.parse(settings.calloutLocations);
-
-    // 2. Geocode address
-    const geocodeResult = await geocodeAddress(
-      `${data.address}, ${data.city}, ${data.postcode}`,
-      settings.geocodingApiKey || ""
-    );
-
-    if (!geocodeResult) {
-      return NextResponse.json(
-        { error: "Unable to verify address. Please check and try again." },
-        { status: 400 }
-      );
-    }
-
-    // 3. Detect location and fee
-    const detectedLocation = detectCalloutLocation(
-      geocodeResult.lat,
-      geocodeResult.lng,
-      locations
-    );
-
-    if (!detectedLocation) {
-      return NextResponse.json(
-        { error: "Address is outside our service area" },
-        { status: 400 }
-      );
-    }
-
-    // 4. Find or create customer (same pattern as submit-job)
+    // Find or create customer (same pattern as submit-job)
     let customer = await db.customer.findFirst({
       where: { phone: data.phone }
     });
@@ -96,7 +66,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Get or create system user
+    // Get or create system user
     let systemUser = await db.user.findUnique({
       where: { email: "system@erepair.com" }
     });
@@ -117,7 +87,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 6. Generate job number
+    // Generate job number
     const lastJob = await db.job.findFirst({
       orderBy: { createdAt: "desc" },
       select: { jobNumber: true }
@@ -133,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     const jobNumber = `${settings.jobNumberPrefix}${String(nextNumber).padStart(5, "0")}`;
 
-    // 7. Create job with callout flag
+    // Create job with callout flag
     const job = await db.job.create({
       data: {
         jobNumber,
@@ -146,12 +116,7 @@ export async function POST(request: NextRequest) {
         status: "NEW_CALLOUT",
         createdById: systemUser.id,
         isCallout: true,
-        calloutLocation: detectedLocation.name,
-        calloutFee: detectedLocation.fee,
-        calloutAddress: geocodeResult.formattedAddress || `${data.address}, ${data.city}, ${data.postcode}`,
-        calloutLatitude: geocodeResult.lat,
-        calloutLongitude: geocodeResult.lng,
-        googlePlaceId: geocodeResult.placeId || null,
+        calloutAddress: `${data.address}, ${data.city}, ${data.postcode}`,
         preferredCalloutDate: new Date(data.preferredDate),
         scheduledTime: new Date(data.preferredDate),
         scheduledDate: new Date(data.preferredDate),
@@ -189,8 +154,6 @@ export async function POST(request: NextRequest) {
         jobNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         calloutDate: data.preferredDate,
-        calloutLocation: detectedLocation.name,
-        calloutFee: detectedLocation.fee,
         address: `${data.address}, ${data.city}`,
         serviceDescription: data.serviceDescription,
         companyName: settings.companyName,
@@ -214,8 +177,6 @@ export async function POST(request: NextRequest) {
       success: true,
       jobNumber,
       jobId: job.id,
-      calloutFee: detectedLocation.fee,
-      calloutLocation: detectedLocation.name,
       message: "Callout booking submitted successfully. We'll contact you within 2 business hours to confirm the exact time.",
     });
 

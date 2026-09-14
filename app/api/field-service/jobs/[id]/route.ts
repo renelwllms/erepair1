@@ -25,7 +25,6 @@ const scheduleSchema = z.object({
   calloutAddress: z.string().min(1).optional(),
   calloutLatitude: z.number().optional(),
   calloutLongitude: z.number().optional(),
-  googlePlaceId: z.string().optional(),
   distanceFromOfficeKm: z.number().optional(),
   estimatedTravelTime: z.string().optional(),
   calloutAccessInstructions: z.string().optional(),
@@ -166,13 +165,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     if (data.action === "schedule") {
-      if (data.calloutAddress && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
-        return NextResponse.json(
-          { error: "Select a Google Places address before saving this callout address" },
-          { status: 400 }
-        );
-      }
-
       const scheduledTime = data.scheduledTime ? new Date(data.scheduledTime) : undefined;
       const updated = await dbAny.job.update({
         where: { id: (await params).id },
@@ -183,7 +175,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           calloutAddress: data.calloutAddress,
           calloutLatitude: data.calloutLatitude,
           calloutLongitude: data.calloutLongitude,
-          googlePlaceId: data.googlePlaceId,
+          googlePlaceId: null,
           distanceFromOfficeKm: data.distanceFromOfficeKm,
           estimatedTravelTime: data.estimatedTravelTime,
           calloutAccessInstructions: data.calloutAccessInstructions,

@@ -34,7 +34,6 @@ const jobUpdateSchema = z.object({
   calloutAddress: z.string().nullable().optional(),
   calloutLatitude: z.number().nullable().optional(),
   calloutLongitude: z.number().nullable().optional(),
-  googlePlaceId: z.string().nullable().optional(),
   distanceFromOfficeKm: z.number().nullable().optional(),
   estimatedTravelTime: z.string().nullable().optional(),
   preferredCalloutDate: z.string().nullable().optional(),
@@ -42,18 +41,6 @@ const jobUpdateSchema = z.object({
   calloutParkingNotes: z.string().nullable().optional(),
   calloutApplianceLocation: z.string().nullable().optional(),
   calloutFee: z.number().nullable().optional(),
-}).superRefine((data, ctx) => {
-  if (data.jobType !== "CALLOUT_REPAIR") {
-    return;
-  }
-
-  if (data.calloutAddress?.trim() && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["calloutAddress"],
-      message: "Select a Google Places address before saving a callout repair",
-    });
-  }
 });
 
 // GET /api/jobs/[id] - Get a single job
@@ -247,28 +234,6 @@ export async function PUT(
 
     const nextJobType = validatedData.jobType ?? existingJob.jobType ?? (existingJob.isCallout ? "CALLOUT_REPAIR" : "WORKSHOP_REPAIR");
     const isCallout = nextJobType === "CALLOUT_REPAIR";
-    const addressChanged =
-      validatedData.calloutAddress !== undefined &&
-      validatedData.calloutAddress !== existingJob.calloutAddress;
-
-    if (isCallout) {
-      const nextAddress = validatedData.calloutAddress ?? existingJob.calloutAddress;
-
-      const missingFields = [
-        addressChanged &&
-          nextAddress?.trim() &&
-          (!validatedData.calloutLatitude || !validatedData.calloutLongitude || !validatedData.googlePlaceId) &&
-          "Address changes must be selected from Google Places",
-      ].filter(Boolean);
-
-      if (missingFields.length > 0) {
-        return NextResponse.json(
-          { error: "Validation error", details: missingFields.map((message) => ({ message })) },
-          { status: 400 }
-        );
-      }
-    }
-
     // Update job
     const job = await dbAny.job.update({
       where: { id: (await params).id },
@@ -284,7 +249,7 @@ export async function PUT(
         calloutAddress: isCallout ? validatedData.calloutAddress ?? existingJob.calloutAddress : null,
         calloutLatitude: isCallout ? validatedData.calloutLatitude ?? existingJob.calloutLatitude : null,
         calloutLongitude: isCallout ? validatedData.calloutLongitude ?? existingJob.calloutLongitude : null,
-        googlePlaceId: isCallout ? validatedData.googlePlaceId ?? existingJob.googlePlaceId : null,
+        googlePlaceId: null,
         distanceFromOfficeKm: isCallout ? validatedData.distanceFromOfficeKm ?? existingJob.distanceFromOfficeKm : null,
         estimatedTravelTime: isCallout ? validatedData.estimatedTravelTime ?? existingJob.estimatedTravelTime : null,
         calloutFee: isCallout ? validatedData.calloutFee ?? existingJob.calloutFee : null,

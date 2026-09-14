@@ -83,7 +83,6 @@ interface FieldJob {
   calloutAddress?: string | null;
   calloutLatitude?: number | null;
   calloutLongitude?: number | null;
-  googlePlaceId?: string | null;
   distanceFromOfficeKm?: number | null;
   estimatedTravelTime?: string | null;
   travelEstimateSource?: string | null;
@@ -186,47 +185,6 @@ const formatDateTime = (value?: string | null) => {
 const formatDistance = (value?: number | null) =>
   typeof value === "number" ? `${value.toFixed(1)} km` : "Not calculated";
 
-const calculateGoogleTravel = async (
-  origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number }
-) =>
-  new Promise<{ distanceFromOfficeKm: number; estimatedTravelTime: string } | null>((resolve) => {
-    if (!window.google?.maps?.DistanceMatrixService) {
-      resolve(null);
-      return;
-    }
-
-    const service = new window.google.maps.DistanceMatrixService();
-    service.getDistanceMatrix(
-      {
-        origins: [origin],
-        destinations: [destination],
-        travelMode: window.google.maps.TravelMode.DRIVING,
-        drivingOptions: {
-          departureTime: new Date(Date.now() + 5 * 60 * 1000),
-          trafficModel: "bestguess",
-        },
-      },
-      (result: any, status: string) => {
-        if (status !== "OK") {
-          resolve(null);
-          return;
-        }
-
-        const element = result?.rows?.[0]?.elements?.[0];
-        if (element?.status !== "OK") {
-          resolve(null);
-          return;
-        }
-
-        resolve({
-          distanceFromOfficeKm: element.distance.value / 1000,
-          estimatedTravelTime: element.duration_in_traffic?.text || element.duration?.text,
-        });
-      }
-    );
-  });
-
 const compressImage = async (file: File) => {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
@@ -281,11 +239,9 @@ export default function FieldServiceDashboardPage() {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
-  const addressInputRef = useRef<HTMLInputElement | null>(null);
   const notesSectionRef = useRef<HTMLDivElement | null>(null);
   const photosSectionRef = useRef<HTMLDivElement | null>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const selectedPlaceRef = useRef<any>(null);
 
   const fetchDashboard = async () => {
     const params = new URLSearchParams({
@@ -330,7 +286,7 @@ export default function FieldServiceDashboardPage() {
       renderMap();
     };
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.map.googleApiKey}&libraries=places&callback=initFieldServiceMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${data.map.googleApiKey}&callback=initFieldServiceMap`;
     script.async = true;
     script.onerror = () => {
       setMapLoadError("Google Maps could not load. Check the API key browser restrictions, Maps JavaScript API access, and billing status in Google Cloud.");
@@ -347,7 +303,6 @@ export default function FieldServiceDashboardPage() {
 
   useEffect(() => {
     setCalloutAddressValue(selectedJob?.calloutAddress || "");
-    selectedPlaceRef.current = null;
   }, [selectedJob?.id]);
 
   useEffect(() => {
@@ -362,28 +317,6 @@ export default function FieldServiceDashboardPage() {
       setPendingDialogSection(null);
     }, 100);
   }, [selectedJob, pendingDialogSection]);
-
-  useEffect(() => {
-    if (!window.google?.maps?.places || !addressInputRef.current || !selectedJob) return;
-
-    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      fields: ["formatted_address", "geometry", "place_id"],
-      componentRestrictions: { country: "nz" },
-    });
-
-    const listener = autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      selectedPlaceRef.current = place;
-      if (place?.formatted_address) {
-        setCalloutAddressValue(place.formatted_address);
-        if (addressInputRef.current) {
-          addressInputRef.current.value = place.formatted_address;
-        }
-      }
-    });
-
-    return () => listener.remove();
-  }, [selectedJob, data?.map.googleApiKey]);
 
   const renderMap = () => {
     if (dashboardTab !== "map" || !window.google?.maps || !mapRef.current || !data) return;
@@ -665,7 +598,6 @@ export default function FieldServiceDashboardPage() {
 
   const saveCalloutDetails = async () => {
     if (!selectedJob) return;
-    const place = selectedPlaceRef.current;
     const addressValue = calloutAddressValue.trim();
     const payload: Record<string, unknown> = {
       action: "schedule",
@@ -677,49 +609,11 @@ export default function FieldServiceDashboardPage() {
     };
 
     if (addressValue && addressValue !== selectedJob.calloutAddress) {
-      if (!place?.geometry?.location || !place.place_id) {
-        toast({
-          title: "Select an address",
-          description: "Choose a Google Places suggestion before saving the callout address.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      payload.calloutAddress = place.formatted_address;
-      payload.calloutLatitude = place.geometry.location.lat();
-      payload.calloutLongitude = place.geometry.location.lng();
-      payload.googlePlaceId = place.place_id;
-
-    }
-
-    const destination =
-      typeof payload.calloutLatitude === "number" && typeof payload.calloutLongitude === "number"
-        ? { lat: payload.calloutLatitude, lng: payload.calloutLongitude }
-        : typeof selectedJob.calloutLatitude === "number" && typeof selectedJob.calloutLongitude === "number"
-          ? { lat: selectedJob.calloutLatitude, lng: selectedJob.calloutLongitude }
-          : null;
-
-    if (
-      destination &&
-      data?.map.officeLatitude &&
-      data?.map.officeLongitude &&
-      (!selectedJob.distanceFromOfficeKm || !selectedJob.estimatedTravelTime || payload.calloutAddress)
-    ) {
-      const travel = await calculateGoogleTravel(
-        { lat: data.map.officeLatitude, lng: data.map.officeLongitude },
-        destination
-      );
-
-      if (travel) {
-        payload.distanceFromOfficeKm = travel.distanceFromOfficeKm;
-        payload.estimatedTravelTime = travel.estimatedTravelTime;
-      }
+      payload.calloutAddress = addressValue;
     }
 
     try {
       await mutateJob(selectedJob.id, payload);
-      selectedPlaceRef.current = null;
       toast({ title: "Callout updated", description: "Schedule and address details saved." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1017,7 +911,7 @@ export default function FieldServiceDashboardPage() {
             ) : (
               <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-slate-600">
                 <MapPin className="mb-3 h-8 w-8 text-slate-400" />
-                Add a Google Maps API key in settings to enable map markers and Places address selection.
+                Add a Google Maps API key in settings to enable map markers.
               </div>
             )}
           </div>
@@ -1114,20 +1008,13 @@ export default function FieldServiceDashboardPage() {
                     <div className="space-y-4 px-6 pb-6">
                       <div className="grid gap-3 md:grid-cols-2">
 	                        <div className="md:col-span-2">
-	                          <Label htmlFor="calloutAddress">Google Places Address</Label>
+	                          <Label htmlFor="calloutAddress">Address</Label>
 	                          <Input
-	                            ref={addressInputRef}
 	                            id="calloutAddress"
 	                            value={calloutAddressValue}
-	                            onChange={(event) => {
-	                              setCalloutAddressValue(event.target.value);
-	                              selectedPlaceRef.current = null;
-	                            }}
-	                            placeholder="Select a Google Places result"
+	                            onChange={(event) => setCalloutAddressValue(event.target.value)}
+	                            placeholder="Enter the full address"
 	                          />
-	                          <p className="mt-1 text-xs text-slate-500">
-	                            Select a Google suggestion before saving if you change the address.
-	                          </p>
 	                        </div>
                         <div>
                           <Label htmlFor="scheduledTime">Scheduled Time</Label>

@@ -514,8 +514,6 @@ export function calloutBookingConfirmationEmail({
   jobNumber,
   customerName,
   calloutDate,
-  calloutLocation,
-  calloutFee,
   address,
   serviceDescription,
   companyName = "E-Repair Shop",
@@ -523,8 +521,6 @@ export function calloutBookingConfirmationEmail({
   jobNumber: string;
   customerName: string;
   calloutDate: string;
-  calloutLocation: string;
-  calloutFee: number;
   address: string;
   serviceDescription: string;
   companyName?: string;
@@ -579,14 +575,6 @@ export function calloutBookingConfirmationEmail({
         </tr>
         <tr>
           <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
-            <strong>Service Area:</strong>
-          </td>
-          <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
-            ${calloutLocation}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">
             <strong>Preferred Date:</strong>
           </td>
           <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">
@@ -604,24 +592,6 @@ export function calloutBookingConfirmationEmail({
           </td>
         </tr>
       </table>
-    </div>
-
-    <!-- Callout Fee Box -->
-    <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 0 0 30px 0;">
-      <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 20px;">
-        Callout Fee: $${calloutFee.toFixed(2)}
-      </h3>
-      <p style="color: #78350f; font-size: 14px; line-height: 1.6; margin: 0;">
-        <strong>Important:</strong> This fee covers:
-      </p>
-      <ul style="color: #78350f; font-size: 14px; line-height: 1.6; margin: 10px 0 10px 20px; padding: 0;">
-        <li>Travel to your location</li>
-        <li>Initial diagnostic assessment (up to 1 hour)</li>
-        <li>Detailed fault report</li>
-      </ul>
-      <p style="color: #78350f; font-size: 14px; line-height: 1.6; margin: 0;">
-        Any parts or additional labor required will be quoted separately for your approval.
-      </p>
     </div>
 
     <!-- What Happens Next -->
@@ -682,20 +652,10 @@ Booking Number: ${jobNumber}
 
 BOOKING DETAILS:
 Service Location: ${address}
-Service Area: ${calloutLocation}
 Preferred Date: ${formattedDate}
-Callout Fee: $${calloutFee.toFixed(2)}
 
 Service Required:
 ${serviceDescription}
-
-CALLOUT FEE INFORMATION:
-This fee covers:
-• Travel to your location
-• Initial diagnostic assessment (up to 1 hour)
-• Detailed fault report
-
-Any parts or additional labor required will be quoted separately for your approval.
 
 WHAT HAPPENS NEXT:
 

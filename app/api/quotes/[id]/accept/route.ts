@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
+import {
+  buildCalloutFeeItem,
+  buildDiagnosticCreditItem,
+  getCalloutFeeAmount,
+  shouldApplyDiagnosticCredit,
+} from "@/lib/diagnostic-fees";
 import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 
 async function resolveInvoiceIssuerId(quote: any) {
@@ -150,10 +155,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     dueDate.setDate(dueDate.getDate() + 30);
 
     const jobWithDiagnostics = quote.job as any;
-    const shouldApplyDiagnosticFee =
-      jobWithDiagnostics.diagnosticFeeAmount > 0 &&
-      jobWithDiagnostics.diagnosticFeePaid &&
-      !jobWithDiagnostics.diagnosticFeeAppliedToInvoice;
+    const calloutFeeAmount = getCalloutFeeAmount(jobWithDiagnostics);
+    const shouldApplyCalloutFee = calloutFeeAmount > 0;
+    const shouldApplyDiagnosticFee = shouldApplyDiagnosticCredit(jobWithDiagnostics);
 
     const invoiceItems = [
       ...quote.quoteItems.map((item: any) => ({
@@ -163,6 +167,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         totalPrice: item.totalPrice,
         itemType: "SERVICE_FEE",
       })),
+      ...(shouldApplyCalloutFee ? [buildCalloutFeeItem(calloutFeeAmount)] : []),
       ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(jobWithDiagnostics.diagnosticFeeAmount)] : []),
     ];
 

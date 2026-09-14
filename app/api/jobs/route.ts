@@ -27,25 +27,12 @@ const jobSchema = z.object({
   calloutAddress: z.string().optional(),
   calloutLatitude: z.number().optional(),
   calloutLongitude: z.number().optional(),
-  googlePlaceId: z.string().optional(),
   distanceFromOfficeKm: z.number().optional(),
   estimatedTravelTime: z.string().optional(),
   preferredCalloutDate: z.string().optional(),
   calloutAccessInstructions: z.string().optional(),
   calloutParkingNotes: z.string().optional(),
   calloutApplianceLocation: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.jobType !== "CALLOUT_REPAIR") {
-    return;
-  }
-
-  if (data.calloutAddress?.trim() && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["calloutAddress"],
-      message: "Select a Google Places address before creating a callout repair",
-    });
-  }
 });
 
 // GET /api/jobs - Get all jobs with optional filters
@@ -338,7 +325,7 @@ export async function POST(request: NextRequest) {
         calloutAddress: isCallout ? validatedData.calloutAddress : null,
         calloutLatitude: isCallout ? validatedData.calloutLatitude : null,
         calloutLongitude: isCallout ? validatedData.calloutLongitude : null,
-        googlePlaceId: isCallout ? validatedData.googlePlaceId : null,
+        googlePlaceId: null,
         distanceFromOfficeKm: isCallout ? validatedData.distanceFromOfficeKm : null,
         estimatedTravelTime: isCallout ? validatedData.estimatedTravelTime : null,
         scheduledTime: isCallout ? preferredCalloutDate : null,

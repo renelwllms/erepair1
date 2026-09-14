@@ -15,7 +15,6 @@ import {
   Calendar,
   Loader2,
   User,
-  DollarSign,
   AlertCircle,
   FileText
 } from "lucide-react";
@@ -51,11 +50,7 @@ export default function BookCalloutPage() {
   const [jobNumber, setJobNumber] = useState("");
   const [searchingCustomer, setSearchingCustomer] = useState(false);
   const [customerFound, setCustomerFound] = useState(false);
-  const [detectedLocation, setDetectedLocation] = useState<string | null>(null);
-  const [calloutFee, setCalloutFee] = useState<number | null>(null);
   const [calloutTerms, setCalloutTerms] = useState<string>("");
-  const [detectingLocation, setDetectingLocation] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>("");
 
@@ -74,9 +69,6 @@ export default function BookCalloutPage() {
   });
 
   const phone = watch("phone");
-  const address = watch("address");
-  const city = watch("city");
-  const postcode = watch("postcode");
   const preferredContactMethod = watch("preferredContactMethod");
   const acceptTerms = watch("acceptTerms");
 
@@ -145,61 +137,7 @@ export default function BookCalloutPage() {
     return () => clearTimeout(timeoutId);
   };
 
-  // Detect location and fee based on address
-  const detectLocation = async () => {
-    if (!address || !city || !postcode) {
-      return;
-    }
-
-    setDetectingLocation(true);
-    setLocationError(null);
-
-    try {
-      const fullAddress = `${address}, ${city}, ${postcode}`;
-      const response = await fetch(`/api/public/geocode?address=${encodeURIComponent(fullAddress)}`);
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to verify address");
-      }
-
-      if (result.calloutLocation && result.calloutFee !== undefined) {
-        setDetectedLocation(result.calloutLocation);
-        setCalloutFee(result.calloutFee);
-        setLocationError(null);
-      } else {
-        setDetectedLocation(null);
-        setCalloutFee(null);
-        setLocationError("Address is outside our service area");
-      }
-    } catch (error: any) {
-      console.error("Error detecting location:", error);
-      setDetectedLocation(null);
-      setCalloutFee(null);
-      setLocationError(error.message || "Unable to verify address");
-    } finally {
-      setDetectingLocation(false);
-    }
-  };
-
-  // Detect location when address changes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (address && city && postcode) {
-        detectLocation();
-      }
-    }, 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [address, city, postcode]);
-
   const onSubmit = async (data: CalloutBookingFormData) => {
-    // Verify location is detected
-    if (!detectedLocation || calloutFee === null) {
-      alert("Please enter a valid address within our service area");
-      return;
-    }
-
     setLoading(true);
     try {
       const response = await fetch("/api/public/book-callout", {
@@ -253,21 +191,6 @@ export default function BookCalloutPage() {
                 </ol>
               </AlertDescription>
             </Alert>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <DollarSign className="h-5 w-5 text-amber-600 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-amber-900">Callout Fee: ${calloutFee?.toFixed(2)}</h3>
-                  <p className="text-sm text-amber-800 mt-1">
-                    Location: {detectedLocation}
-                  </p>
-                  <p className="text-xs text-amber-700 mt-2">
-                    This fee covers travel and diagnostic assessment. Any parts or additional labor will be quoted separately.
-                  </p>
-                </div>
-              </div>
-            </div>
 
             <div className="space-y-2">
               <p className="text-sm text-gray-600">
@@ -473,39 +396,6 @@ export default function BookCalloutPage() {
                 </div>
               </div>
 
-              {/* Location Detection Status */}
-              {detectingLocation && (
-                <Alert className="bg-blue-50 border-blue-200">
-                  <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-                  <AlertDescription className="text-blue-800">
-                    Verifying address and calculating callout fee...
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {locationError && (
-                <Alert className="bg-red-50 border-red-200">
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800">
-                    {locationError}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {detectedLocation && calloutFee !== null && !detectingLocation && (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription>
-                    <div className="text-green-900">
-                      <p className="font-semibold">Location verified: {detectedLocation}</p>
-                      <p className="text-lg font-bold mt-1">Callout Fee: ${calloutFee.toFixed(2)}</p>
-                      <p className="text-xs mt-1 text-green-700">
-                        This fee covers travel and diagnostic assessment (up to 1 hour)
-                      </p>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
             </CardContent>
           </Card>
 
@@ -598,7 +488,7 @@ export default function BookCalloutPage() {
             <CardContent className="pt-6">
               <Button
                 type="submit"
-                disabled={loading || !detectedLocation || calloutFee === null}
+                disabled={loading}
                 className="w-full h-12 text-lg"
               >
                 {loading ? (
@@ -613,11 +503,6 @@ export default function BookCalloutPage() {
                   </>
                 )}
               </Button>
-              {(!detectedLocation || calloutFee === null) && (
-                <p className="text-xs text-center text-gray-500 mt-2">
-                  Please enter a valid address to continue
-                </p>
-              )}
             </CardContent>
           </Card>
         </form>

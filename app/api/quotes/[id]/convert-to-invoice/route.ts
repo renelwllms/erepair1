@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canAccessQuote } from "@/lib/access-control";
-import { buildDiagnosticCreditItem } from "@/lib/diagnostic-fees";
+import {
+  buildCalloutFeeItem,
+  buildDiagnosticCreditItem,
+  getCalloutFeeAmount,
+  shouldApplyDiagnosticCredit,
+} from "@/lib/diagnostic-fees";
 import { calculateInvoiceTotals } from "@/lib/invoice-totals";
 import { addDays } from "date-fns";
 
@@ -113,10 +118,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const dueDate = addDays(new Date(), 30);
 
     const jobWithDiagnostics = quote.job as any;
-    const shouldApplyDiagnosticFee =
-      jobWithDiagnostics.diagnosticFeeAmount > 0 &&
-      jobWithDiagnostics.diagnosticFeePaid &&
-      !jobWithDiagnostics.diagnosticFeeAppliedToInvoice;
+    const calloutFeeAmount = getCalloutFeeAmount(jobWithDiagnostics);
+    const shouldApplyCalloutFee = calloutFeeAmount > 0;
+    const shouldApplyDiagnosticFee = shouldApplyDiagnosticCredit(jobWithDiagnostics);
 
     const invoiceItems = [
       ...quote.quoteItems.map((item: any) => ({
@@ -126,6 +130,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         totalPrice: item.totalPrice,
         itemType: item.itemType,
       })),
+      ...(shouldApplyCalloutFee ? [buildCalloutFeeItem(calloutFeeAmount)] : []),
       ...(shouldApplyDiagnosticFee ? [buildDiagnosticCreditItem(jobWithDiagnostics.diagnosticFeeAmount)] : []),
     ];
 

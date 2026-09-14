@@ -19,13 +19,6 @@ import {
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-declare global {
-  interface Window {
-    google?: any;
-    initEditJobPlaces?: () => void;
-  }
-}
-
 // Common appliances and brands
 const COMMON_APPLIANCES = [
   "Refrigerator",
@@ -115,7 +108,6 @@ const jobSchema = z.object({
   calloutAddress: z.string().optional(),
   calloutLatitude: z.number().optional(),
   calloutLongitude: z.number().optional(),
-  googlePlaceId: z.string().optional(),
   distanceFromOfficeKm: z.number().optional(),
   estimatedTravelTime: z.string().optional(),
   preferredCalloutDate: z.string().optional(),
@@ -123,18 +115,6 @@ const jobSchema = z.object({
   calloutParkingNotes: z.string().optional(),
   calloutApplianceLocation: z.string().optional(),
   calloutFee: z.number().min(0).optional(),
-}).superRefine((data, ctx) => {
-  if (data.jobType !== "CALLOUT_REPAIR") {
-    return;
-  }
-
-  if (data.calloutAddress?.trim() && (!data.calloutLatitude || !data.calloutLongitude || !data.googlePlaceId)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["calloutAddress"],
-      message: "Select a Google Places address from the suggestions",
-    });
-  }
 });
 
 type JobFormData = z.infer<typeof jobSchema>;
@@ -157,8 +137,6 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
   const [customBrand, setCustomBrand] = useState("");
   const [applianceSearchTerm, setApplianceSearchTerm] = useState("");
   const [brandSearchTerm, setBrandSearchTerm] = useState("");
-  const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
-  const [officeLocation, setOfficeLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [confirmedPreferredCalloutDate, setConfirmedPreferredCalloutDate] = useState("");
 
   const {
@@ -193,76 +171,6 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
     fetchData();
   }, [id]);
 
-  useEffect(() => {
-    if (jobType !== "CALLOUT_REPAIR" || !mapsApiKey || window.google?.maps?.places) {
-      return;
-    }
-
-    window.initEditJobPlaces = () => undefined;
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places&callback=initEditJobPlaces`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  }, [jobType, mapsApiKey]);
-
-  useEffect(() => {
-    if (jobType !== "CALLOUT_REPAIR" || !window.google?.maps?.places) {
-      return;
-    }
-
-    const input = document.getElementById("calloutAddress") as HTMLInputElement | null;
-    if (!input) {
-      return;
-    }
-
-    const autocomplete = new window.google.maps.places.Autocomplete(input, {
-      fields: ["formatted_address", "geometry", "place_id"],
-      componentRestrictions: { country: "nz" },
-    });
-
-    const listener = autocomplete.addListener("place_changed", async () => {
-      const place = autocomplete.getPlace();
-      if (!place?.formatted_address || !place?.geometry?.location || !place.place_id) {
-        return;
-      }
-
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      setValue("calloutAddress", place.formatted_address, { shouldValidate: true });
-      setValue("calloutLatitude", lat, { shouldValidate: true });
-      setValue("calloutLongitude", lng, { shouldValidate: true });
-      setValue("googlePlaceId", place.place_id, { shouldValidate: true });
-
-      if (officeLocation && window.google?.maps?.DistanceMatrixService) {
-        const service = new window.google.maps.DistanceMatrixService();
-        service.getDistanceMatrix(
-          {
-            origins: [officeLocation],
-            destinations: [{ lat, lng }],
-            travelMode: window.google.maps.TravelMode.DRIVING,
-            drivingOptions: {
-              departureTime: new Date(Date.now() + 5 * 60 * 1000),
-              trafficModel: "bestguess",
-            },
-          },
-          (result: any, status: string) => {
-            if (status !== "OK") {
-              return;
-            }
-            const element = result?.rows?.[0]?.elements?.[0];
-            if (element?.status === "OK") {
-              setValue("distanceFromOfficeKm", element.distance.value / 1000);
-              setValue("estimatedTravelTime", element.duration_in_traffic?.text || element.duration?.text);
-            }
-          }
-        );
-      }
-    });
-
-    return () => listener.remove();
-  }, [jobType, mapsApiKey, officeLocation, setValue]);
-
   const fetchData = async () => {
     try {
       const [jobRes, techniciansRes, settingsRes] = await Promise.all([
@@ -295,7 +203,6 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
       setValue("calloutAddress", job.calloutAddress || "");
       setValue("calloutLatitude", job.calloutLatitude ?? undefined);
       setValue("calloutLongitude", job.calloutLongitude ?? undefined);
-      setValue("googlePlaceId", job.googlePlaceId || undefined);
       setValue("distanceFromOfficeKm", job.distanceFromOfficeKm ?? undefined);
       setValue("estimatedTravelTime", job.estimatedTravelTime || undefined);
       setValue("calloutAccessInstructions", job.calloutAccessInstructions || "");
@@ -321,10 +228,6 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
 
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
-        setMapsApiKey(settings.geocodingApiKey || null);
-        if (typeof settings.officeLatitude === "number" && typeof settings.officeLongitude === "number") {
-          setOfficeLocation({ lat: settings.officeLatitude, lng: settings.officeLongitude });
-        }
       }
     } catch (error: any) {
       toast({
@@ -597,13 +500,6 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
 
             {jobType === "CALLOUT_REPAIR" && (
               <>
-                <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
-                  <h3 className="font-semibold text-blue-950">Callout Repair Details</h3>
-                  <p className="mt-1 text-sm text-blue-800">
-                    Address changes must be selected from Google Places so distance, travel time, and map routing stay accurate.
-                  </p>
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="calloutAddress">
                     Full Address
@@ -611,18 +507,8 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
                   <Input
                     id="calloutAddress"
                     {...register("calloutAddress")}
-                    onChange={(event) => {
-                      setValue("calloutAddress", event.target.value, { shouldValidate: true });
-                      setValue("calloutLatitude", undefined, { shouldValidate: true });
-                      setValue("calloutLongitude", undefined, { shouldValidate: true });
-                      setValue("googlePlaceId", undefined, { shouldValidate: true });
-                    }}
-                    placeholder={mapsApiKey ? "Start typing and select a Google address" : "Google Maps API key required"}
-                    disabled={!mapsApiKey}
+                    placeholder="Enter the full address"
                   />
-                  {!mapsApiKey && (
-                    <p className="text-xs text-amber-700">Add a Google Maps API key in settings before editing callout addresses.</p>
-                  )}
                   {errors.calloutAddress && (
                     <p className="text-sm text-red-500">{errors.calloutAddress.message}</p>
                   )}

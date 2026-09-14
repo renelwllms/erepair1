@@ -17,13 +17,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Trash2, Calculator } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ShoppingCart, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { calculateInvoiceTotals } from "@/lib/invoice-totals";
+import { getCalloutFeeAmount, shouldApplyDiagnosticCredit } from "@/lib/diagnostic-fees";
 
 interface Job {
   id: string;
   jobNumber: string;
+  jobType?: "WORKSHOP_REPAIR" | "CALLOUT_REPAIR";
+  isCallout?: boolean;
   customerId: string;
   customer: {
     firstName: string;
@@ -37,6 +40,7 @@ interface Job {
   diagnosticFeeAmount: number;
   diagnosticFeePaid: boolean;
   diagnosticFeeAppliedToInvoice: boolean;
+  calloutFee?: number | null;
   invoice?: {
     id: string;
     invoiceNumber: string;
@@ -46,11 +50,63 @@ interface Job {
 
 interface InvoiceItem {
   id: string;
+  shopProductId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
   itemType: "PART" | "LABOR" | "SERVICE_FEE" | "TAX" | "DISCOUNT";
 }
+
+interface Customer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  customerType: "RESIDENTIAL" | "COMMERCIAL";
+  notes?: string | null;
+}
+
+interface CustomerForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  customerType: "RESIDENTIAL" | "COMMERCIAL";
+  notes: string;
+}
+
+interface ShopProduct {
+  id: string;
+  title: string;
+  brand?: string | null;
+  deviceType?: string | null;
+  modelNumber?: string | null;
+  capacityKg?: number | null;
+  price: number;
+  status: "DRAFT" | "PUBLISHED" | "RESERVED" | "SOLD" | "ARCHIVED";
+}
+
+const emptyCustomerForm: CustomerForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  customerType: "RESIDENTIAL",
+  notes: "",
+};
 
 export default function NewInvoicePage() {
   const router = useRouter();
@@ -62,6 +118,15 @@ export default function NewInvoicePage() {
   const [selectedJobId, setSelectedJobId] = useState("");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
+  const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
+  const [selectedShopProductId, setSelectedShopProductId] = useState("");
+  const [loadingShopProducts, setLoadingShopProducts] = useState(true);
 
   // Invoice form
   const [dueDate, setDueDate] = useState("");
@@ -120,6 +185,8 @@ export default function NewInvoicePage() {
 
   useEffect(() => {
     fetchJobs();
+    fetchCustomers();
+    fetchShopProducts();
     loadDefaultSettings();
   }, []);
 
@@ -177,6 +244,42 @@ export default function NewInvoicePage() {
     }
   };
 
+  const fetchCustomers = async () => {
+    setLoadingCustomers(true);
+    try {
+      const response = await fetch("/api/customers?limit=500");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load customers");
+      setCustomers(data.customers || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load customers",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  const fetchShopProducts = async () => {
+    setLoadingShopProducts(true);
+    try {
+      const response = await fetch("/api/shop-products?status=PUBLISHED");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load shop products");
+      setShopProducts(data);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load shop products",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingShopProducts(false);
+    }
+  };
+
   const loadDefaultSettings = async () => {
     try {
       const response = await fetch("/api/settings");
@@ -202,6 +305,7 @@ export default function NewInvoicePage() {
     setSelectedJobId(jobId);
     const job = jobs.find(j => j.id === jobId);
     setSelectedJob(job || null);
+    setSelectedCustomerId(job?.customerId || "");
 
     const nextItems: InvoiceItem[] = [];
 
@@ -216,12 +320,18 @@ export default function NewInvoicePage() {
       });
     }
 
-    if (
-      job &&
-      job.diagnosticFeeAmount > 0 &&
-      job.diagnosticFeePaid &&
-      !job.diagnosticFeeAppliedToInvoice
-    ) {
+    const calloutFeeAmount = getCalloutFeeAmount(job);
+    if (calloutFeeAmount > 0) {
+      nextItems.push({
+        id: crypto.randomUUID(),
+        description: "Callout Fee",
+        quantity: 1,
+        unitPrice: calloutFeeAmount,
+        itemType: "SERVICE_FEE",
+      });
+    }
+
+    if (job && shouldApplyDiagnosticCredit(job)) {
       nextItems.push({
         id: crypto.randomUUID(),
         description: "Diagnostic Fee (credited)",
@@ -232,6 +342,107 @@ export default function NewInvoicePage() {
     }
 
     setItems(nextItems);
+  };
+
+  const handleCustomerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    if (selectedJob && selectedJob.customerId !== customerId) {
+      setSelectedJobId("");
+      setSelectedJob(null);
+      setItems((current) => current.filter((item) => item.shopProductId));
+    }
+  };
+
+  const updateCustomerForm = (field: keyof CustomerForm, value: string) => {
+    setCustomerForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const createCustomer = async () => {
+    setSavingCustomer(true);
+    try {
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(customerForm),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        const detailMessage = Array.isArray(data.details)
+          ? data.details.map((detail: { message?: string }) => detail.message || "Invalid value").join(" | ")
+          : "";
+        throw new Error(detailMessage || data.error || "Failed to create customer");
+      }
+
+      const newCustomer: Customer = {
+        id: data.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+        customerType: data.customerType,
+        notes: data.notes,
+      };
+
+      setCustomers((current) => [newCustomer, ...current.filter((customer) => customer.id !== newCustomer.id)]);
+      setSelectedCustomerId(newCustomer.id);
+      setShowNewCustomer(false);
+      setCustomerForm(emptyCustomerForm);
+      toast({
+        title: "Customer created",
+        description: `${newCustomer.firstName} ${newCustomer.lastName} is selected for this invoice`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create customer",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  const addShopProduct = () => {
+    const product = shopProducts.find((item) => item.id === selectedShopProductId);
+    if (!product) {
+      toast({
+        title: "No product selected",
+        description: "Select a shop product to add",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (items.some((item) => item.shopProductId === product.id)) {
+      toast({
+        title: "Product already added",
+        description: `${product.title} is already on this invoice`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const description = [
+      product.title,
+      [product.brand, product.deviceType, product.modelNumber].filter(Boolean).join(" / "),
+    ].filter(Boolean).join(" - ");
+
+    setItems((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        shopProductId: product.id,
+        description,
+        quantity: 1,
+        unitPrice: product.price,
+        itemType: "PART",
+      },
+    ]);
+    setSelectedShopProductId("");
   };
 
   const addItem = () => {
@@ -289,15 +500,17 @@ export default function NewInvoicePage() {
 
   const handleSubmit = async () => {
     if (!selectedJobId) {
-      toast({
-        title: "No Job Selected",
-        description: "Please select a job to create an invoice for",
-        variant: "destructive",
-      });
-      return;
+      if (!selectedCustomerId) {
+        toast({
+          title: "No Customer Selected",
+          description: "Please select or create a customer for this invoice",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    if (!selectedJob) {
+    if (selectedJobId && !selectedJob) {
       toast({
         title: "Job Not Ready",
         description: "Please reselect the job and try again",
@@ -339,7 +552,8 @@ export default function NewInvoicePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          jobId: selectedJobId,
+          jobId: selectedJobId || undefined,
+          customerId: selectedJobId ? undefined : selectedCustomerId,
           dueDate: new Date(dueDate).toISOString(),
           items: items.map(({ id, ...item }) => item),
           taxRate: parseFloat(taxRate || "0"),
@@ -400,7 +614,7 @@ export default function NewInvoicePage() {
       <Card>
         <CardHeader>
           <CardTitle>Select Job</CardTitle>
-          <CardDescription>Choose a job to create an invoice for</CardDescription>
+          <CardDescription>Choose a repair job when this invoice is for service work</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -462,6 +676,183 @@ export default function NewInvoicePage() {
         </CardContent>
       </Card>
 
+      {/* Customer Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer</CardTitle>
+          <CardDescription>Select an existing customer or create one without leaving this invoice</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="space-y-2">
+              <Label htmlFor="customer">Customer *</Label>
+              {loadingCustomers ? (
+                <p className="text-sm text-gray-500">Loading customers...</p>
+              ) : (
+                <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.firstName} {customer.lastName} - {customer.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {selectedJob ? (
+                <p className="text-xs text-gray-500">
+                  This customer was selected from the chosen job.
+                </p>
+              ) : null}
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowNewCustomer((current) => !current)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New Customer
+              </Button>
+            </div>
+          </div>
+
+          {showNewCustomer ? (
+            <div className="space-y-4 rounded-md border bg-gray-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">New Customer</p>
+                  <p className="text-xs text-gray-500">Create and select a customer for this invoice.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setShowNewCustomer(false);
+                    setCustomerForm(emptyCustomerForm);
+                  }}
+                  disabled={savingCustomer}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerFirstName">First Name *</Label>
+                  <Input
+                    id="invoiceCustomerFirstName"
+                    value={customerForm.firstName}
+                    onChange={(event) => updateCustomerForm("firstName", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerLastName">Last Name *</Label>
+                  <Input
+                    id="invoiceCustomerLastName"
+                    value={customerForm.lastName}
+                    onChange={(event) => updateCustomerForm("lastName", event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerEmail">Email *</Label>
+                  <Input
+                    id="invoiceCustomerEmail"
+                    type="email"
+                    value={customerForm.email}
+                    onChange={(event) => updateCustomerForm("email", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerPhone">Phone *</Label>
+                  <Input
+                    id="invoiceCustomerPhone"
+                    value={customerForm.phone}
+                    onChange={(event) => updateCustomerForm("phone", event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="invoiceCustomerAddress">Address</Label>
+                  <Input
+                    id="invoiceCustomerAddress"
+                    value={customerForm.address}
+                    onChange={(event) => updateCustomerForm("address", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerType">Type *</Label>
+                  <Select
+                    value={customerForm.customerType}
+                    onValueChange={(value) => updateCustomerForm("customerType", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RESIDENTIAL">Residential</SelectItem>
+                      <SelectItem value="COMMERCIAL">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerCity">City</Label>
+                  <Input
+                    id="invoiceCustomerCity"
+                    value={customerForm.city}
+                    onChange={(event) => updateCustomerForm("city", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerState">Region</Label>
+                  <Input
+                    id="invoiceCustomerState"
+                    value={customerForm.state}
+                    onChange={(event) => updateCustomerForm("state", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceCustomerZip">Postcode</Label>
+                  <Input
+                    id="invoiceCustomerZip"
+                    value={customerForm.zipCode}
+                    onChange={(event) => updateCustomerForm("zipCode", event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoiceCustomerNotes">Notes</Label>
+                <Textarea
+                  id="invoiceCustomerNotes"
+                  value={customerForm.notes}
+                  onChange={(event) => updateCustomerForm("notes", event.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="button" onClick={createCustomer} disabled={savingCustomer}>
+                  {savingCustomer ? "Creating..." : "Create Customer"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
       {/* Line Items */}
       <Card>
         <CardHeader>
@@ -469,6 +860,46 @@ export default function NewInvoicePage() {
           <CardDescription>Add items, labor, and fees</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-md border bg-gray-50 p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="space-y-2">
+                <Label>Online Shop Product</Label>
+                {loadingShopProducts ? (
+                  <p className="text-sm text-gray-500">Loading shop products...</p>
+                ) : (
+                  <Select value={selectedShopProductId} onValueChange={setSelectedShopProductId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a published shop product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {shopProducts.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-gray-500">
+                          No published shop products available.
+                        </div>
+                      ) : (
+                        shopProducts.map((product) => (
+                          <SelectItem
+                            key={product.id}
+                            value={product.id}
+                            disabled={items.some((item) => item.shopProductId === product.id)}
+                          >
+                            {product.title} - {formatCurrency(product.price)}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="flex items-end">
+                <Button type="button" variant="outline" onClick={addShopProduct} disabled={!selectedShopProductId}>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Add Product
+                </Button>
+              </div>
+            </div>
+          </div>
+
           {/* Existing Items */}
           {items.length > 0 && (
             <div className="space-y-3">
@@ -715,7 +1146,7 @@ export default function NewInvoicePage() {
         >
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting || !selectedJobId || items.length === 0}>
+        <Button onClick={handleSubmit} disabled={isSubmitting || !selectedCustomerId || items.length === 0}>
           {isSubmitting ? "Creating..." : "Create Invoice"}
         </Button>
       </div>

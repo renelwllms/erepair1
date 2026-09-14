@@ -1520,7 +1520,7 @@ export default function SettingsPage() {
                         placeholder="AIza..."
                       />
                       <p className="text-xs text-gray-500">
-                        Enable Maps JavaScript API, Places API, Geocoding API, and Distance Matrix API in Google Cloud.
+                        Enable the Maps JavaScript API in Google Cloud to display field-service map markers.
                       </p>
                     </div>
                   </div>
